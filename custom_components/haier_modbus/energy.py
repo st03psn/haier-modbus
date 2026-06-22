@@ -60,6 +60,7 @@ def _empty() -> dict:
         "year_elec": 0.0,
         "seeded": False,
         "history": {},
+        "history_month": {},
     }
 
 
@@ -181,6 +182,16 @@ class EnergyAccumulator:
         mkey = now.strftime("%Y-%m")
         ykey = now.strftime("%Y")
         if d["month_key"] != mkey:
+            # Abgeschlossenen Monat archivieren (vor dem Reset), max. 36 behalten.
+            if d["month_key"] is not None and d["month_heat"] > 0 and d["month_elec"] > 0:
+                hm = d.setdefault("history_month", {})
+                hm[d["month_key"]] = {
+                    "heat": round(d["month_heat"], 3),
+                    "elec": round(d["month_elec"], 3),
+                    "cop": round(d["month_heat"] / d["month_elec"], 2),
+                }
+                for old in sorted(hm)[:-36]:
+                    del hm[old]
             d["month_key"] = mkey
             d["month_heat"] = 0.0
             d["month_elec"] = 0.0
@@ -281,6 +292,10 @@ class EnergyAccumulator:
     def history(self) -> dict:
         """Abgeschlossene Jahre: {'2026': {'heat','elec','cop'}, ...}."""
         return dict((self._data or {}).get("history", {}))
+
+    def month_history(self) -> dict:
+        """Abgeschlossene Monate: {'2026-06': {'heat','elec','cop'}, ...}."""
+        return dict((self._data or {}).get("history_month", {}))
 
     def previous_year_cop(self) -> float | None:
         """JAZ des zuletzt abgeschlossenen Jahres."""

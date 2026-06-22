@@ -297,6 +297,9 @@ class HaierCopSensor(HaierModbusEntity, SensorEntity):
         if self._period == "year":
             # Abgeschlossene Jahre für den Jahr-zu-Jahr-Vergleich (z. B. ApexCharts).
             attrs["jaz_per_year"] = e.history()
+        else:
+            # Abgeschlossene Monate für den Monat-zu-Monat-Vergleich.
+            attrs["cop_per_month"] = e.month_history()
         return attrs
 
 

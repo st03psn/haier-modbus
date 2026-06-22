@@ -79,10 +79,11 @@ demselben Datum (aus der Statistik der gewählten Stromquelle). Beide decken
 denselben Zeitraum ab – ohne dass eine Wärme-Historie nötig ist. Attribute:
 `reference_date` und `reference_auto`.
 
-**Jahresvergleich (JAZ):** Beim Jahreswechsel wird der fertige JAZ des
-abgeschlossenen Jahres dauerhaft archiviert. Es gibt einen Sensor **`JAZ (Vorjahr)`**
-und am **`JAZ (Jahr)`**-Sensor das Attribut `jaz_per_year` (`{"2026": {heat, elec, cop}, …}`)
-für eine Jahr-zu-Jahr-Vergleichskarte (z. B. ApexCharts). Wächst ab dem aktuellen Jahr.
+**Jahres-/Monatsvergleich (JAZ/COP):** Beim Jahres-/Monatswechsel wird der fertige
+Wert dauerhaft archiviert: Attribut `jaz_per_year` am **`JAZ (Jahr)`**-Sensor und
+`cop_per_month` am **`COP (Monat)`**-Sensor (je `{heat, elec, cop}`), plus Sensor
+**`JAZ (Vorjahr)`**. Fertige Vergleichskarte (ApexCharts):
+[`docs/lovelace-jaz-card.yaml`](docs/lovelace-jaz-card.yaml). Wächst ab Mess-Start.
 
 **Rückwirkendes Seeding:** Beim ersten Start werden Monats- und Jahres-Fenster
 einmalig aus der HA-Langzeitstatistik vorbefüllt (reset-bereinigte `sum`), damit
