@@ -69,11 +69,13 @@ gezählt, Quell-Resets werden abgefangen. Daraus:
   (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen)
 
 **`COP (seit Bezugsdatum)`:** Liefert **sofort** einen Wert, ohne auf eine volle
-Periode zu warten. Im COP-Setup ein **Bezugsdatum** setzen (der Tag, an dem der
-Geräte-Wärmezähler zuletzt genullt wurde). Dann gilt: Wärme = aktueller
-Geräte-Zähler (seit diesem Datum), Strom = Verbrauch seit demselben Datum (aus der
-Statistik der gewählten Stromquelle). Beide decken denselben Zeitraum ab — ohne
-dass eine Wärme-Historie nötig ist.
+Periode zu warten. Das **Bezugsdatum wird automatisch ermittelt** – der erste
+Monat des laufenden Jahres mit Wärme > 0 (aus den Geräte-Monatswerten, Reg 74–85);
+ein manuelles Datum im COP-Setup überschreibt das nur bei Bedarf. Dann gilt:
+Wärme = aktueller Geräte-Zähler (seit diesem Datum), Strom = Verbrauch seit
+demselben Datum (aus der Statistik der gewählten Stromquelle). Beide decken
+denselben Zeitraum ab – ohne dass eine Wärme-Historie nötig ist. Attribute:
+`reference_date` und `reference_auto`.
 
 **Jahresvergleich (JAZ):** Beim Jahreswechsel wird der fertige JAZ des
 abgeschlossenen Jahres dauerhaft archiviert. Es gibt einen Sensor **`JAZ (Vorjahr)`**

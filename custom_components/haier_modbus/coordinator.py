@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -33,6 +33,7 @@ from .const import (
     READ_COUNT,
     READ_START,
     REG_AMBIENT,
+    REG_HEAT_MONTHS,
     REG_HEAT_YEAR,
     REG_HEATER_ELEC_YEAR,
     REG_HP_ELEC_YEAR,
@@ -192,13 +193,15 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         """
         o = self.entry.options
         ref_str = o.get(CONF_COP_REF_DATE)
-        if not ref_str:
-            self.ref_cop = None
-            self.ref_cop_attrs = {}
-            return
-        ref_date = dt_util.parse_date(ref_str)
+        auto = False
+        if ref_str:
+            ref_date = dt_util.parse_date(ref_str)
+        else:
+            ref_date = self._auto_ref_date(data)
+            auto = True
         if ref_date is None:
             self.ref_cop = None
+            self.ref_cop_attrs = {}
             return
 
         start = dt_util.start_of_local_day(ref_date)
@@ -220,10 +223,28 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
 
         self.ref_cop = round(heat / elec, 2) if (heat and elec) else None
         self.ref_cop_attrs = {
-            "reference_date": ref_str,
+            "reference_date": ref_date.isoformat(),
+            "reference_auto": auto,
             "heat_kwh": round(heat, 3) if heat else heat,
             "electricity_kwh": round(elec, 3) if elec else elec,
         }
+
+    def _auto_ref_date(self, data: dict[int, int]) -> date | None:
+        """Bezugsdatum automatisch: erster Monat des laufenden Jahres mit Wärme > 0.
+
+        Nutzt die Monats-Wärmewerte des Geräts (Reg 74..85 = Jan..Dez), die im
+        Block-Read ohnehin mitkommen. Fällt auf den Jahresanfang zurück, wenn die
+        Monatswerte leer sind, aber „dieses Jahr" Wärme zeigt.
+        """
+        now = dt_util.now()
+        for k in range(12):  # Jan..Dez -> Reg 74..85
+            v = data.get(REG_HEAT_MONTHS + k)
+            if v and v > 0:
+                return date(now.year, k + 1, 1)
+        raw = data.get(REG_HEAT_YEAR)
+        if raw and raw > 0:
+            return date(now.year, 1, 1)
+        return None
 
     async def _accumulate_energy(self, data: dict[int, int]) -> None:
         """Wärme/Strom (quellabhängig) in kalender-ausgerichtete Eimer zählen."""
