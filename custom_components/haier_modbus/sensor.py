@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 from homeassistant.components.sensor import (
@@ -16,10 +15,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
-    CONF_COP_ELEC_ENTITY,
     CONF_COP_ELEC_SOURCE,
     CONF_COP_ENABLED,
-    CONF_COP_HEAT_ENTITY,
     CONF_COP_HEAT_SOURCE,
     CONF_ENERGY_SCALE,
     DEFAULT_ENERGY_SCALE,
@@ -37,7 +34,6 @@ from .const import (
     REG_TANK_TOP,
     REG_TARGET_TEMP,
     REG_WATER_TEMP,
-    SOURCE_EXTERNAL,
     STATUS_BOILER,
     STATUS_EHEATER,
     STATUS_HEATPUMP,
@@ -136,18 +132,6 @@ _SOURCE_LABELS: dict[str, dict[str, str]] = {
 
 def _scale(entry: ConfigEntry) -> float:
     return entry.options.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)
-
-
-def _state_float(hass: HomeAssistant, entity_id: str | None) -> float | None:
-    if not entity_id:
-        return None
-    state = hass.states.get(entity_id)
-    if state is None or state.state in ("unknown", "unavailable", "", None):
-        return None
-    try:
-        return float(state.state)
-    except (ValueError, TypeError):
-        return None
 
 
 class HaierRegSensor(HaierModbusEntity, SensorEntity):
