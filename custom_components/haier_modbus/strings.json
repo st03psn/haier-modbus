@@ -81,10 +81,13 @@
       "fault": { "name": "Fault code" },
       "mode_text": { "name": "Mode" },
       "current_source": { "name": "Current source" },
-      "hp_elec_year": { "name": "Heat pump electricity (this year)" },
-      "heater_elec_year": { "name": "Electric heater electricity (this year)" },
-      "heat_year": { "name": "Heat produced (this year)" },
-      "cop_year": { "name": "COP (this year)" }
+      "hp_elec_year": { "name": "Heat pump electricity (device, this year)" },
+      "heater_elec_year": { "name": "Electric heater electricity (device, this year)" },
+      "heat_year": { "name": "Heat produced (device, this year)" },
+      "heat_total": { "name": "Heat produced (total)" },
+      "elec_total": { "name": "Electricity used (total)" },
+      "cop_month": { "name": "COP (month)" },
+      "cop_year": { "name": "SPF (year)" }
     },
     "binary_sensor": {
       "status_wp": { "name": "Heat pump" },

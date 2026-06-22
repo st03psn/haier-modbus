@@ -11,11 +11,19 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from pymodbus.client import AsyncModbusTcpClient
 
+import homeassistant.util.dt as dt_util
+
 from .const import (
+    CONF_COP_ELEC_ENTITY,
+    CONF_COP_ELEC_SOURCE,
+    CONF_COP_HEAT_ENTITY,
+    CONF_COP_HEAT_SOURCE,
+    CONF_ENERGY_SCALE,
     CONF_HOST,
     CONF_PORT,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
+    DEFAULT_ENERGY_SCALE,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
@@ -23,9 +31,16 @@ from .const import (
     READ_COUNT,
     READ_START,
     REG_AMBIENT,
+    REG_HEAT_YEAR,
+    REG_HEATER_ELEC_YEAR,
+    REG_HP_ELEC_YEAR,
+    SOURCE_EXTERNAL,
 )
+from .energy import EnergyAccumulator, state_float
 
 _LOGGER = logging.getLogger(__name__)
+
+_SAVE_INTERVAL_S = 300  # Persistenz höchstens alle 5 min
 
 
 def _signed16(value: int) -> int:
@@ -45,6 +60,8 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
         self._client = AsyncModbusTcpClient(self.host, port=self.port)
+        self.energy = EnergyAccumulator(hass, entry.entry_id)
+        self._last_save = None
         super().__init__(
             hass,
             _LOGGER,
@@ -99,11 +116,41 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             }
             if REG_AMBIENT in data:
                 data[REG_AMBIENT] = _signed16(data[REG_AMBIENT])
+
+            await self._accumulate_energy(data)
             return data
         except UpdateFailed:
             raise
         except Exception as err:  # noqa: BLE001
             raise UpdateFailed(str(err)) from err
+
+    async def _accumulate_energy(self, data: dict[int, int]) -> None:
+        """Wärme/Strom (quellabhängig) in kalender-ausgerichtete Eimer zählen."""
+        if not self.energy.loaded:
+            await self.energy.async_load()
+
+        o = self.entry.options
+        scale = o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)
+
+        if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
+            heat = state_float(self.hass, o.get(CONF_COP_HEAT_ENTITY))
+        else:
+            raw = data.get(REG_HEAT_YEAR)
+            heat = raw * scale if raw is not None else None
+
+        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
+            elec = state_float(self.hass, o.get(CONF_COP_ELEC_ENTITY))
+        else:
+            hp = data.get(REG_HP_ELEC_YEAR)
+            heater = data.get(REG_HEATER_ELEC_YEAR)
+            elec = ((hp or 0) + (heater or 0)) * scale if (hp is not None or heater is not None) else None
+
+        self.energy.update(heat, elec)
+
+        now = dt_util.now()
+        if self._last_save is None or (now - self._last_save).total_seconds() >= _SAVE_INTERVAL_S:
+            self._last_save = now
+            await self.energy.async_save()
 
     async def async_write_register(self, address: int, value: int) -> None:
         """Einzelregister schreiben und danach sofort aktualisieren."""
@@ -117,6 +164,10 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             await self.async_request_refresh()
 
     async def async_close(self) -> None:
+        try:
+            await self.energy.async_save()
+        except Exception:  # noqa: BLE001
+            pass
         try:
             self._client.close()
         except Exception:  # noqa: BLE001

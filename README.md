@@ -51,6 +51,20 @@ Im Einrichtungs-Assistenten oder später unter **Geräte & Dienste → Haier …
 > belastbar ist, hängt davon ab, ob Register 90 die Wärme *misst* oder nur aus dem
 > Strom *zurückrechnet*. Vor Nutzung verifizieren – siehe `docs/register-map.md`.
 
+### COP/JAZ & aligned windows
+
+Geräteinterne „dieses Jahr"-Register von Strom und Wärme resetten zu
+*unterschiedlichen* Zeitpunkten – ihr Verhältnis wäre wertlos. Die Integration
+löst das mit einem internen, kalender-ausgerichteten Akkumulator (utility_meter-
+Logik): Strom und Wärme werden in **gemeinsame Monats- und Jahres-Fenster**
+gezählt, Quell-Resets werden abgefangen. Daraus:
+
+- **`COP (Monat)`** – monatlicher Arbeitszahl-Wert
+- **`JAZ (Jahr)`** – Jahresarbeitszahl
+- **`Wärme erzeugt (gesamt)`** / **`Stromverbrauch (gesamt)`** – monotone
+  `total_increasing`-Energiesensoren für **Verbrauchs-/Erzeugungskurven**
+  (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen)
+
 ## PV-Überschuss-Automation
 
 Blueprint: [`blueprints/automation/haier_modbus/pv_surplus.yaml`](blueprints/automation/haier_modbus/pv_surplus.yaml).

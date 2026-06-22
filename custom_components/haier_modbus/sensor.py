@@ -99,7 +99,10 @@ async def async_setup_entry(
     entities.append(HaierModeText(coordinator))
     entities.append(HaierCurrentSource(coordinator))
     entities += [HaierEnergySensor(coordinator, entry, d) for d in ENERGY_SENSORS]
-    entities.append(HaierCopSensor(coordinator, entry))
+    entities.append(HaierAccEnergy(coordinator, "total_heat", "heat_total"))
+    entities.append(HaierAccEnergy(coordinator, "total_elec", "elec_total"))
+    entities.append(HaierCopSensor(coordinator, entry, "month"))
+    entities.append(HaierCopSensor(coordinator, entry, "year"))
     async_add_entities(entities)
 
 
@@ -245,62 +248,63 @@ class HaierEnergySensor(HaierModbusEntity, SensorEntity):
         return round(raw * _scale(self._entry), 3)
 
 
-class HaierCopSensor(HaierModbusEntity, SensorEntity):
-    """COP (laufendes Jahr) = Wärmemenge / eingesetzter Strom.
+class HaierAccEnergy(HaierModbusEntity, SensorEntity):
+    """Monoton akkumulierte Gesamt-Energie (kWh) – speist das Energie-Dashboard.
 
-    Quellen frei wählbar (Options-Flow):
-      - Wärme:  Modbus-Register 90  ODER externer Wärmemengenzähler
-      - Strom:  Modbus (42 + 66)    ODER externer Stromzähler (z. B. Shelly)
-
-    Hinweis: Bei externer Stromquelle sollte ein *jährlich zurücksetzender*
-    Zähler (utility_meter, cycle: yearly) gewählt werden, damit das Fenster
-    zur geräteseitigen Jahres-Wärmemenge passt.
+    Im Gegensatz zu den geräteseitigen „dieses Jahr"-Registern (die zu eigenen
+    Zeitpunkten resetten) zählt dieser Wert über HA-kontrollierte positive
+    Deltas nur aufwärts – ideal als ``total_increasing`` für Verbrauchs-/
+    Erzeugungskurven mit automatischer Tages-/Monats-/Jahres-Aufschlüsselung.
     """
 
-    _attr_translation_key = "cop_year"
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+    def __init__(self, coordinator, key: str, translation_key: str) -> None:
+        super().__init__(coordinator)
+        self._key = key  # 'total_heat' | 'total_elec'
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
+
+    @property
+    def native_value(self):
+        return self.coordinator.energy.value(self._key)
+
+
+class HaierCopSensor(HaierModbusEntity, SensorEntity):
+    """COP über ein kalender-ausgerichtetes Fenster: Monat oder Jahr (JAZ).
+
+    Quelle ist der interne Energie-Akkumulator: Wärme und Strom werden in HA in
+    gemeinsamen Monats-/Jahres-Eimern gezählt – beide also immer über dasselbe
+    Fenster, unabhängig davon, wann ein Geräteregister intern zurückgesetzt
+    wird. Strom-/Wärmequelle bleiben im Setup/Options-Flow wählbar.
+    """
+
     _attr_icon = "mdi:gauge"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 2
 
-    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, entry: ConfigEntry, period: str) -> None:
         super().__init__(coordinator)
         self._entry = entry
-        self._attr_unique_id = f"{coordinator.entry.entry_id}_cop_year"
+        self._period = period  # 'month' | 'year'
+        self._attr_translation_key = "cop_month" if period == "month" else "cop_year"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_cop_{period}"
 
     @property
     def native_value(self):
-        o = self._entry.options
-        if not o.get(CONF_COP_ENABLED, True):
+        if not self._entry.options.get(CONF_COP_ENABLED, True):
             return None
-        scale = _scale(self._entry)
-
-        # Wärme
-        if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
-            heat = _state_float(self.hass, o.get(CONF_COP_HEAT_ENTITY))
-        else:
-            raw = self._regs.get(REG_HEAT_YEAR)
-            heat = raw * scale if raw is not None else None
-
-        # Strom
-        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
-            elec = _state_float(self.hass, o.get(CONF_COP_ELEC_ENTITY))
-        else:
-            hp = self._regs.get(REG_HP_ELEC_YEAR)
-            heater = self._regs.get(REG_HEATER_ELEC_YEAR)
-            if hp is None and heater is None:
-                elec = None
-            else:
-                elec = ((hp or 0) + (heater or 0)) * scale
-
-        if not heat or not elec:
-            return None
-        return round(heat / elec, 2)
+        return self.coordinator.energy.cop(self._period)
 
     @property
     def extra_state_attributes(self):
         o = self._entry.options
+        e = self.coordinator.energy
         return {
             "heat_source": o.get(CONF_COP_HEAT_SOURCE, "modbus"),
             "electricity_source": o.get(CONF_COP_ELEC_SOURCE, "modbus"),
-            "energy_scale": _scale(self._entry),
+            "heat_kwh": e.value(f"{self._period}_heat"),
+            "electricity_kwh": e.value(f"{self._period}_elec"),
         }

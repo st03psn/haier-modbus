@@ -81,10 +81,13 @@
       "fault": { "name": "Fehlercode" },
       "mode_text": { "name": "Modus" },
       "current_source": { "name": "Aktuelle Quelle" },
-      "hp_elec_year": { "name": "WP-Strom (dieses Jahr)" },
-      "heater_elec_year": { "name": "Heizstab-Strom (dieses Jahr)" },
-      "heat_year": { "name": "Wärmemenge (dieses Jahr)" },
-      "cop_year": { "name": "COP (dieses Jahr)" }
+      "hp_elec_year": { "name": "WP-Strom (Gerät, dieses Jahr)" },
+      "heater_elec_year": { "name": "Heizstab-Strom (Gerät, dieses Jahr)" },
+      "heat_year": { "name": "Wärmemenge (Gerät, dieses Jahr)" },
+      "heat_total": { "name": "Wärme erzeugt (gesamt)" },
+      "elec_total": { "name": "Stromverbrauch (gesamt)" },
+      "cop_month": { "name": "COP (Monat)" },
+      "cop_year": { "name": "JAZ (Jahr)" }
     },
     "binary_sensor": {
       "status_wp": { "name": "Wärmepumpe" },
