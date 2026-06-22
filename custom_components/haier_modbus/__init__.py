@@ -14,6 +14,7 @@ from homeassistant.helpers.issue_registry import (
 
 from .const import DOMAIN, PLATFORMS
 from .coordinator import HaierModbusCoordinator
+from .dashboard import async_register_dashboard, async_remove_dashboard
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +48,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
+    # Mitgeliefertes Dashboard registrieren (Entitäten sind jetzt registriert).
+    await async_register_dashboard(hass, entry)
+
     # Frontend-Karte (ApexCharts) sicherstellen – im Hintergrund, blockiert das
     # Setup nicht und kann es nie zum Scheitern bringen.
     entry.async_create_background_task(
@@ -64,6 +68,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Entladen."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
+        await async_remove_dashboard(hass)
         coordinator: HaierModbusCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.async_close()
     return unload_ok

@@ -108,6 +108,17 @@ dreistufig (hoch/normal/Grund) mit Entprellzeit und regelt nur, wenn nötig.
 (Einstellungen → Automationen & Szenen → Blueprints → **Blueprint importieren**),
 falls du die Logik lieber als Automation mit eigenen Anpassungen/Notifications führst.
 
+## Dashboard
+
+Die Integration liefert ein **fertiges Dashboard** mit und registriert es beim
+Setup automatisch in der Seitenleiste (**„Haier BWWP"**, `/haier-bwwp`).
+Es wird zur Laufzeit aus den real registrierten Entitäten erzeugt (Auflösung über
+`unique_id`), passt also unabhängig von den konkreten entity_ids – Karten zu
+(noch) fehlenden Entitäten werden ausgelassen. Abschnitte: Steuerung,
+Temperaturen, Status, Energie & COP, Verlauf (ApexCharts). Beim Entfernen der
+Integration verschwindet das Dashboard wieder. (Die ApexCharts-Karte wird bei
+Bedarf automatisch via HACS nachgezogen.)
+
 ## Recorder / Datenbank
 
 Standard-Abfrageintervall ist **5 s**. Damit die Datenbank nicht durch

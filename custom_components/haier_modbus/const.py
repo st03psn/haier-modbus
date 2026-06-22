@@ -56,6 +56,11 @@ DEFAULT_PV_DEBOUNCE: Final = 5
 MANUFACTURER: Final = "Haier"
 MODEL: Final = "HP200M7-F9"          # Standard-/Fallback-Modell
 
+# Mitgeliefertes Dashboard
+DASHBOARD_URL_PATH: Final = "haier-bwwp"
+DASHBOARD_TITLE: Final = "Haier BWWP"
+DASHBOARD_ICON: Final = "mdi:water-boiler"
+
 # Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte).
 # Schlüssel slug-konform (hassfest-Anforderung an Selector-Keys) -> Anzeigename.
 # Tankvolumen wird bewusst nicht erfasst (am Modell erkennbar). "other" = generisch.
