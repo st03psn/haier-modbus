@@ -15,6 +15,8 @@ CONF_HOST: Final = "host"
 CONF_PORT: Final = "port"
 CONF_SLAVE: Final = "slave"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
+CONF_MODEL: Final = "model"
+CONF_TANK_VOLUME: Final = "tank_volume"
 
 DEFAULT_PORT: Final = 502
 DEFAULT_SLAVE: Final = 1
@@ -35,8 +37,17 @@ DEFAULT_ENERGY_SCALE: Final = 1.0
 
 # Gerät
 MANUFACTURER: Final = "Haier"
-MODEL: Final = "HP200M7-F9"
-TANK_VOLUME_L: Final = 200
+MODEL: Final = "HP200M7-F9"          # Standard-/Fallback-Modell
+TANK_VOLUME_L: Final = 200           # Standard-/Fallback-Tankvolumen
+
+# Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte).
+# "other" erlaubt ein frei eingegebenes Modell.
+MODELS: Final = {
+    "HP160M7-F9": 160,
+    "HP200M7-F9": 200,
+    "HP260M7-F9": 260,
+    "other": 0,
+}
 
 # --- Block-Read ------------------------------------------------------------
 # Ein Read über Adresse 1..90 (90 Register <= 125 Limit von FC 0x03).

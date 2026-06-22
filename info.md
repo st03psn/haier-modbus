@@ -1,4 +1,5 @@
-# Haier Brauchwasserwärmepumpe (Modbus)
+# Haier BWWP (Modbus)
 
-Lokale Modbus-TCP-Integration für die Haier Brauchwasserwärmepumpe **HP200M7-F9** –
-ohne Cloud, mit Schreibzugriff und gerätegemessener Energie-/COP-Auswertung.
+Lokale Modbus-TCP-Integration für die Haier Brauchwasserwärmepumpe (BWWP) der
+**M7-Familie** (HP160/HP200/HP260 M7) – ohne hOn-Cloud, mit Schreibzugriff,
+gerätegemessener Energie-/COP-Auswertung und PV-Überschuss-Blueprint.

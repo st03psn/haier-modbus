@@ -64,12 +64,20 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             )
 
     async def _write_holding(self, address: int, value: int):
+        """Schreibt mit FC 0x10 (Write Multiple Registers).
+
+        Laut Hersteller-Doku unterstützen die RW-Register nur 0x03/0x10 –
+        NICHT 0x06 (Write Single Register). FC 0x06 quittiert das Gerät mit
+        einer Ausnahme (0x86). Daher write_registers mit einer Ein-Wort-Liste.
+        """
         try:
-            return await self._client.write_register(
-                address, value, device_id=self.slave
+            return await self._client.write_registers(
+                address, [value], device_id=self.slave
             )
         except TypeError:
-            return await self._client.write_register(address, value, slave=self.slave)
+            return await self._client.write_registers(
+                address, [value], slave=self.slave
+            )
 
     async def _async_update_data(self) -> dict[int, int]:
         try:

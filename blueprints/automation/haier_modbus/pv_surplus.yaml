@@ -1,0 +1,146 @@
+blueprint:
+  name: Haier BWWP – PV-Überschuss / PV surplus
+  description: >
+    Steuert die Solltemperatur der Haier-Brauchwasserwärmepumpe nach
+    PV-Überschuss. Drei Stufen: hoher Überschuss -> hohe Zieltemperatur,
+    normaler Überschuss -> mittlere Zieltemperatur, kein Überschuss ->
+    Grundtemperatur. Die BWWP regelt intern anhand der Zieltemperatur.
+
+    Controls the Haier domestic-hot-water heat pump's target temperature based
+    on PV surplus. Three tiers: high surplus -> high target, normal surplus ->
+    medium target, no surplus -> base target. The heat pump regulates itself
+    from the target temperature.
+  domain: automation
+  author: st03psn
+  source_url: https://github.com/st03psn/haier-modbus/blob/main/blueprints/automation/haier_modbus/pv_surplus.yaml
+  input:
+    pv_surplus_sensor:
+      name: PV-Überschuss-Sensor (W)
+      description: Sensor mit dem aktuellen PV-Überschuss in Watt.
+      selector:
+        entity:
+          domain: sensor
+          device_class: power
+    target_number:
+      name: Solltemperatur (number)
+      description: Die "Solltemperatur"-Entität der Haier-BWWP-Integration (Reg 6).
+      selector:
+        entity:
+          domain: number
+    water_temp_sensor:
+      name: Wassertemperatur-Sensor
+      description: >
+        Aktuelle Speicher-/Wassertemperatur (z. B. "Wassertemperatur" oder
+        "Tank oben"). Geheizt wird nur, wenn sie unter der Zielstufe liegt.
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    high_threshold:
+      name: Schwelle hoher Überschuss (W)
+      default: 1500
+      selector:
+        number: { min: 0, max: 10000, step: 50, unit_of_measurement: W, mode: box }
+    normal_threshold:
+      name: Schwelle normaler Überschuss (W)
+      default: 400
+      selector:
+        number: { min: 0, max: 10000, step: 50, unit_of_measurement: W, mode: box }
+    temp_high:
+      name: Zieltemperatur bei hohem Überschuss (°C)
+      default: 70
+      selector:
+        number: { min: 35, max: 75, step: 1, unit_of_measurement: "°C", mode: slider }
+    temp_normal:
+      name: Zieltemperatur bei normalem Überschuss (°C)
+      default: 65
+      selector:
+        number: { min: 35, max: 75, step: 1, unit_of_measurement: "°C", mode: slider }
+    temp_base:
+      name: Grund-Zieltemperatur ohne Überschuss (°C)
+      default: 50
+      selector:
+        number: { min: 35, max: 75, step: 1, unit_of_measurement: "°C", mode: slider }
+    debounce:
+      name: Entprellzeit (Minuten)
+      description: Wie lange eine Schwelle überschritten sein muss, bevor reagiert wird.
+      default: 5
+      selector:
+        number: { min: 0, max: 60, step: 1, unit_of_measurement: min, mode: box }
+    notify_target:
+      name: Benachrichtigungsdienst (optional)
+      description: notify-Dienst für Statusmeldungen, z. B. notify.mobile_app_xyz. Leer = aus.
+      default: ""
+
+mode: single
+max_exceeded: silent
+
+variables:
+  v_pv_sensor: !input pv_surplus_sensor
+  v_target_number: !input target_number
+  v_water_sensor: !input water_temp_sensor
+  v_high: !input high_threshold
+  v_normal: !input normal_threshold
+  v_temp_high: !input temp_high
+  v_temp_normal: !input temp_normal
+  v_temp_base: !input temp_base
+  v_notify: !input notify_target
+  pv: "{{ states(v_pv_sensor) | float(0) }}"
+  water: "{{ states(v_water_sensor) | float(0) }}"
+  current_target: "{{ states(v_target_number) | float(0) }}"
+  desired: >
+    {% if pv >= v_high %}{{ v_temp_high }}
+    {% elif pv >= v_normal %}{{ v_temp_normal }}
+    {% else %}{{ v_temp_base }}{% endif %}
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input pv_surplus_sensor
+    above: !input high_threshold
+    for: { minutes: !input debounce }
+    id: tier_change
+  - platform: numeric_state
+    entity_id: !input pv_surplus_sensor
+    above: !input normal_threshold
+    for: { minutes: !input debounce }
+    id: tier_change
+  - platform: numeric_state
+    entity_id: !input pv_surplus_sensor
+    below: !input normal_threshold
+    for: { minutes: !input debounce }
+    id: tier_change
+  - platform: numeric_state
+    entity_id: !input pv_surplus_sensor
+    below: !input high_threshold
+    for: { minutes: !input debounce }
+    id: tier_change
+  - platform: homeassistant
+    event: start
+    id: refresh
+
+condition: []
+
+action:
+  # Nichts tun, wenn die gewünschte Stufe bereits gesetzt ist.
+  - condition: template
+    value_template: "{{ (desired | float) != (current_target | float) }}"
+  # Beim Hochregeln nur heizen, wenn der Speicher noch unter der Zielstufe liegt;
+  # beim Herunterregeln (desired < current) immer ausführen.
+  - condition: template
+    value_template: >
+      {{ (desired | float) < (current_target | float)
+         or water < (desired | float) }}
+  - service: number.set_value
+    target:
+      entity_id: !input target_number
+    data:
+      value: "{{ desired | float }}"
+  - choose:
+      - conditions: "{{ v_notify | length > 0 }}"
+        sequence:
+          - service: "{{ v_notify }}"
+            data:
+              title: "BWWP Zieltemperatur {{ desired | int }}°C"
+              message: >
+                PV-Überschuss {{ pv | int }} W – Speicher {{ water | int }}°C,
+                Ziel auf {{ desired | int }}°C gesetzt.

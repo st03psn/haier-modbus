@@ -20,7 +20,7 @@ async def async_setup_entry(
 
 
 class HaierSetTemperature(HaierModbusEntity, NumberEntity):
-    _attr_name = "Solltemperatur"
+    _attr_translation_key = "set_temp"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_native_min_value = SET_TEMP_MIN
     _attr_native_max_value = SET_TEMP_MAX

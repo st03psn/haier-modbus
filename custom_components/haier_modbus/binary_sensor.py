@@ -27,10 +27,10 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
-            HaierStatusBit(coordinator, "wp", "Wärmepumpe aktiv", STATUS_HEATPUMP, "mdi:heat-pump"),
-            HaierStatusBit(coordinator, "heater", "Heizstab aktiv", STATUS_EHEATER, "mdi:radiator"),
-            HaierStatusBit(coordinator, "solar", "Solar aktiv", STATUS_SOLAR, "mdi:solar-power"),
-            HaierStatusBit(coordinator, "boiler", "Kessel aktiv", STATUS_BOILER, "mdi:water-boiler"),
+            HaierStatusBit(coordinator, "wp", STATUS_HEATPUMP, "mdi:heat-pump"),
+            HaierStatusBit(coordinator, "heater", STATUS_EHEATER, "mdi:radiator"),
+            HaierStatusBit(coordinator, "solar", STATUS_SOLAR, "mdi:solar-power"),
+            HaierStatusBit(coordinator, "boiler", STATUS_BOILER, "mdi:water-boiler"),
             HaierConnection(coordinator),
         ]
     )
@@ -39,10 +39,10 @@ async def async_setup_entry(
 class HaierStatusBit(HaierModbusEntity, BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.RUNNING
 
-    def __init__(self, coordinator, key: str, name: str, bitmask: int, icon: str) -> None:
+    def __init__(self, coordinator, key: str, bitmask: int, icon: str) -> None:
         super().__init__(coordinator)
         self._bitmask = bitmask
-        self._attr_name = name
+        self._attr_translation_key = f"status_{key}"
         self._attr_icon = icon
         self._attr_unique_id = f"{coordinator.entry.entry_id}_status_{key}"
 
@@ -53,7 +53,7 @@ class HaierStatusBit(HaierModbusEntity, BinarySensorEntity):
 
 
 class HaierConnection(HaierModbusEntity, BinarySensorEntity):
-    _attr_name = "Verbindung"
+    _attr_translation_key = "connection"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
     _attr_entity_category = None
 

@@ -2,13 +2,31 @@
   "config": {
     "step": {
       "user": {
-        "title": "Haier Brauchwasserwärmepumpe",
-        "description": "Verbindungsdaten zur Modbus-TCP-Schnittstelle (RTU↔TCP-Gateway).",
+        "title": "Haier BWWP – Verbindung",
+        "description": "Verbindungsdaten zur Modbus-TCP-Schnittstelle. Die native Schnittstelle der BWWP ist Modbus RTU (9600 8N1); als Host wird daher in der Regel ein Modbus-RTU→TCP-Konverter (Gateway) angegeben.",
         "data": {
           "host": "Host / IP-Adresse",
           "port": "Port",
           "slave": "Modbus-Slave-ID",
-          "scan_interval": "Abfrageintervall (Sekunden)"
+          "scan_interval": "Abfrageintervall (Sekunden)",
+          "model": "Modell",
+          "tank_volume": "Tankvolumen (Liter)"
+        },
+        "data_description": {
+          "host": "I. d. R. die IP des Modbus-RTU→TCP-Konverters, nicht der Wärmepumpe selbst.",
+          "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1)."
+        }
+      },
+      "cop": {
+        "title": "Haier BWWP – COP & Energie",
+        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Quellen frei wählbar. Tipp: Bei externem Stromzähler einen jährlich zurücksetzenden Zähler (utility_meter, cycle: yearly) wählen, damit das Fenster zur Jahres-Wärmemenge passt. Alles später jederzeit unter „Konfigurieren“ änderbar.",
+        "data": {
+          "cop_enabled": "COP-Berechnung aktiv",
+          "cop_elec_source": "Stromquelle für COP",
+          "cop_elec_entity": "Externer Stromzähler (kWh)",
+          "cop_heat_source": "Wärmequelle für COP",
+          "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
+          "energy_scale": "Skalierung der kWh-Register (×)"
         }
       }
     },
@@ -42,6 +60,50 @@
         "modbus": "Integriert (Modbus-Register)",
         "external": "Externer Sensor"
       }
+    },
+    "model": {
+      "options": {
+        "HP160M7-F9": "HP160M7-F9 (160 l)",
+        "HP200M7-F9": "HP200M7-F9 (200 l)",
+        "HP260M7-F9": "HP260M7-F9 (260 l)",
+        "other": "Anderes Modell"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "water_temp": { "name": "Wassertemperatur" },
+      "target_temp": { "name": "Zieltemperatur" },
+      "tank_top": { "name": "Tank oben" },
+      "tank_bottom": { "name": "Tank unten" },
+      "ambient": { "name": "Umgebungstemperatur" },
+      "hotwater_pct": { "name": "Warmwasserstand" },
+      "fault": { "name": "Fehlercode" },
+      "mode_text": { "name": "Modus" },
+      "current_source": { "name": "Aktuelle Quelle" },
+      "hp_elec_year": { "name": "WP-Strom (dieses Jahr)" },
+      "heater_elec_year": { "name": "Heizstab-Strom (dieses Jahr)" },
+      "heat_year": { "name": "Wärmemenge (dieses Jahr)" },
+      "cop_year": { "name": "COP (dieses Jahr)" }
+    },
+    "binary_sensor": {
+      "status_wp": { "name": "Wärmepumpe" },
+      "status_heater": { "name": "Heizstab" },
+      "status_solar": { "name": "Solar" },
+      "status_boiler": { "name": "Kessel" },
+      "connection": { "name": "Verbindung" }
+    },
+    "select": {
+      "mode_select": { "name": "Modus wählen" }
+    },
+    "switch": {
+      "active": { "name": "Aktiv" },
+      "boost": { "name": "Boost" },
+      "mute": { "name": "Leise" },
+      "sterilize": { "name": "Sterilisation" }
+    },
+    "number": {
+      "set_temp": { "name": "Solltemperatur" }
     }
   }
 }
