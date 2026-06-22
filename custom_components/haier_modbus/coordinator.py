@@ -202,8 +202,24 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         yh = max(yh, mh)
         ye = max(ye, me)
 
+        # Gesamt-Werte = „seit erstem Wärmewert" (vergleichbar mit der Wärme):
+        # Wärme = Jahreswert (vor dem ersten Heizen 0); Strom = Verbrauch ab dem
+        # ersten Monat mit Wärme (externe Quelle: Statistik; Modbus: Jahreswert).
+        ref = self._auto_ref_date(data)
+        total_heat = yh
+        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL and ref is not None:
+            ts = dt_util.start_of_local_day(ref)
+            total_elec = await consumption_since(
+                self.hass, [o.get(CONF_COP_ELEC_ENTITY)], ts, now
+            )
+            if total_elec is None:
+                total_elec = me
+        else:
+            total_elec = ye
+        total_elec = max(total_elec, me)
+
         try:
-            await self.energy.async_seed(mh, me, yh, ye)
+            await self.energy.async_seed(mh, me, yh, ye, total_heat, total_elec)
             self._seed_done = True
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Seeding übersprungen: %s", err)

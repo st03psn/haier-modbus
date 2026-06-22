@@ -21,7 +21,7 @@ from .const import DOMAIN
 
 STORE_VERSION = 1
 # Erhöhen, um bestehende Installationen einmalig neu zu seeden (Logikwechsel).
-SEED_VERSION = 3
+SEED_VERSION = 4
 
 
 def _delta(prev: float | None, cur: float | None) -> float:
@@ -195,6 +195,8 @@ class EnergyAccumulator:
         month_elec: float,
         year_heat: float,
         year_elec: float,
+        total_heat: float,
+        total_elec: float,
     ) -> bool:
         """Monats-/Jahres-Eimer mit vorberechneten Kalenderwerten vorbefüllen.
 
@@ -216,6 +218,14 @@ class EnergyAccumulator:
         d["year_key"] = now.strftime("%Y")
         d["month_heat"], d["month_elec"] = max(month_heat, 0.0), max(month_elec, 0.0)
         d["year_heat"], d["year_elec"] = max(year_heat, 0.0), max(year_elec, 0.0)
+        # Gesamt-Werte = „seit erstem Wärmewert" (vergleichbar mit der Wärme),
+        # nicht der Lebenswert der Quelle. prev zurücksetzen -> sauberes
+        # Re-Baselining; der erste Folgezyklus zählt mit Delta 0 weiter.
+        d["total_heat"], d["total_elec"] = max(total_heat, 0.0), max(total_elec, 0.0)
+        d["totals_seeded_heat"] = True
+        d["totals_seeded_elec"] = True
+        d["prev_heat"] = None
+        d["prev_elec"] = None
         d["seeded"] = True
         d["seed_version"] = SEED_VERSION
         self._dirty = True
