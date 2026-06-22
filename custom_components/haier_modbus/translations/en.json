@@ -9,8 +9,7 @@
           "port": "Port",
           "slave": "Modbus slave ID",
           "scan_interval": "Polling interval (seconds)",
-          "model": "Model",
-          "tank_volume": "Tank volume (litres)"
+          "model": "Model"
         },
         "data_description": {
           "host": "Usually the IP of the Modbus RTU-to-TCP converter, not the heat pump itself.",
@@ -61,7 +60,6 @@
           "port": "Port",
           "slave": "Modbus slave ID",
           "model": "Model",
-          "tank_volume": "Tank volume (litres)",
           "scan_interval": "Polling interval (seconds)",
           "cop_enabled": "Enable COP calculation",
           "cop_elec_source": "Electricity source for COP",
@@ -90,9 +88,9 @@
     },
     "model": {
       "options": {
-        "hp160m7_f9": "HP160M7-F9 (160 l)",
-        "hp200m7_f9": "HP200M7-F9 (200 l)",
-        "hp260m7_f9": "HP260M7-F9 (260 l)",
+        "hp160m7_f9": "HP160M7-F9",
+        "hp200m7_f9": "HP200M7-F9",
+        "hp260m7_f9": "HP260M7-F9",
         "other": "Other model"
       }
     }

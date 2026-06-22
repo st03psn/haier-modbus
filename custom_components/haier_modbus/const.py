@@ -16,7 +16,6 @@ CONF_PORT: Final = "port"
 CONF_SLAVE: Final = "slave"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_MODEL: Final = "model"
-CONF_TANK_VOLUME: Final = "tank_volume"
 
 DEFAULT_PORT: Final = 502
 DEFAULT_SLAVE: Final = 1
@@ -56,16 +55,15 @@ DEFAULT_PV_DEBOUNCE: Final = 5
 # Gerät
 MANUFACTURER: Final = "Haier"
 MODEL: Final = "HP200M7-F9"          # Standard-/Fallback-Modell
-TANK_VOLUME_L: Final = 200           # Standard-/Fallback-Tankvolumen
 
 # Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte).
-# Schlüssel sind slug-konform (hassfest-Anforderung an Selector-Keys);
-# Wert = (Anzeigename, Standard-Tankvolumen). "other" = generisch.
+# Schlüssel slug-konform (hassfest-Anforderung an Selector-Keys) -> Anzeigename.
+# Tankvolumen wird bewusst nicht erfasst (am Modell erkennbar). "other" = generisch.
 MODELS: Final = {
-    "hp160m7_f9": ("HP160M7-F9", 160),
-    "hp200m7_f9": ("HP200M7-F9", 200),
-    "hp260m7_f9": ("HP260M7-F9", 260),
-    "other": ("Haier BWWP", 200),
+    "hp160m7_f9": "HP160M7-F9",
+    "hp200m7_f9": "HP200M7-F9",
+    "hp260m7_f9": "HP260M7-F9",
+    "other": "Haier BWWP",
 }
 DEFAULT_MODEL_KEY: Final = "hp200m7_f9"
 

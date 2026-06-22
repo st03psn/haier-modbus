@@ -11,7 +11,7 @@ hOn-Cloud, mit **Schreibzugriff** und **gerätegemessener Energie-/COP-Auswertun
 ## Funktionen
 
 - **Einrichtungs-Assistent** (Config-Flow): Verbindung (Host, Port, Slave-ID,
-  Intervall) + **Modell/Tankvolumen**, danach direkt der **COP-Assistent**
+  Intervall) + **Modell**, danach direkt der **COP-Assistent**
 - **Zweisprachig** (Deutsch / Englisch) – folgt der HA-Nutzersprache
 - **Ein Gerät** mit allen Entitäten gruppiert; `water_heater`-Kachel als zentrale Bedienung
 - **Steuerung (RW):** Solltemperatur (Number), Modus (Select: AUTO/ECO/ELEC/VAC),
@@ -32,7 +32,7 @@ hOn-Cloud, mit **Schreibzugriff** und **gerätegemessener Energie-/COP-Auswertun
 2. „Haier BWWP (Modbus)" herunterladen, HA neu starten
 3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „Haier" suchen
 4. **Schritt 1 – Verbindung:** Host (i. d. R. der **Modbus-RTU→TCP-Konverter**,
-   z. B. `192.168.42.112`), Port `502`, Slave `1`, Intervall `5`, Modell + Tankvolumen
+   z. B. `192.168.42.112`), Port `502`, Slave `1`, Intervall `5`, Modell
 5. **Schritt 2 – COP/Energie:** Quellen wählen
 6. **Schritt 3 – PV-Überschuss (optional):** Überschuss-Sensor + Schwellen
 

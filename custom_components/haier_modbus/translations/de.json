@@ -9,8 +9,7 @@
           "port": "Port",
           "slave": "Modbus-Slave-ID",
           "scan_interval": "Abfrageintervall (Sekunden)",
-          "model": "Modell",
-          "tank_volume": "Tankvolumen (Liter)"
+          "model": "Modell"
         },
         "data_description": {
           "host": "I. d. R. die IP des Modbus-RTU→TCP-Konverters, nicht der Wärmepumpe selbst.",
@@ -61,7 +60,6 @@
           "port": "Port",
           "slave": "Modbus-Slave-ID",
           "model": "Modell",
-          "tank_volume": "Tankvolumen (Liter)",
           "scan_interval": "Abfrageintervall (Sekunden)",
           "cop_enabled": "COP-Berechnung aktiv",
           "cop_elec_source": "Stromquelle für COP",
@@ -90,9 +88,9 @@
     },
     "model": {
       "options": {
-        "hp160m7_f9": "HP160M7-F9 (160 l)",
-        "hp200m7_f9": "HP200M7-F9 (200 l)",
-        "hp260m7_f9": "HP260M7-F9 (260 l)",
+        "hp160m7_f9": "HP160M7-F9",
+        "hp200m7_f9": "HP200M7-F9",
+        "hp260m7_f9": "HP260M7-F9",
         "other": "Anderes Modell"
       }
     }

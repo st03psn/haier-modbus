@@ -1,7 +1,7 @@
 """Config- und Options-Flow – alles über die HA-Oberfläche konfigurierbar.
 
 Einrichtungsassistent in drei Schritten:
-  1. user  – Verbindung + Modell/Tank (mit Verbindungstest)
+  1. user  – Verbindung + Modell (mit Verbindungstest)
   2. cop   – COP-/Energiequellen
   3. pv    – optionale PV-Überschuss-Steuerung (Sensor + Schwellen)
 
@@ -41,7 +41,6 @@ from .const import (
     CONF_PV_TEMP_NORMAL,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
-    CONF_TANK_VOLUME,
     DEFAULT_ENERGY_SCALE,
     DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
@@ -60,7 +59,6 @@ from .const import (
     SET_TEMP_MIN,
     SOURCE_EXTERNAL,
     SOURCE_MODBUS,
-    TANK_VOLUME_L,
 )
 
 _ENERGY_ENTITY = selector.EntitySelector(
@@ -180,7 +178,6 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): int,
                 vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
                 vol.Required(CONF_MODEL, default=DEFAULT_MODEL_KEY): _MODEL,
-                vol.Required(CONF_TANK_VOLUME, default=TANK_VOLUME_L): int,
             }
         )
         if user_input is not None:
@@ -235,7 +232,6 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_PORT, default=cur(CONF_PORT, DEFAULT_PORT)): int,
             vol.Optional(CONF_SLAVE, default=cur(CONF_SLAVE, DEFAULT_SLAVE)): int,
             vol.Optional(CONF_MODEL, default=cur(CONF_MODEL, DEFAULT_MODEL_KEY)): _MODEL,
-            vol.Optional(CONF_TANK_VOLUME, default=cur(CONF_TANK_VOLUME, TANK_VOLUME_L)): int,
             vol.Optional(CONF_SCAN_INTERVAL, default=cur(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
         }
 
