@@ -78,7 +78,9 @@ ein manuelles Datum im COP-Setup überschreibt das nur bei Bedarf. Dann gilt:
 Wärme = aktueller Geräte-Zähler (seit diesem Datum), Strom = Verbrauch seit
 demselben Datum (aus der Statistik der gewählten Stromquelle). Beide decken
 denselben Zeitraum ab – ohne dass eine Wärme-Historie nötig ist. Attribute:
-`reference_date` und `reference_auto`.
+`reference_date` und `reference_auto`. Ein gesetztes Bezugsdatum richtet auch das
+**Monats-/Jahres-/Gesamt-Seeding** danach aus (Strom erst ab dem Datum); eine
+Änderung des Datums seedet einmalig neu.
 
 **Jahres-/Monatsvergleich (JAZ/COP):** Beim Jahres-/Monatswechsel wird der fertige
 Wert dauerhaft archiviert: Attribut `jaz_per_year` am **`JAZ (Jahr)`**-Sensor und

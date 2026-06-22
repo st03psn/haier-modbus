@@ -25,7 +25,8 @@
           "cop_elec_entity": "Externer Stromzähler (kWh)",
           "cop_heat_source": "Wärmequelle für COP",
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
-          "energy_scale": "Skalierung der kWh-Register (×)"
+          "energy_scale": "Skalierung der kWh-Register (×)",
+          "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)"
         }
       },
       "pv": {
@@ -67,6 +68,7 @@
           "cop_heat_source": "Wärmequelle für COP",
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
           "energy_scale": "Skalierung der kWh-Register (×)",
+          "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)",
           "pv_enabled": "PV-Überschuss-Steuerung aktiv",
           "pv_sensor": "PV-Überschuss-Sensor (W)",
           "pv_high": "Schwelle hoher Überschuss (W)",

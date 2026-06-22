@@ -144,23 +144,35 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         except Exception as err:  # noqa: BLE001
             raise UpdateFailed(str(err)) from err
 
-    async def _maybe_seed(self, data: dict[int, int]) -> None:
-        """Einmalig die Monats-/Jahres-Eimer aus autoritativen Kalenderwerten seeden.
+    def _ref_date(self, data: dict[int, int]):
+        """(Bezugsdatum, Signatur) – manuelles Override oder Auto-Erkennung.
 
-        Wärme/Strom werden direkt für den Kalendermonat bzw. das Kalenderjahr
-        ermittelt – kein Fenster-Alignment:
-        * Modbus-Quelle -> Gerätemonats-/Jahresregister (decken den Zeitraum
-          per Definition exakt ab, instant verfügbar).
-        * Externe Quelle -> reset-bereinigter Statistik-Verbrauch seit Monats-
-          bzw. Jahresbeginn.
-        Schlägt eine externe Statistik (noch) fehl, wird im nächsten Zyklus
-        erneut versucht. Re-Seed bei ``SEED_VERSION``-Wechsel bestehender Installs.
+        Manuelles ``cop_ref_date`` (Options) hat Vorrang; sonst erster Monat des
+        Jahres mit Wärme. Die Signatur dient dem Re-Seed-Erkennen bei Änderung.
+        """
+        ref_str = self.entry.options.get(CONF_COP_REF_DATE)
+        if ref_str:
+            d = dt_util.parse_date(ref_str)
+            return d, (ref_str if d else None)
+        d = self._auto_ref_date(data)
+        return d, (f"auto:{d.isoformat()}" if d else None)
+
+    async def _maybe_seed(self, data: dict[int, int]) -> None:
+        """Monats-/Jahres-/Gesamt-Eimer seeden; Re-Seed bei Versions- oder
+        Bezugsdatum-Wechsel.
+
+        Strom-Fenster richten sich nach dem Bezugsdatum (Beginn =
+        max(Kalenderbeginn, Bezugsdatum)) – so wird der Strom *vor* dem ersten
+        Wärmewert nicht mitgezählt. Wärme: Modbus -> Geräteregister, extern ->
+        Statistik. Externe Statistik noch nicht da -> nächster Zyklus.
         """
         if self._seed_done:
             return
         if not self.energy.loaded:
             await self.energy.async_load()
-        if not self.energy.needs_seed:
+
+        ref_date, ref_sig = self._ref_date(data)
+        if not self.energy.needs_seed and self.energy.seed_ref == ref_sig:
             self._seed_done = True
             return
 
@@ -170,19 +182,22 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
         m = now.month - 1  # 0..11 -> Offset in die Monatsarrays
+        ref_start = dt_util.start_of_local_day(ref_date) if ref_date else None
+        m_start = max(month_start, ref_start) if ref_start else month_start
+        y_start = max(year_start, ref_start) if ref_start else year_start
 
         if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
             ent = o.get(CONF_COP_HEAT_ENTITY)
-            mh = await consumption_since(self.hass, [ent], month_start, now)
-            yh = await consumption_since(self.hass, [ent], year_start, now)
+            mh = await consumption_since(self.hass, [ent], m_start, now)
+            yh = await consumption_since(self.hass, [ent], y_start, now)
         else:
             mh = (data.get(REG_HEAT_MONTHS + m) or 0) * scale
             yh = (data.get(REG_HEAT_YEAR) or 0) * scale
 
         if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
             ent = o.get(CONF_COP_ELEC_ENTITY)
-            me = await consumption_since(self.hass, [ent], month_start, now)
-            ye = await consumption_since(self.hass, [ent], year_start, now)
+            me = await consumption_since(self.hass, [ent], m_start, now)
+            ye = await consumption_since(self.hass, [ent], y_start, now)
         else:
             me = (
                 (data.get(REG_HP_ELEC_MONTHS + m) or 0)
@@ -197,20 +212,14 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             return  # externe Statistik noch nicht verfügbar -> nächster Zyklus
 
         # Das Jahr umfasst den Monat -> physikalische Untergrenze erzwingen.
-        # Schützt gegen fehlerhafte Langfenster-Statistik (z. B. Jahres-Strom
-        # kam als ~0 zurück, was sonst zu absurdem JAZ führte).
         yh = max(yh, mh)
         ye = max(ye, me)
 
-        # Gesamt-Werte = „seit erstem Wärmewert" (vergleichbar mit der Wärme):
-        # Wärme = Jahreswert (vor dem ersten Heizen 0); Strom = Verbrauch ab dem
-        # ersten Monat mit Wärme (externe Quelle: Statistik; Modbus: Jahreswert).
-        ref = self._auto_ref_date(data)
+        # Gesamt-Werte = „seit Bezugsdatum" (vergleichbar Wärme/Strom).
         total_heat = yh
-        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL and ref is not None:
-            ts = dt_util.start_of_local_day(ref)
+        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL and ref_start is not None:
             total_elec = await consumption_since(
-                self.hass, [o.get(CONF_COP_ELEC_ENTITY)], ts, now
+                self.hass, [o.get(CONF_COP_ELEC_ENTITY)], ref_start, now
             )
             if total_elec is None:
                 total_elec = me
@@ -219,7 +228,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         total_elec = max(total_elec, me)
 
         try:
-            await self.energy.async_seed(mh, me, yh, ye, total_heat, total_elec)
+            await self.energy.async_seed(mh, me, yh, ye, total_heat, total_elec, ref_sig)
             self._seed_done = True
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Seeding übersprungen: %s", err)

@@ -25,7 +25,8 @@
           "cop_elec_entity": "External electricity meter (kWh)",
           "cop_heat_source": "Heat source for COP",
           "cop_heat_entity": "External heat meter (kWh)",
-          "energy_scale": "kWh register scaling (x)"
+          "energy_scale": "kWh register scaling (x)",
+          "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)"
         }
       },
       "pv": {
@@ -67,6 +68,7 @@
           "cop_heat_source": "Heat source for COP",
           "cop_heat_entity": "External heat meter (kWh)",
           "energy_scale": "kWh register scaling (x)",
+          "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)",
           "pv_enabled": "Enable PV surplus control",
           "pv_sensor": "PV surplus sensor (W)",
           "pv_high": "High surplus threshold (W)",
@@ -106,9 +108,9 @@
       "fault": { "name": "Fault code" },
       "mode_text": { "name": "Mode" },
       "current_source": { "name": "Current source" },
-      "hp_elec_year": { "name": "Heat pump electricity (device, this year)" },
+      "hp_elec_year": { "name": "Electricity used (year)" },
       "heater_elec_year": { "name": "Electric heater electricity (device, this year)" },
-      "heat_year": { "name": "Heat produced (device, this year)" },
+      "heat_year": { "name": "Heat produced (year)" },
       "heat_total": { "name": "Heat produced (total)" },
       "elec_total": { "name": "Electricity used (total)" },
       "cop_month": { "name": "COP (month)" },

@@ -21,7 +21,7 @@ from .const import DOMAIN
 
 STORE_VERSION = 1
 # Erhöhen, um bestehende Installationen einmalig neu zu seeden (Logikwechsel).
-SEED_VERSION = 4
+SEED_VERSION = 5
 
 
 def _delta(prev: float | None, cur: float | None) -> float:
@@ -61,6 +61,7 @@ def _empty() -> dict:
         "year_heat": 0.0,
         "year_elec": 0.0,
         "seeded": False,
+        "seed_ref": None,
         "history": {},
         "history_month": {},
     }
@@ -125,6 +126,11 @@ class EnergyAccumulator:
     def needs_seed(self) -> bool:
         """True, solange die Monats-/Jahres-Eimer (für die aktuelle Logik) ungeseedet sind."""
         return (self._data or {}).get("seed_version") != SEED_VERSION
+
+    @property
+    def seed_ref(self) -> str | None:
+        """Signatur des zuletzt verwendeten Bezugsdatums (für Re-Seed bei Änderung)."""
+        return (self._data or {}).get("seed_ref")
 
     async def async_load(self) -> None:
         self._data = await self._store.async_load() or _empty()
@@ -197,20 +203,17 @@ class EnergyAccumulator:
         year_elec: float,
         total_heat: float,
         total_elec: float,
+        seed_ref: str | None = None,
     ) -> bool:
-        """Monats-/Jahres-Eimer mit vorberechneten Kalenderwerten vorbefüllen.
+        """Monats-/Jahres-/Gesamt-Eimer mit vorberechneten Werten vorbefüllen.
 
-        Die Werte stammen aus autoritativen Quellen (Gerätemonats-/Jahres-
-        register bzw. externe Kalender-Statistik), die den jeweiligen
-        Kalenderzeitraum *direkt* abdecken – ohne fragiles Fenster-Alignment.
-        Wird je ``SEED_VERSION`` genau einmal angewandt; danach übernimmt die
-        laufende Delta-Akkumulation. Liefert True, wenn geseedet (oder schon
-        auf aktueller Version geseedet) wurde.
+        Ob (re-)geseedet wird, entscheidet der Aufrufer (Versions- bzw.
+        Bezugsdatum-Wechsel). ``seed_ref`` ist die Signatur des verwendeten
+        Bezugsdatums und wird gespeichert, damit eine spätere Änderung erkannt
+        und neu geseedet werden kann. Danach übernimmt die Delta-Akkumulation.
         """
         if self._data is None:
             await self.async_load()
-        if not self.needs_seed:
-            return True
 
         now = dt_util.now()
         d = self._data
@@ -228,6 +231,7 @@ class EnergyAccumulator:
         d["prev_elec"] = None
         d["seeded"] = True
         d["seed_version"] = SEED_VERSION
+        d["seed_ref"] = seed_ref
         self._dirty = True
         await self.async_save()
         return True
