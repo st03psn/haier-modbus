@@ -26,8 +26,7 @@
           "cop_elec_entity": "External electricity meter (kWh)",
           "cop_heat_source": "Heat source for COP",
           "cop_heat_entity": "External heat meter (kWh)",
-          "energy_scale": "kWh register scaling (x)",
-          "cop_ref_date": "COP reference date (empty = auto-detected)"
+          "energy_scale": "kWh register scaling (x)"
         }
       },
       "pv": {
@@ -70,7 +69,6 @@
           "cop_heat_source": "Heat source for COP",
           "cop_heat_entity": "External heat meter (kWh)",
           "energy_scale": "kWh register scaling (x)",
-          "cop_ref_date": "COP reference date (empty = auto-detected)",
           "pv_enabled": "Enable PV surplus control",
           "pv_sensor": "PV surplus sensor (W)",
           "pv_high": "High surplus threshold (W)",
