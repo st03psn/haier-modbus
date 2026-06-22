@@ -26,7 +26,8 @@
           "cop_elec_entity": "Externer Stromzähler (kWh)",
           "cop_heat_source": "Wärmequelle für COP",
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
-          "energy_scale": "Skalierung der kWh-Register (×)"
+          "energy_scale": "Skalierung der kWh-Register (×)",
+          "cop_ref_date": "COP-Bezugsdatum (Tag des Wärmezähler-Resets)"
         }
       },
       "pv": {
@@ -69,6 +70,7 @@
           "cop_heat_source": "Wärmequelle für COP",
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
           "energy_scale": "Skalierung der kWh-Register (×)",
+          "cop_ref_date": "COP-Bezugsdatum (Tag des Wärmezähler-Resets)",
           "pv_enabled": "PV-Überschuss-Steuerung aktiv",
           "pv_sensor": "PV-Überschuss-Sensor (W)",
           "pv_high": "Schwelle hoher Überschuss (W)",
@@ -115,7 +117,8 @@
       "elec_total": { "name": "Stromverbrauch (gesamt)" },
       "cop_month": { "name": "COP (Monat)" },
       "cop_year": { "name": "JAZ (Jahr)" },
-      "cop_prev_year": { "name": "JAZ (Vorjahr)" }
+      "cop_prev_year": { "name": "JAZ (Vorjahr)" },
+      "cop_reference": { "name": "COP (seit Bezugsdatum)" }
     },
     "binary_sensor": {
       "status_wp": { "name": "Wärmepumpe" },

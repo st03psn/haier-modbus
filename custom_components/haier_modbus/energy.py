@@ -116,6 +116,49 @@ async def _aligned_consumption(
     return max(heat, 0.0), max(elec, 0.0)
 
 
+async def consumption_since(
+    hass: HomeAssistant, stat_ids: list[str], start, end
+) -> float | None:
+    """Verbrauch/Erzeugung im Fenster [start, end] aus der Langzeitstatistik.
+
+    Eine Quelle (oder Summe mehrerer), reset-bereinigt über die ``sum``.
+    Für den „COP seit Bezugsdatum" – kein Alignment nötig, fester Start.
+    """
+    ids = [s for s in stat_ids if s]
+    if not ids:
+        return None
+    try:
+        from homeassistant.components.recorder import get_instance
+        from homeassistant.components.recorder.statistics import (
+            statistics_during_period,
+        )
+
+        stats = await get_instance(hass).async_add_executor_job(
+            statistics_during_period,
+            hass,
+            start,
+            end,
+            set(ids),
+            "hour",
+            None,
+            {"sum"},
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+    total = 0.0
+    for sid in ids:
+        rows = stats.get(sid)
+        if not rows:
+            return None
+        first = rows[0].get("sum")
+        last = rows[-1].get("sum")
+        if first is None or last is None:
+            return None
+        total += last - first
+    return total
+
+
 class EnergyAccumulator:
     """Akkumuliert Wärme/Strom in Monats-, Jahres- und Gesamt-Eimer."""
 

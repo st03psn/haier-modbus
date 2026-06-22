@@ -27,6 +27,7 @@ from .const import (
     CONF_COP_ENABLED,
     CONF_COP_HEAT_ENTITY,
     CONF_COP_HEAT_SOURCE,
+    CONF_COP_REF_DATE,
     CONF_ENERGY_SCALE,
     CONF_HOST,
     CONF_MODEL,
@@ -106,6 +107,7 @@ def _cop_schema(o: dict[str, Any]) -> vol.Schema:
             vol.Optional(CONF_COP_HEAT_SOURCE, default=o.get(CONF_COP_HEAT_SOURCE, SOURCE_MODBUS)): _SOURCE,
             vol.Optional(CONF_COP_HEAT_ENTITY): _ENERGY_ENTITY,
             vol.Optional(CONF_ENERGY_SCALE, default=o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)): _SCALE,
+            vol.Optional(CONF_COP_REF_DATE): selector.DateSelector(),
         }
     )
 

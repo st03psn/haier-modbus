@@ -100,6 +100,7 @@ async def async_setup_entry(
     entities.append(HaierCopSensor(coordinator, entry, "month"))
     entities.append(HaierCopSensor(coordinator, entry, "year"))
     entities.append(HaierPrevYearCop(coordinator))
+    entities.append(HaierRefCop(coordinator))
     async_add_entities(entities)
 
 
@@ -322,3 +323,29 @@ class HaierPrevYearCop(HaierModbusEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         return {"jaz_per_year": self.coordinator.energy.history()}
+
+
+class HaierRefCop(HaierModbusEntity, SensorEntity):
+    """COP seit einem frei wählbaren Bezugsdatum (Wärmezähler-Reset).
+
+    Wärme = aktueller Geräte-Zähler (am Bezugsdatum genullt angenommen),
+    Strom = Verbrauch seit Bezugsdatum. Liefert sofort einen Wert, ohne auf
+    eine volle Mess-Periode zu warten. Bezugsdatum im Options-/Setup-Flow.
+    """
+
+    _attr_translation_key = "cop_reference"
+    _attr_icon = "mdi:gauge"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_cop_reference"
+
+    @property
+    def native_value(self):
+        return getattr(self.coordinator, "ref_cop", None)
+
+    @property
+    def extra_state_attributes(self):
+        return getattr(self.coordinator, "ref_cop_attrs", {})

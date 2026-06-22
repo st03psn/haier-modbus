@@ -19,6 +19,7 @@ from .const import (
     CONF_COP_ELEC_SOURCE,
     CONF_COP_HEAT_ENTITY,
     CONF_COP_HEAT_SOURCE,
+    CONF_COP_REF_DATE,
     CONF_ENERGY_SCALE,
     CONF_HOST,
     CONF_PORT,
@@ -38,7 +39,7 @@ from .const import (
     REG_SET_TEMP,
     SOURCE_EXTERNAL,
 )
-from .energy import EnergyAccumulator, state_float
+from .energy import EnergyAccumulator, consumption_since, state_float
 from .pv import PvController
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,6 +73,10 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self._pv = PvController(hass)
         self._last_save = None
         self._seed_done = False
+        # "COP seit Bezugsdatum": Ergebnis + gedrosselter Statistik-Cache
+        self.ref_cop: float | None = None
+        self.ref_cop_attrs: dict = {}
+        self._ref_cache: dict = {}
         super().__init__(
             hass,
             _LOGGER,
@@ -129,6 +134,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
 
             await self._maybe_seed()
             await self._accumulate_energy(data)
+            await self._compute_ref_cop(data)
             await self._pv.async_evaluate(self, data)
             return data
         except UpdateFailed:
@@ -166,6 +172,58 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             await self.energy.async_seed(self.hass, heat_ids, elec_ids)
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Statistik-Seeding übersprungen: %s", err)
+
+    async def _ref_stat(self, kind: str, ids: list[str], start, now) -> float | None:
+        """Statistik-Verbrauch seit Bezugsdatum – pro Quelle gecacht (alle 5 min)."""
+        cache = self._ref_cache.get(kind)
+        if cache and cache["start"] == start and (now - cache["ts"]).total_seconds() < 300:
+            return cache["value"]
+        value = await consumption_since(self.hass, ids, start, now)
+        self._ref_cache[kind] = {"ts": now, "start": start, "value": value}
+        return value
+
+    async def _compute_ref_cop(self, data: dict[int, int]) -> None:
+        """COP seit einem Bezugsdatum (Wärmezähler-Reset).
+
+        Wärme = aktueller Geräte-Zähler (Annahme: am Bezugsdatum genullt) bzw.
+        externer Zähler seit Datum; Strom = Verbrauch seit Datum (Statistik bei
+        externer Quelle, Geräte-Zähler bei Modbus). Damit decken beide denselben
+        Zeitraum ab, ohne dass eine Wärme-Historie nötig ist.
+        """
+        o = self.entry.options
+        ref_str = o.get(CONF_COP_REF_DATE)
+        if not ref_str:
+            self.ref_cop = None
+            self.ref_cop_attrs = {}
+            return
+        ref_date = dt_util.parse_date(ref_str)
+        if ref_date is None:
+            self.ref_cop = None
+            return
+
+        start = dt_util.start_of_local_day(ref_date)
+        now = dt_util.now()
+        scale = o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)
+
+        if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
+            heat = await self._ref_stat("heat", [o.get(CONF_COP_HEAT_ENTITY)], start, now)
+        else:
+            raw = data.get(REG_HEAT_YEAR)
+            heat = raw * scale if raw is not None else None
+
+        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
+            elec = await self._ref_stat("elec", [o.get(CONF_COP_ELEC_ENTITY)], start, now)
+        else:
+            hp = data.get(REG_HP_ELEC_YEAR)
+            heater = data.get(REG_HEATER_ELEC_YEAR)
+            elec = ((hp or 0) + (heater or 0)) * scale if (hp is not None or heater is not None) else None
+
+        self.ref_cop = round(heat / elec, 2) if (heat and elec) else None
+        self.ref_cop_attrs = {
+            "reference_date": ref_str,
+            "heat_kwh": round(heat, 3) if heat else heat,
+            "electricity_kwh": round(elec, 3) if elec else elec,
+        }
 
     async def _accumulate_energy(self, data: dict[int, int]) -> None:
         """Wärme/Strom (quellabhängig) in kalender-ausgerichtete Eimer zählen."""

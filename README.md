@@ -68,6 +68,13 @@ gezählt, Quell-Resets werden abgefangen. Daraus:
   `total_increasing`-Energiesensoren für **Verbrauchs-/Erzeugungskurven**
   (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen)
 
+**`COP (seit Bezugsdatum)`:** Liefert **sofort** einen Wert, ohne auf eine volle
+Periode zu warten. Im COP-Setup ein **Bezugsdatum** setzen (der Tag, an dem der
+Geräte-Wärmezähler zuletzt genullt wurde). Dann gilt: Wärme = aktueller
+Geräte-Zähler (seit diesem Datum), Strom = Verbrauch seit demselben Datum (aus der
+Statistik der gewählten Stromquelle). Beide decken denselben Zeitraum ab — ohne
+dass eine Wärme-Historie nötig ist.
+
 **Jahresvergleich (JAZ):** Beim Jahreswechsel wird der fertige JAZ des
 abgeschlossenen Jahres dauerhaft archiviert. Es gibt einen Sensor **`JAZ (Vorjahr)`**
 und am **`JAZ (Jahr)`**-Sensor das Attribut `jaz_per_year` (`{"2026": {heat, elec, cop}, …}`)
