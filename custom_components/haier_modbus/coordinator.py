@@ -196,6 +196,12 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         if None in (mh, me, yh, ye):
             return  # externe Statistik noch nicht verfügbar -> nächster Zyklus
 
+        # Das Jahr umfasst den Monat -> physikalische Untergrenze erzwingen.
+        # Schützt gegen fehlerhafte Langfenster-Statistik (z. B. Jahres-Strom
+        # kam als ~0 zurück, was sonst zu absurdem JAZ führte).
+        yh = max(yh, mh)
+        ye = max(ye, me)
+
         try:
             await self.energy.async_seed(mh, me, yh, ye)
             self._seed_done = True

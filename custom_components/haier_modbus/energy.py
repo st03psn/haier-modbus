@@ -21,7 +21,7 @@ from .const import DOMAIN
 
 STORE_VERSION = 1
 # Erhöhen, um bestehende Installationen einmalig neu zu seeden (Logikwechsel).
-SEED_VERSION = 2
+SEED_VERSION = 3
 
 
 def _delta(prev: float | None, cur: float | None) -> float:
@@ -236,10 +236,16 @@ class EnergyAccumulator:
         return round(self._g(key), 3)
 
     def cop(self, period: str) -> float | None:
-        """period: 'month' | 'year' (JAZ)."""
+        """period: 'month' | 'year' (JAZ). None bei unplausiblen Werten."""
         h = self._g(f"{period}_heat")
         e = self._g(f"{period}_elec")
-        return round(h / e, 2) if h and e else None
+        if not h or not e:
+            return None
+        ratio = h / e
+        # Sanity: physikalisch unmögliche COP (Seeding-/Daten-Edgecases) ausblenden.
+        if ratio <= 0 or ratio > 20:
+            return None
+        return round(ratio, 2)
 
     def history(self) -> dict:
         """Abgeschlossene Jahre: {'2026': {'heat','elec','cop'}, ...}."""
