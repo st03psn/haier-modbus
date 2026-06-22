@@ -84,11 +84,13 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             if not self._client.connected:
                 await self._client.connect()
             if not self._client.connected:
-                raise UpdateFailed(f"Keine Verbindung zu {self.host}:{self.port}")
+                raise UpdateFailed(
+                    f"Keine Verbindung zum Modbus-Konverter unter {self.host}:{self.port}"
+                )
 
             rr = await self._read_holding(READ_START, READ_COUNT)
             if rr.isError():
-                raise UpdateFailed(f"Modbus-Fehler beim Lesen: {rr}")
+                raise UpdateFailed(f"Modbus-Fehler beim Lesen (Konverter erreichbar?): {rr}")
 
             regs = rr.registers
             data = {

@@ -17,7 +17,10 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
+from pymodbus.client import AsyncModbusTcpClient
+
 from .const import (
+    READ_START,
     CONF_COP_ELEC_ENTITY,
     CONF_COP_ELEC_SOURCE,
     CONF_COP_ENABLED,
@@ -78,6 +81,24 @@ def _cop_schema(o: dict[str, Any]) -> vol.Schema:
     )
 
 
+async def _test_connection(host: str, port: int, slave: int) -> bool:
+    """Kurzer Verbindungstest zum Modbus-Konverter (ein Register lesen)."""
+    client = AsyncModbusTcpClient(host, port=port)
+    try:
+        await client.connect()
+        if not client.connected:
+            return False
+        try:
+            rr = await client.read_holding_registers(READ_START, count=1, device_id=slave)
+        except TypeError:
+            rr = await client.read_holding_registers(READ_START, count=1, slave=slave)
+        return not rr.isError()
+    except Exception:  # noqa: BLE001
+        return False
+    finally:
+        client.close()
+
+
 class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Einrichtungsassistent: Verbindung -> COP."""
 
@@ -95,8 +116,16 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 f"{user_input[CONF_HOST]}:{user_input.get(CONF_PORT, DEFAULT_PORT)}"
             )
             self._abort_if_unique_id_configured()
-            self._data = user_input
-            return await self.async_step_cop()
+            ok = await _test_connection(
+                user_input[CONF_HOST],
+                user_input.get(CONF_PORT, DEFAULT_PORT),
+                user_input.get(CONF_SLAVE, DEFAULT_SLAVE),
+            )
+            if not ok:
+                errors["base"] = "cannot_connect"
+            else:
+                self._data = user_input
+                return await self.async_step_cop()
 
         default_model = DEFAULT_MODEL_KEY
         schema = vol.Schema(
@@ -109,6 +138,8 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_TANK_VOLUME, default=TANK_VOLUME_L): int,
             }
         )
+        if user_input is not None:
+            schema = self.add_suggested_values_to_schema(schema, user_input)
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     async def async_step_cop(

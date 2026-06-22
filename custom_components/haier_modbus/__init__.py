@@ -10,9 +10,18 @@ from .coordinator import HaierModbusCoordinator
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up über einen Config-Entry."""
+    """Set up über einen Config-Entry.
+
+    Bewusst kein ``async_config_entry_first_refresh`` (das würde einen
+    Einrichtungsfehler/ConfigEntryNotReady auslösen, wenn der Modbus-Konverter
+    beim Start nicht erreichbar ist). Stattdessen ein toleranter erster Refresh:
+    Das Setup gelingt immer, eine Verbindungsstörung wird als Geräte-/Verbindungs-
+    fehler dargestellt – Entitäten „nicht verfügbar", Binärsensor „Verbindung" = aus.
+    Der Coordinator pollt weiter und verbindet selbsttätig neu, sobald der
+    Konverter antwortet.
+    """
     coordinator = HaierModbusCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
