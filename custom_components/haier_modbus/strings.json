@@ -63,9 +63,9 @@
     },
     "model": {
       "options": {
-        "HP160M7-F9": "HP160M7-F9 (160 l)",
-        "HP200M7-F9": "HP200M7-F9 (200 l)",
-        "HP260M7-F9": "HP260M7-F9 (260 l)",
+        "hp160m7_f9": "HP160M7-F9 (160 l)",
+        "hp200m7_f9": "HP200M7-F9 (200 l)",
+        "hp260m7_f9": "HP260M7-F9 (260 l)",
         "other": "Other model"
       }
     }

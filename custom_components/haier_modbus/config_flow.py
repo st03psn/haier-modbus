@@ -31,11 +31,11 @@ from .const import (
     CONF_SLAVE,
     CONF_TANK_VOLUME,
     DEFAULT_ENERGY_SCALE,
+    DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     DOMAIN,
-    MODEL,
     MODELS,
     SOURCE_EXTERNAL,
     SOURCE_MODBUS,
@@ -98,7 +98,7 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._data = user_input
             return await self.async_step_cop()
 
-        default_model = MODEL if MODEL in MODELS else next(iter(MODELS))
+        default_model = DEFAULT_MODEL_KEY
         schema = vol.Schema(
             {
                 vol.Required(CONF_HOST): str,

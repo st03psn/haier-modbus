@@ -41,13 +41,15 @@ MODEL: Final = "HP200M7-F9"          # Standard-/Fallback-Modell
 TANK_VOLUME_L: Final = 200           # Standard-/Fallback-Tankvolumen
 
 # Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte).
-# "other" erlaubt ein frei eingegebenes Modell.
+# Schlüssel sind slug-konform (hassfest-Anforderung an Selector-Keys);
+# Wert = (Anzeigename, Standard-Tankvolumen). "other" = generisch.
 MODELS: Final = {
-    "HP160M7-F9": 160,
-    "HP200M7-F9": 200,
-    "HP260M7-F9": 260,
-    "other": 0,
+    "hp160m7_f9": ("HP160M7-F9", 160),
+    "hp200m7_f9": ("HP200M7-F9", 200),
+    "hp260m7_f9": ("HP260M7-F9", 260),
+    "other": ("Haier BWWP", 200),
 }
+DEFAULT_MODEL_KEY: Final = "hp200m7_f9"
 
 # --- Block-Read ------------------------------------------------------------
 # Ein Read über Adresse 1..90 (90 Register <= 125 Limit von FC 0x03).
