@@ -6,6 +6,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.issue_registry import (
     IssueSeverity,
     async_create_issue,
@@ -48,6 +49,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
+    # Entity-IDs standardisieren (Bestand + Neuinstallation -> <domain>.haier_bwwp_<key>).
+    _standardize_entity_ids(hass, entry)
+
     # Mitgeliefertes Dashboard registrieren (Entitäten sind jetzt registriert).
     await async_register_dashboard(hass, entry)
 
@@ -57,6 +61,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, _async_ensure_frontend_cards(hass), "haier_modbus_frontend_cards"
     )
     return True
+
+
+def _standardize_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Alle Entitäten dieses Eintrags auf ``<domain>.haier_bwwp_<key>`` umbenennen.
+
+    Leitet das Ziel-Suffix aus der ``unique_id`` (``<entry_id>_<key>``) ab –
+    generisch, ohne pro Entität etwas zu hardcoden. Greift einmalig (danach
+    idempotent) und überspringt Kollisionen sowie bereits passende IDs.
+    Hinweis: ändert bestehende entity_ids – Verweise auf alte IDs (Automationen/
+    Karten) müssen ggf. angepasst werden.
+    """
+    reg = er.async_get(hass)
+    prefix = f"{entry.entry_id}_"
+    for ent in er.async_entries_for_config_entry(reg, entry.entry_id):
+        uid = ent.unique_id or ""
+        if not uid.startswith(prefix):
+            continue
+        suffix = uid[len(prefix):]
+        obj = "haier_bwwp" if suffix == "water_heater" else f"haier_bwwp_{suffix}"
+        desired = f"{ent.domain}.{obj}"
+        if ent.entity_id == desired or reg.async_get(desired) is not None:
+            continue
+        try:
+            reg.async_update_entity(ent.entity_id, new_entity_id=desired)
+            _LOGGER.info("Entity-ID standardisiert: %s -> %s", ent.entity_id, desired)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.warning("Standardisierung von %s fehlgeschlagen: %s", ent.entity_id, exc)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:

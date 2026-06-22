@@ -108,6 +108,12 @@ dreistufig (hoch/normal/Grund) mit Entprellzeit und regelt nur, wenn nötig.
 (Einstellungen → Automationen & Szenen → Blueprints → **Blueprint importieren**),
 falls du die Logik lieber als Automation mit eigenen Anpassungen/Notifications führst.
 
+## Entity-IDs
+
+Beim Setup werden alle Entitäten auf ein einheitliches Schema **`<domain>.haier_bwwp_<key>`**
+standardisiert (Bestand wird einmalig migriert). Verweise auf zuvor abweichende
+entity_ids in eigenen Automationen/Karten müssen ggf. angepasst werden.
+
 ## Dashboard
 
 Die Integration liefert ein **fertiges Dashboard** mit und registriert es beim
