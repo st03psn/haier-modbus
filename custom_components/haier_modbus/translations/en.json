@@ -114,7 +114,8 @@
       "heat_total": { "name": "Heat produced (total)" },
       "elec_total": { "name": "Electricity used (total)" },
       "cop_month": { "name": "COP (month)" },
-      "cop_year": { "name": "SPF (year)" }
+      "cop_year": { "name": "SPF (year)" },
+      "cop_prev_year": { "name": "SPF (last year)" }
     },
     "binary_sensor": {
       "status_wp": { "name": "Heat pump" },

@@ -68,6 +68,11 @@ gezählt, Quell-Resets werden abgefangen. Daraus:
   `total_increasing`-Energiesensoren für **Verbrauchs-/Erzeugungskurven**
   (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen)
 
+**Jahresvergleich (JAZ):** Beim Jahreswechsel wird der fertige JAZ des
+abgeschlossenen Jahres dauerhaft archiviert. Es gibt einen Sensor **`JAZ (Vorjahr)`**
+und am **`JAZ (Jahr)`**-Sensor das Attribut `jaz_per_year` (`{"2026": {heat, elec, cop}, …}`)
+für eine Jahr-zu-Jahr-Vergleichskarte (z. B. ApexCharts). Wächst ab dem aktuellen Jahr.
+
 **Rückwirkendes Seeding:** Beim ersten Start werden Monats- und Jahres-Fenster
 einmalig aus der HA-Langzeitstatistik vorbefüllt (reset-bereinigte `sum`), damit
 COP/JAZ nicht erst ab Inbetriebnahme zählen. Wärme- und Stromquelle werden dabei

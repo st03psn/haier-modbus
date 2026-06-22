@@ -99,6 +99,7 @@ async def async_setup_entry(
     entities.append(HaierAccEnergy(coordinator, "total_elec", "elec_total"))
     entities.append(HaierCopSensor(coordinator, entry, "month"))
     entities.append(HaierCopSensor(coordinator, entry, "year"))
+    entities.append(HaierPrevYearCop(coordinator))
     async_add_entities(entities)
 
 
@@ -286,9 +287,38 @@ class HaierCopSensor(HaierModbusEntity, SensorEntity):
     def extra_state_attributes(self):
         o = self._entry.options
         e = self.coordinator.energy
-        return {
+        attrs = {
             "heat_source": o.get(CONF_COP_HEAT_SOURCE, "modbus"),
             "electricity_source": o.get(CONF_COP_ELEC_SOURCE, "modbus"),
             "heat_kwh": e.value(f"{self._period}_heat"),
             "electricity_kwh": e.value(f"{self._period}_elec"),
         }
+        if self._period == "year":
+            # Abgeschlossene Jahre für den Jahr-zu-Jahr-Vergleich (z. B. ApexCharts).
+            attrs["jaz_per_year"] = e.history()
+        return attrs
+
+
+class HaierPrevYearCop(HaierModbusEntity, SensorEntity):
+    """JAZ des zuletzt abgeschlossenen Jahres (für den Jahresvergleich).
+
+    Wird beim Jahreswechsel aus dem dann abgeschlossenen Jahr gesetzt; die
+    vollständige Jahresliste steht als Attribut der JAZ-(Jahr-)Entität.
+    """
+
+    _attr_translation_key = "cop_prev_year"
+    _attr_icon = "mdi:gauge"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_cop_prev_year"
+
+    @property
+    def native_value(self):
+        return self.coordinator.energy.previous_year_cop()
+
+    @property
+    def extra_state_attributes(self):
+        return {"jaz_per_year": self.coordinator.energy.history()}

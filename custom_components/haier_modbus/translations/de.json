@@ -114,7 +114,8 @@
       "heat_total": { "name": "Wärme erzeugt (gesamt)" },
       "elec_total": { "name": "Stromverbrauch (gesamt)" },
       "cop_month": { "name": "COP (Monat)" },
-      "cop_year": { "name": "JAZ (Jahr)" }
+      "cop_year": { "name": "JAZ (Jahr)" },
+      "cop_prev_year": { "name": "JAZ (Vorjahr)" }
     },
     "binary_sensor": {
       "status_wp": { "name": "Wärmepumpe" },

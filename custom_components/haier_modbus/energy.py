@@ -57,6 +57,7 @@ def _empty() -> dict:
         "year_heat": 0.0,
         "year_elec": 0.0,
         "seeded": False,
+        "history": {},
     }
 
 
@@ -139,6 +140,13 @@ class EnergyAccumulator:
             d["month_heat"] = 0.0
             d["month_elec"] = 0.0
         if d["year_key"] != ykey:
+            # Abgeschlossenes Jahr archivieren (vor dem Reset), sofern sinnvoll.
+            if d["year_key"] is not None and d["year_heat"] > 0 and d["year_elec"] > 0:
+                d.setdefault("history", {})[d["year_key"]] = {
+                    "heat": round(d["year_heat"], 3),
+                    "elec": round(d["year_elec"], 3),
+                    "cop": round(d["year_heat"] / d["year_elec"], 2),
+                }
             d["year_key"] = ykey
             d["year_heat"] = 0.0
             d["year_elec"] = 0.0
@@ -213,3 +221,14 @@ class EnergyAccumulator:
         h = self._g(f"{period}_heat")
         e = self._g(f"{period}_elec")
         return round(h / e, 2) if h and e else None
+
+    def history(self) -> dict:
+        """Abgeschlossene Jahre: {'2026': {'heat','elec','cop'}, ...}."""
+        return dict((self._data or {}).get("history", {}))
+
+    def previous_year_cop(self) -> float | None:
+        """JAZ des zuletzt abgeschlossenen Jahres."""
+        hist = (self._data or {}).get("history", {})
+        if not hist:
+            return None
+        return hist[max(hist)].get("cop")  # max key = jüngstes Jahr (YYYY)
