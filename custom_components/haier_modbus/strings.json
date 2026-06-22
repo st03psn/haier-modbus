@@ -2,36 +2,54 @@
   "config": {
     "step": {
       "user": {
-        "title": "Haier Brauchwasserwärmepumpe",
-        "description": "Verbindungsdaten zur Modbus-TCP-Schnittstelle (RTU↔TCP-Gateway).",
+        "title": "Haier DHWHP – connection",
+        "description": "Connection details for the Modbus TCP interface. The DHWHP's native interface is Modbus RTU (9600 8N1), so the host is usually a Modbus RTU-to-TCP converter (gateway).",
         "data": {
-          "host": "Host / IP-Adresse",
+          "host": "Host / IP address",
           "port": "Port",
-          "slave": "Modbus-Slave-ID",
-          "scan_interval": "Abfrageintervall (Sekunden)"
+          "slave": "Modbus slave ID",
+          "scan_interval": "Polling interval (seconds)",
+          "model": "Model",
+          "tank_volume": "Tank volume (litres)"
+        },
+        "data_description": {
+          "host": "Usually the IP of the Modbus RTU-to-TCP converter, not the heat pump itself.",
+          "slave": "Modbus address of the heat pump on the RTU bus (default 1)."
+        }
+      },
+      "cop": {
+        "title": "Haier DHWHP – COP & energy",
+        "description": "COP = produced heat / electricity used. Sources are configurable. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total. Everything can be changed later via \"Configure\".",
+        "data": {
+          "cop_enabled": "Enable COP calculation",
+          "cop_elec_source": "Electricity source for COP",
+          "cop_elec_entity": "External electricity meter (kWh)",
+          "cop_heat_source": "Heat source for COP",
+          "cop_heat_entity": "External heat meter (kWh)",
+          "energy_scale": "kWh register scaling (x)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Verbindung fehlgeschlagen. Host, Port und Slave-ID prüfen."
+      "cannot_connect": "Connection failed. Check host, port and slave ID."
     },
     "abort": {
-      "already_configured": "Diese Wärmepumpe ist bereits eingerichtet."
+      "already_configured": "This heat pump is already configured."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Einstellungen & COP",
-        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Quellen frei wählbar. Tipp: Bei externem Stromzähler einen jährlich zurücksetzenden Zähler (utility_meter, cycle: yearly) wählen, damit das Fenster zur Jahres-Wärmemenge passt.",
+        "title": "Settings & COP",
+        "description": "COP = produced heat / electricity used. Sources are configurable. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total.",
         "data": {
-          "scan_interval": "Abfrageintervall (Sekunden)",
-          "cop_enabled": "COP-Berechnung aktiv",
-          "cop_elec_source": "Stromquelle für COP",
-          "cop_elec_entity": "Externer Stromzähler (kWh)",
-          "cop_heat_source": "Wärmequelle für COP",
-          "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
-          "energy_scale": "Skalierung der kWh-Register (×)"
+          "scan_interval": "Polling interval (seconds)",
+          "cop_enabled": "Enable COP calculation",
+          "cop_elec_source": "Electricity source for COP",
+          "cop_elec_entity": "External electricity meter (kWh)",
+          "cop_heat_source": "Heat source for COP",
+          "cop_heat_entity": "External heat meter (kWh)",
+          "energy_scale": "kWh register scaling (x)"
         }
       }
     }
@@ -39,9 +57,53 @@
   "selector": {
     "energy_source": {
       "options": {
-        "modbus": "Integriert (Modbus-Register)",
-        "external": "Externer Sensor"
+        "modbus": "Integrated (Modbus register)",
+        "external": "External sensor"
       }
+    },
+    "model": {
+      "options": {
+        "hp160m7_f9": "HP160M7-F9 (160 l)",
+        "hp200m7_f9": "HP200M7-F9 (200 l)",
+        "hp260m7_f9": "HP260M7-F9 (260 l)",
+        "other": "Other model"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "water_temp": { "name": "Water temperature" },
+      "target_temp": { "name": "Target temperature" },
+      "tank_top": { "name": "Tank top" },
+      "tank_bottom": { "name": "Tank bottom" },
+      "ambient": { "name": "Ambient temperature" },
+      "hotwater_pct": { "name": "Hot water level" },
+      "fault": { "name": "Fault code" },
+      "mode_text": { "name": "Mode" },
+      "current_source": { "name": "Current source" },
+      "hp_elec_year": { "name": "Heat pump electricity (this year)" },
+      "heater_elec_year": { "name": "Electric heater electricity (this year)" },
+      "heat_year": { "name": "Heat produced (this year)" },
+      "cop_year": { "name": "COP (this year)" }
+    },
+    "binary_sensor": {
+      "status_wp": { "name": "Heat pump" },
+      "status_heater": { "name": "Electric heater" },
+      "status_solar": { "name": "Solar" },
+      "status_boiler": { "name": "Boiler" },
+      "connection": { "name": "Connection" }
+    },
+    "select": {
+      "mode_select": { "name": "Select mode" }
+    },
+    "switch": {
+      "active": { "name": "Active" },
+      "boost": { "name": "Boost" },
+      "mute": { "name": "Mute" },
+      "sterilize": { "name": "Sterilize" }
+    },
+    "number": {
+      "set_temp": { "name": "Setpoint temperature" }
     }
   }
 }

@@ -1,4 +1,11 @@
-"""Config- und Options-Flow – alles über die HA-Oberfläche konfigurierbar."""
+"""Config- und Options-Flow – alles über die HA-Oberfläche konfigurierbar.
+
+Einrichtung als Assistent in zwei Schritten:
+  1. user  – Verbindung + Modell/Tank
+  2. cop   – COP-/Energiequellen (direkt nach der Installation)
+
+Dieselben COP-Felder sind später jederzeit über den Options-Flow änderbar.
+"""
 
 from __future__ import annotations
 
@@ -18,16 +25,21 @@ from .const import (
     CONF_COP_HEAT_SOURCE,
     CONF_ENERGY_SCALE,
     CONF_HOST,
+    CONF_MODEL,
     CONF_PORT,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
+    CONF_TANK_VOLUME,
     DEFAULT_ENERGY_SCALE,
+    DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     DOMAIN,
+    MODELS,
     SOURCE_EXTERNAL,
     SOURCE_MODBUS,
+    TANK_VOLUME_L,
 )
 
 _ENERGY_ENTITY = selector.EntitySelector(
@@ -43,12 +55,36 @@ _SOURCE = selector.SelectSelector(
 _SCALE = selector.NumberSelector(
     selector.NumberSelectorConfig(min=0.001, max=1000, step=0.001, mode=selector.NumberSelectorMode.BOX)
 )
+_MODEL = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=list(MODELS.keys()),
+        translation_key="model",
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+
+
+def _cop_schema(o: dict[str, Any]) -> vol.Schema:
+    """COP-/Energiequellen-Schema – im Wizard und im Options-Flow identisch."""
+    return vol.Schema(
+        {
+            vol.Optional(CONF_COP_ENABLED, default=o.get(CONF_COP_ENABLED, True)): bool,
+            vol.Optional(CONF_COP_ELEC_SOURCE, default=o.get(CONF_COP_ELEC_SOURCE, SOURCE_MODBUS)): _SOURCE,
+            vol.Optional(CONF_COP_ELEC_ENTITY): _ENERGY_ENTITY,
+            vol.Optional(CONF_COP_HEAT_SOURCE, default=o.get(CONF_COP_HEAT_SOURCE, SOURCE_MODBUS)): _SOURCE,
+            vol.Optional(CONF_COP_HEAT_ENTITY): _ENERGY_ENTITY,
+            vol.Optional(CONF_ENERGY_SCALE, default=o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)): _SCALE,
+        }
+    )
 
 
 class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Einrichtung: Verbindungsdaten."""
+    """Einrichtungsassistent: Verbindung -> COP."""
 
     VERSION = 1
+
+    def __init__(self) -> None:
+        self._data: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -59,19 +95,31 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 f"{user_input[CONF_HOST]}:{user_input.get(CONF_PORT, DEFAULT_PORT)}"
             )
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(
-                title="Haier Brauchwasserwärmepumpe", data=user_input
-            )
+            self._data = user_input
+            return await self.async_step_cop()
 
+        default_model = DEFAULT_MODEL_KEY
         schema = vol.Schema(
             {
                 vol.Required(CONF_HOST): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
                 vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): int,
                 vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+                vol.Required(CONF_MODEL, default=default_model): _MODEL,
+                vol.Required(CONF_TANK_VOLUME, default=TANK_VOLUME_L): int,
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+    async def async_step_cop(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        if user_input is not None:
+            options = {k: v for k, v in user_input.items() if v not in ("", None)}
+            return self.async_create_entry(
+                title="Haier BWWP", data=self._data, options=options
+            )
+        return self.async_show_form(step_id="cop", data_schema=_cop_schema({}))
 
     @staticmethod
     @callback
@@ -88,23 +136,18 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         if user_input is not None:
-            # Leere Entity-Auswahl als nicht gesetzt behandeln.
             cleaned = {k: v for k, v in user_input.items() if v not in ("", None)}
             return self.async_create_entry(title="", data=cleaned)
 
         o = self.config_entry.options
 
-        schema = vol.Schema(
+        schema = _cop_schema(o).extend(
             {
-                vol.Optional(CONF_SCAN_INTERVAL, default=o.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
-                vol.Optional(CONF_COP_ENABLED, default=o.get(CONF_COP_ENABLED, True)): bool,
-                vol.Optional(CONF_COP_ELEC_SOURCE, default=o.get(CONF_COP_ELEC_SOURCE, SOURCE_MODBUS)): _SOURCE,
-                vol.Optional(CONF_COP_ELEC_ENTITY): _ENERGY_ENTITY,
-                vol.Optional(CONF_COP_HEAT_SOURCE, default=o.get(CONF_COP_HEAT_SOURCE, SOURCE_MODBUS)): _SOURCE,
-                vol.Optional(CONF_COP_HEAT_ENTITY): _ENERGY_ENTITY,
-                vol.Optional(CONF_ENERGY_SCALE, default=o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)): _SCALE,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=o.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                ): int,
             }
         )
-        # Vorbelegung der Entity-Selektoren mit gespeicherten Werten.
         schema = self.add_suggested_values_to_schema(schema, o)
         return self.async_show_form(step_id="init", data_schema=schema)

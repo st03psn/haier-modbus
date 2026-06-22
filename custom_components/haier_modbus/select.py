@@ -19,7 +19,7 @@ async def async_setup_entry(
 
 
 class HaierModeSelect(HaierModbusEntity, SelectEntity):
-    _attr_name = "Modus"
+    _attr_translation_key = "mode_select"
     _attr_icon = "mdi:tune-variant"
     _attr_options = list(TEXT_TO_MODE.keys())  # AUTO, ECO, ELEC, VAC
 
