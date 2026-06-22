@@ -66,7 +66,9 @@ gezählt, Quell-Resets werden abgefangen. Daraus:
 - **`JAZ (Jahr)`** – Jahresarbeitszahl
 - **`Wärme erzeugt (gesamt)`** / **`Stromverbrauch (gesamt)`** – monotone
   `total_increasing`-Energiesensoren für **Verbrauchs-/Erzeugungskurven**
-  (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen)
+  (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen).
+  Beim ersten Start mit dem aktuellen Quellenstand vorbefüllt (Wärme = Geräte-
+  Zähler, Strom = gewählte Quelle), danach reset-fest weiterzählend.
 
 **`COP (seit Bezugsdatum)`:** Liefert **sofort** einen Wert, ohne auf eine volle
 Periode zu warten. Das **Bezugsdatum wird automatisch ermittelt** – der erste

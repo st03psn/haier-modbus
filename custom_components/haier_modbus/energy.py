@@ -50,6 +50,8 @@ def _empty() -> dict:
         "prev_elec": None,
         "total_heat": 0.0,
         "total_elec": 0.0,
+        "totals_seeded_heat": False,
+        "totals_seeded_elec": False,
         "month_key": None,
         "year_key": None,
         "month_heat": 0.0,
@@ -200,17 +202,28 @@ class EnergyAccumulator:
         d = self._data
         self._roll(dt_util.now())
         if heat is not None:
-            dh = _delta(d["prev_heat"], heat)
-            d["prev_heat"] = heat
-            d["month_heat"] += dh
-            d["year_heat"] += dh
-            d["total_heat"] += dh
+            if not d.get("totals_seeded_heat"):
+                # Gesamt-Sensor mit aktuellem Quellenstand starten (nicht bei 0).
+                d["total_heat"] = heat
+                d["totals_seeded_heat"] = True
+                d["prev_heat"] = heat
+            else:
+                dh = _delta(d["prev_heat"], heat)
+                d["prev_heat"] = heat
+                d["month_heat"] += dh
+                d["year_heat"] += dh
+                d["total_heat"] += dh
         if elec is not None:
-            de = _delta(d["prev_elec"], elec)
-            d["prev_elec"] = elec
-            d["month_elec"] += de
-            d["year_elec"] += de
-            d["total_elec"] += de
+            if not d.get("totals_seeded_elec"):
+                d["total_elec"] = elec
+                d["totals_seeded_elec"] = True
+                d["prev_elec"] = elec
+            else:
+                de = _delta(d["prev_elec"], elec)
+                d["prev_elec"] = elec
+                d["month_elec"] += de
+                d["year_elec"] += de
+                d["total_elec"] += de
         self._dirty = True
 
     async def async_seed(
