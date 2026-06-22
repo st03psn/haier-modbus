@@ -135,5 +135,11 @@
     "number": {
       "set_temp": { "name": "Solltemperatur" }
     }
+  },
+  "issues": {
+    "missing_frontend_card": {
+      "title": "Fehlende Lovelace-Karte: {card_name}",
+      "description": "Die Haier-BWWP-Vergleichskarte benötigt die **{card_name}**-Lovelace-Karte. Installiere `{hacs_repo}` über HACS → Frontend und lade den Browser-Tab neu (Strg+Shift+R)."
+    }
   }
 }

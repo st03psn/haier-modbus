@@ -135,5 +135,11 @@
     "number": {
       "set_temp": { "name": "Setpoint temperature" }
     }
+  },
+  "issues": {
+    "missing_frontend_card": {
+      "title": "Missing Lovelace card: {card_name}",
+      "description": "The Haier BWWP comparison card requires the **{card_name}** Lovelace card. Install `{hacs_repo}` via HACS → Frontend, then reload the browser tab (Ctrl+Shift+R)."
+    }
   }
 }

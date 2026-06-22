@@ -1,12 +1,32 @@
-"""Haier Brauchwasserwärmepumpe (Modbus) – Integration-Setup."""
+"""Haier BWWP (Modbus) – Integration-Setup."""
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.issue_registry import (
+    IssueSeverity,
+    async_create_issue,
+    async_delete_issue,
+)
 
 from .const import DOMAIN, PLATFORMS
 from .coordinator import HaierModbusCoordinator
+
+_LOGGER = logging.getLogger(__name__)
+
+# (card_name, url_substring, hacs_repo, fs_fallback_path)
+# Nur ApexCharts – wird von der mitgelieferten JAZ/COP-Vergleichskarte benötigt.
+_REQUIRED_FRONTEND_CARDS = [
+    (
+        "apexcharts-card",
+        "apexcharts-card/apexcharts-card",
+        "RomRider/apexcharts-card",
+        "www/community/apexcharts-card/apexcharts-card.js",
+    ),
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -26,6 +46,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    # Frontend-Karte (ApexCharts) sicherstellen – im Hintergrund, blockiert das
+    # Setup nicht und kann es nie zum Scheitern bringen.
+    entry.async_create_background_task(
+        hass, _async_ensure_frontend_cards(hass), "haier_modbus_frontend_cards"
+    )
     return True
 
 
@@ -41,3 +67,102 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator: HaierModbusCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.async_close()
     return unload_ok
+
+
+def _missing_from_filesystem(config_dir_path: str) -> list[tuple[str, str, str]]:
+    """Fallback: prüfe www/community/-Pfade, wenn der Resource-Store fehlt."""
+    from pathlib import Path
+
+    config_dir = Path(config_dir_path)
+    return [
+        (name, url_sub, repo)
+        for name, url_sub, repo, fs_path in _REQUIRED_FRONTEND_CARDS
+        if not (config_dir / fs_path).exists()
+    ]
+
+
+async def _async_ensure_frontend_cards(hass: HomeAssistant) -> None:
+    """ApexCharts-Card vorhanden? Sonst via HACS nachziehen, sonst Repair-Hinweis.
+
+    Nutzt die HACS-interne API (``hass.data['hacs']``) – inoffiziell, aber der
+    übliche Weg. Alles gekapselt: schlägt etwas fehl, bleibt es bei einem
+    Reparatur-Hinweis, das Setup ist nie betroffen.
+    """
+    try:
+        # 1. Fehlende Karten ermitteln (Lovelace-Resource-Store, sonst Dateisystem).
+        missing: list[tuple[str, str, str]] = []
+        resources = hass.data.get("lovelace_resources")
+        if resources is not None:
+            try:
+                urls = [item.get("url", "") for item in resources.async_items()]
+                for name, url_sub, repo, _fs in _REQUIRED_FRONTEND_CARDS:
+                    if not any(url_sub in url for url in urls):
+                        missing.append((name, url_sub, repo))
+            except Exception:  # noqa: BLE001
+                missing = await hass.async_add_executor_job(
+                    _missing_from_filesystem, hass.config.path()
+                )
+        else:
+            missing = await hass.async_add_executor_job(
+                _missing_from_filesystem, hass.config.path()
+            )
+
+        # 2. Vorhandene -> evtl. alten Repair-Hinweis löschen.
+        present = {
+            n for n, _, _, _ in _REQUIRED_FRONTEND_CARDS
+        } - {m[0] for m in missing}
+        for name in present:
+            async_delete_issue(hass, DOMAIN, f"missing_frontend_card_{name.replace('-', '_')}")
+
+        if not missing:
+            return
+
+        # 3. Auto-Install über HACS versuchen.
+        installed: list[str] = []
+        hacs = hass.data.get("hacs")
+        still_missing = list(missing)
+        if hacs is not None:
+            still_missing = []
+            for name, url_sub, repo_name in missing:
+                try:
+                    repo = hacs.repositories.get_by_full_name(repo_name)
+                    if repo is None:
+                        still_missing.append((name, url_sub, repo_name))
+                        continue
+                    if repo.data.installed:
+                        continue
+                    _LOGGER.info("Installiere Frontend-Karte %s via HACS …", name)
+                    await repo.async_download_repository()
+                    installed.append(name)
+                except Exception as exc:  # noqa: BLE001
+                    _LOGGER.warning("HACS-Install für %s fehlgeschlagen: %s", name, exc)
+                    still_missing.append((name, url_sub, repo_name))
+
+        if installed:
+            await hass.services.async_call(
+                "persistent_notification", "create",
+                {
+                    "notification_id": "haier_modbus_frontend_installed",
+                    "title": "Haier BWWP – Frontend-Karte installiert",
+                    "message": (
+                        f"Über HACS installiert: {', '.join(installed)}.\n\n"
+                        "**Browser neu laden (Strg+Shift+R)**, um die Karte zu aktivieren."
+                    ),
+                },
+                blocking=False,
+            )
+
+        # 4. Für nicht installierbare Karten einen Reparatur-Hinweis anlegen.
+        for name, _url_sub, repo_name in still_missing:
+            async_create_issue(
+                hass,
+                DOMAIN,
+                f"missing_frontend_card_{name.replace('-', '_')}",
+                is_fixable=False,
+                severity=IssueSeverity.WARNING,
+                translation_key="missing_frontend_card",
+                translation_placeholders={"card_name": name, "hacs_repo": repo_name},
+                learn_more_url="https://hacs.xyz/",
+            )
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Frontend-Karten-Prüfung übersprungen: %s", exc)

@@ -85,6 +85,10 @@ Wert dauerhaft archiviert: Attribut `jaz_per_year` am **`JAZ (Jahr)`**-Sensor un
 **`JAZ (Vorjahr)`**. Fertige Vergleichskarte (ApexCharts):
 [`docs/lovelace-jaz-card.yaml`](docs/lovelace-jaz-card.yaml). Wächst ab Mess-Start.
 
+> Die benötigte **ApexCharts-Card wird automatisch über HACS nachinstalliert**
+> (sofern HACS vorhanden). Klappt das nicht, erscheint ein Reparatur-Hinweis mit
+> Installationslink. Danach Browser neu laden (Strg+Shift+R).
+
 **Rückwirkendes Seeding:** Beim ersten Start werden Monats- und Jahres-Fenster
 einmalig aus der HA-Langzeitstatistik vorbefüllt (reset-bereinigte `sum`), damit
 COP/JAZ nicht erst ab Inbetriebnahme zählen. Wärme- und Stromquelle werden dabei
