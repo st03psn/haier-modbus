@@ -1,7 +1,7 @@
 {
   "domain": "haier_modbus",
   "name": "Haier BWWP (Modbus)",
-  "after_dependencies": ["recorder"],
+  "after_dependencies": ["frontend", "lovelace", "recorder"],
   "codeowners": ["@st03psn"],
   "config_flow": true,
   "dependencies": [],
