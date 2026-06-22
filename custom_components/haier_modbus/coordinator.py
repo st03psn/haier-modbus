@@ -7,7 +7,6 @@ from datetime import date, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from pymodbus.client import AsyncModbusTcpClient
@@ -35,7 +34,9 @@ from .const import (
     REG_AMBIENT,
     REG_HEAT_MONTHS,
     REG_HEAT_YEAR,
+    REG_HEATER_ELEC_MONTHS,
     REG_HEATER_ELEC_YEAR,
+    REG_HP_ELEC_MONTHS,
     REG_HP_ELEC_YEAR,
     REG_SET_TEMP,
     SOURCE_EXTERNAL,
@@ -133,7 +134,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             if REG_AMBIENT in data:
                 data[REG_AMBIENT] = _signed16(data[REG_AMBIENT])
 
-            await self._maybe_seed()
+            await self._maybe_seed(data)
             await self._accumulate_energy(data)
             await self._compute_ref_cop(data)
             await self._pv.async_evaluate(self, data)
@@ -143,36 +144,63 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         except Exception as err:  # noqa: BLE001
             raise UpdateFailed(str(err)) from err
 
-    async def _maybe_seed(self) -> None:
-        """Einmal pro Start die Monats-/Jahres-Eimer aus der Statistik vorbefüllen.
+    async def _maybe_seed(self, data: dict[int, int]) -> None:
+        """Einmalig die Monats-/Jahres-Eimer aus autoritativen Kalenderwerten seeden.
 
-        Quellen entsprechen der COP-Konfiguration: extern -> gewählte Entität,
-        Modbus -> die Geräte-„dieses Jahr"-Sensoren (deren reset-bereinigte
-        Statistik-``sum`` das korrekte Fenster liefert).
+        Wärme/Strom werden direkt für den Kalendermonat bzw. das Kalenderjahr
+        ermittelt – kein Fenster-Alignment:
+        * Modbus-Quelle -> Gerätemonats-/Jahresregister (decken den Zeitraum
+          per Definition exakt ab, instant verfügbar).
+        * Externe Quelle -> reset-bereinigter Statistik-Verbrauch seit Monats-
+          bzw. Jahresbeginn.
+        Schlägt eine externe Statistik (noch) fehl, wird im nächsten Zyklus
+        erneut versucht. Re-Seed bei ``SEED_VERSION``-Wechsel bestehender Installs.
         """
         if self._seed_done:
             return
-        self._seed_done = True
-        reg = er.async_get(self.hass)
-
-        def eid(key: str) -> str | None:
-            return reg.async_get_entity_id("sensor", DOMAIN, f"{self.entry.entry_id}_{key}")
+        if not self.energy.loaded:
+            await self.energy.async_load()
+        if not self.energy.needs_seed:
+            self._seed_done = True
+            return
 
         o = self.entry.options
+        scale = o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)
+        now = dt_util.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        m = now.month - 1  # 0..11 -> Offset in die Monatsarrays
+
         if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
-            heat_ids = [o[CONF_COP_HEAT_ENTITY]] if o.get(CONF_COP_HEAT_ENTITY) else []
+            ent = o.get(CONF_COP_HEAT_ENTITY)
+            mh = await consumption_since(self.hass, [ent], month_start, now)
+            yh = await consumption_since(self.hass, [ent], year_start, now)
         else:
-            h = eid("heat_year")
-            heat_ids = [h] if h else []
+            mh = (data.get(REG_HEAT_MONTHS + m) or 0) * scale
+            yh = (data.get(REG_HEAT_YEAR) or 0) * scale
+
         if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
-            elec_ids = [o[CONF_COP_ELEC_ENTITY]] if o.get(CONF_COP_ELEC_ENTITY) else []
+            ent = o.get(CONF_COP_ELEC_ENTITY)
+            me = await consumption_since(self.hass, [ent], month_start, now)
+            ye = await consumption_since(self.hass, [ent], year_start, now)
         else:
-            elec_ids = [x for x in (eid("hp_elec_year"), eid("heater_elec_year")) if x]
+            me = (
+                (data.get(REG_HP_ELEC_MONTHS + m) or 0)
+                + (data.get(REG_HEATER_ELEC_MONTHS + m) or 0)
+            ) * scale
+            ye = (
+                (data.get(REG_HP_ELEC_YEAR) or 0)
+                + (data.get(REG_HEATER_ELEC_YEAR) or 0)
+            ) * scale
+
+        if None in (mh, me, yh, ye):
+            return  # externe Statistik noch nicht verfügbar -> nächster Zyklus
 
         try:
-            await self.energy.async_seed(self.hass, heat_ids, elec_ids)
+            await self.energy.async_seed(mh, me, yh, ye)
+            self._seed_done = True
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Statistik-Seeding übersprungen: %s", err)
+            _LOGGER.debug("Seeding übersprungen: %s", err)
 
     async def _ref_stat(self, kind: str, ids: list[str], start, now) -> float | None:
         """Statistik-Verbrauch seit Bezugsdatum – pro Quelle gecacht (alle 5 min)."""
