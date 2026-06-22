@@ -1,0 +1,17 @@
+# Recorder-Ausschlüsse für die Haier-BWWP-Integration
+# -----------------------------------------------------
+# Reduziert DB-Wachstum bei kurzem Abfrageintervall (z. B. 5 s), indem
+# Entitäten ohne Historien-Mehrwert nicht aufgezeichnet werden.
+#
+# Einbau: in die configuration.yaml übernehmen (vorhandenen recorder:-Block
+# ggf. zusammenführen), dann Home Assistant neu starten.
+# Die Glob-Muster passen sowohl auf alte (haier_brauchwasserwarmepumpe_*)
+# als auch neue (haier_bwwp_*) Entity-IDs.
+
+recorder:
+  exclude:
+    entity_globs:
+      - binary_sensor.*_verbindung      # Connectivity – flattert beim Polling
+      - sensor.*_modus_text             # redundant zum Modus-Select
+      - sensor.*_warmwasserstand        # ändert sich oft, geringer Analysewert
+      - sensor.*_zieltemperatur         # spiegelt meist die Solltemperatur

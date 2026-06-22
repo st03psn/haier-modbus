@@ -48,8 +48,19 @@ Monatlich analog über die Monatsblöcke (Wärme 74–85, WP 26–37, Heizstab 5
 
 ### Vor Nutzung verifizieren (kritisch)
 
-Das Wärmeregister (累计制热量, „accumulated heating power") **existiert** laut Doku –
-die offene Frage ist nur seine *Qualität*:
+**Begriffsklärung:** Die englische PDF-Zeile „Accumulated energy consumption
+(heating power)" ist irreführend (klingt nach Stromverbrauch). Der chinesische
+Originalbegriff `累计制热量` bedeutet *akkumulierte erzeugte Wärmemenge* (`制热量`
+= Wärme-Erzeugung), im Gegensatz zu `耗电量` (= Stromverbrauch) der beiden
+anderen Blöcke. Register 90 ist demnach **erzeugte Wärme**, nicht Strom.
+
+> ⚠️ **Empirischer Widerspruch:** Eine Testinstanz zeigte COP ≈ 0,11
+> (Wärme 60 kWh ÷ Strom ~545 kWh). Erzeugte Wärme < eingesetztem Strom ist für
+> eine WP unmöglich. Also ist entweder die **Skalierung falsch** (Strom- vs.
+> Wärme-Register) oder Register 90 misst doch keine echte Wärme. Bis das am
+> Gerät geklärt ist: **Modbus-COP nicht vertrauen, externe Quellen nutzen.**
+
+Die offene Frage ist also Existenz *und* Qualität:
 
 1. **Realität:** Schwankt Register 90 über Tage *unabhängig* vom Strom (z. B. COP
    sinkt bei Kälte)? Dann echte Kalorimetrie. Ist es stur Strom × Konstante, ist

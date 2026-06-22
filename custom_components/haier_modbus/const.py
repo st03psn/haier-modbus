@@ -20,7 +20,7 @@ CONF_TANK_VOLUME: Final = "tank_volume"
 
 DEFAULT_PORT: Final = 502
 DEFAULT_SLAVE: Final = 1
-DEFAULT_SCAN_INTERVAL: Final = 30  # Sekunden
+DEFAULT_SCAN_INTERVAL: Final = 5  # Sekunden
 
 # --- Options-Flow Keys (COP / Energiequellen, alles über die UI) -----------
 CONF_COP_ENABLED: Final = "cop_enabled"

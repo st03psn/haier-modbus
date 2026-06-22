@@ -32,7 +32,7 @@ hOn-Cloud, mit **Schreibzugriff** und **gerätegemessener Energie-/COP-Auswertun
 2. „Haier BWWP (Modbus)" herunterladen, HA neu starten
 3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „Haier" suchen
 4. **Schritt 1 – Verbindung:** Host (i. d. R. der **Modbus-RTU→TCP-Konverter**,
-   z. B. `192.168.42.112`), Port `502`, Slave `1`, Intervall `30`, Modell + Tankvolumen
+   z. B. `192.168.42.112`), Port `502`, Slave `1`, Intervall `5`, Modell + Tankvolumen
 5. **Schritt 2 – COP/Energie:** Quellen wählen (kann später jederzeit unter
    „Konfigurieren" angepasst werden)
 
@@ -61,6 +61,14 @@ Setzt die Solltemperatur dreistufig nach PV-Überschuss (hoch/normal/aus). Impor
 
 Benötigt: PV-Überschuss-Sensor (W), die **Solltemperatur**-Number der Integration,
 einen Wassertemperatur-Sensor; optional ein `notify`-Dienst.
+
+## Recorder / Datenbank
+
+Standard-Abfrageintervall ist **5 s**. Damit die Datenbank nicht durch
+historienlose Werte wächst, empfiehlt sich ein Recorder-Ausschluss für
+flatternde/redundante Entitäten (Verbindung, Modus-Text, Warmwasserstand,
+Zieltemperatur). Fertiger Block: [`docs/recorder-exclude.yaml`](docs/recorder-exclude.yaml)
+– in die `configuration.yaml` übernehmen und HA neu starten.
 
 ## Register & Validierung
 
