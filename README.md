@@ -68,6 +68,13 @@ gezählt, Quell-Resets werden abgefangen. Daraus:
   `total_increasing`-Energiesensoren für **Verbrauchs-/Erzeugungskurven**
   (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen)
 
+**Rückwirkendes Seeding:** Beim ersten Start werden Monats- und Jahres-Fenster
+einmalig aus der HA-Langzeitstatistik vorbefüllt (reset-bereinigte `sum`), damit
+COP/JAZ nicht erst ab Inbetriebnahme zählen. Wärme- und Stromquelle werden dabei
+auf den **gemeinsamen frühesten Datenzeitpunkt** ausgerichtet (also „ab dem auch
+Wärme verfügbar war"), damit beide denselben Zeitraum abdecken. Best-effort: ohne
+verwertbare Statistik wird übersprungen und ab dann vorwärts gezählt.
+
 ## PV-Überschuss-Steuerung
 
 **Eingebaut (empfohlen):** im Setup-Assistenten (Schritt 3) oder unter

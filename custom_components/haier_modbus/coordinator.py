@@ -7,6 +7,7 @@ from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from pymodbus.client import AsyncModbusTcpClient
@@ -70,6 +71,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self.energy = EnergyAccumulator(hass, entry.entry_id)
         self._pv = PvController(hass)
         self._last_save = None
+        self._seed_done = False
         super().__init__(
             hass,
             _LOGGER,
@@ -125,6 +127,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             if REG_AMBIENT in data:
                 data[REG_AMBIENT] = _signed16(data[REG_AMBIENT])
 
+            await self._maybe_seed()
             await self._accumulate_energy(data)
             await self._pv.async_evaluate(self, data)
             return data
@@ -132,6 +135,37 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             raise
         except Exception as err:  # noqa: BLE001
             raise UpdateFailed(str(err)) from err
+
+    async def _maybe_seed(self) -> None:
+        """Einmal pro Start die Monats-/Jahres-Eimer aus der Statistik vorbefüllen.
+
+        Quellen entsprechen der COP-Konfiguration: extern -> gewählte Entität,
+        Modbus -> die Geräte-„dieses Jahr"-Sensoren (deren reset-bereinigte
+        Statistik-``sum`` das korrekte Fenster liefert).
+        """
+        if self._seed_done:
+            return
+        self._seed_done = True
+        reg = er.async_get(self.hass)
+
+        def eid(key: str) -> str | None:
+            return reg.async_get_entity_id("sensor", DOMAIN, f"{self.entry.entry_id}_{key}")
+
+        o = self.entry.options
+        if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
+            heat_ids = [o[CONF_COP_HEAT_ENTITY]] if o.get(CONF_COP_HEAT_ENTITY) else []
+        else:
+            h = eid("heat_year")
+            heat_ids = [h] if h else []
+        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
+            elec_ids = [o[CONF_COP_ELEC_ENTITY]] if o.get(CONF_COP_ELEC_ENTITY) else []
+        else:
+            elec_ids = [x for x in (eid("hp_elec_year"), eid("heater_elec_year")) if x]
+
+        try:
+            await self.energy.async_seed(self.hass, heat_ids, elec_ids)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Statistik-Seeding übersprungen: %s", err)
 
     async def _accumulate_energy(self, data: dict[int, int]) -> None:
         """Wärme/Strom (quellabhängig) in kalender-ausgerichtete Eimer zählen."""
