@@ -34,9 +34,11 @@ from .const import (
     REG_HEAT_YEAR,
     REG_HEATER_ELEC_YEAR,
     REG_HP_ELEC_YEAR,
+    REG_SET_TEMP,
     SOURCE_EXTERNAL,
 )
 from .energy import EnergyAccumulator, state_float
+from .pv import PvController
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,14 +55,20 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.entry = entry
-        self.host: str = entry.data[CONF_HOST]
-        self.port: int = entry.data.get(CONF_PORT, DEFAULT_PORT)
-        self.slave: int = entry.data.get(CONF_SLAVE, DEFAULT_SLAVE)
+        # Verbindungsdaten: Options haben Vorrang (im GUI änderbar), sonst Setup-Daten.
+        self.host: str = entry.options.get(CONF_HOST, entry.data[CONF_HOST])
+        self.port: int = entry.options.get(
+            CONF_PORT, entry.data.get(CONF_PORT, DEFAULT_PORT)
+        )
+        self.slave: int = entry.options.get(
+            CONF_SLAVE, entry.data.get(CONF_SLAVE, DEFAULT_SLAVE)
+        )
         scan = entry.options.get(
             CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
         self._client = AsyncModbusTcpClient(self.host, port=self.port)
         self.energy = EnergyAccumulator(hass, entry.entry_id)
+        self._pv = PvController(hass)
         self._last_save = None
         super().__init__(
             hass,
@@ -118,6 +126,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
                 data[REG_AMBIENT] = _signed16(data[REG_AMBIENT])
 
             await self._accumulate_energy(data)
+            await self._pv.async_evaluate(self, data)
             return data
         except UpdateFailed:
             raise
@@ -162,6 +171,16 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
                 raise UpdateFailed(f"Schreibfehler an {address}: {resp}")
         finally:
             await self.async_request_refresh()
+
+    async def write_setpoint(self, value: int) -> None:
+        """Solltemperatur (Reg 6) setzen – für die interne PV-Steuerung.
+
+        Bewusst ohne anschließenden Refresh-Request (wird ohnehin im selben
+        Lesezyklus aufgerufen), um keine Rekursion auszulösen.
+        """
+        if not self._client.connected:
+            await self._client.connect()
+        await self._write_holding(REG_SET_TEMP, int(value))
 
     async def async_close(self) -> None:
         try:

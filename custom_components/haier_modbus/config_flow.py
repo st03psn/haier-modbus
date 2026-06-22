@@ -1,10 +1,12 @@
 """Config- und Options-Flow – alles über die HA-Oberfläche konfigurierbar.
 
-Einrichtung als Assistent in zwei Schritten:
-  1. user  – Verbindung + Modell/Tank
-  2. cop   – COP-/Energiequellen (direkt nach der Installation)
+Einrichtungsassistent in drei Schritten:
+  1. user  – Verbindung + Modell/Tank (mit Verbindungstest)
+  2. cop   – COP-/Energiequellen
+  3. pv    – optionale PV-Überschuss-Steuerung (Sensor + Schwellen)
 
-Dieselben COP-Felder sind später jederzeit über den Options-Flow änderbar.
+Der Options-Flow ("Konfigurieren") macht später alles davon änderbar –
+inklusive Host/Port/Slave des Modbus-Konverters.
 """
 
 from __future__ import annotations
@@ -20,7 +22,6 @@ from homeassistant.helpers import selector
 from pymodbus.client import AsyncModbusTcpClient
 
 from .const import (
-    READ_START,
     CONF_COP_ELEC_ENTITY,
     CONF_COP_ELEC_SOURCE,
     CONF_COP_ENABLED,
@@ -30,16 +31,33 @@ from .const import (
     CONF_HOST,
     CONF_MODEL,
     CONF_PORT,
+    CONF_PV_DEBOUNCE,
+    CONF_PV_ENABLED,
+    CONF_PV_HIGH,
+    CONF_PV_NORMAL,
+    CONF_PV_SENSOR,
+    CONF_PV_TEMP_BASE,
+    CONF_PV_TEMP_HIGH,
+    CONF_PV_TEMP_NORMAL,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
     CONF_TANK_VOLUME,
     DEFAULT_ENERGY_SCALE,
     DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
+    DEFAULT_PV_DEBOUNCE,
+    DEFAULT_PV_HIGH,
+    DEFAULT_PV_NORMAL,
+    DEFAULT_PV_TEMP_BASE,
+    DEFAULT_PV_TEMP_HIGH,
+    DEFAULT_PV_TEMP_NORMAL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     DOMAIN,
     MODELS,
+    READ_START,
+    SET_TEMP_MAX,
+    SET_TEMP_MIN,
     SOURCE_EXTERNAL,
     SOURCE_MODBUS,
     TANK_VOLUME_L,
@@ -47,6 +65,9 @@ from .const import (
 
 _ENERGY_ENTITY = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor", device_class="energy")
+)
+_PV_SENSOR = selector.EntitySelector(
+    selector.EntitySelectorConfig(domain="sensor", device_class="power")
 )
 _SOURCE = selector.SelectSelector(
     selector.SelectSelectorConfig(
@@ -65,6 +86,14 @@ _MODEL = selector.SelectSelector(
         mode=selector.SelectSelectorMode.DROPDOWN,
     )
 )
+_WATT = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=0, max=10000, step=50, unit_of_measurement="W",
+                                  mode=selector.NumberSelectorMode.BOX)
+)
+_TEMP = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=SET_TEMP_MIN, max=SET_TEMP_MAX, step=1,
+                                  unit_of_measurement="°C", mode=selector.NumberSelectorMode.SLIDER)
+)
 
 
 def _cop_schema(o: dict[str, Any]) -> vol.Schema:
@@ -77,6 +106,22 @@ def _cop_schema(o: dict[str, Any]) -> vol.Schema:
             vol.Optional(CONF_COP_HEAT_SOURCE, default=o.get(CONF_COP_HEAT_SOURCE, SOURCE_MODBUS)): _SOURCE,
             vol.Optional(CONF_COP_HEAT_ENTITY): _ENERGY_ENTITY,
             vol.Optional(CONF_ENERGY_SCALE, default=o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)): _SCALE,
+        }
+    )
+
+
+def _pv_schema(o: dict[str, Any]) -> vol.Schema:
+    """PV-Überschuss-Steuerung – im Wizard und im Options-Flow identisch."""
+    return vol.Schema(
+        {
+            vol.Optional(CONF_PV_ENABLED, default=o.get(CONF_PV_ENABLED, False)): bool,
+            vol.Optional(CONF_PV_SENSOR): _PV_SENSOR,
+            vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
+            vol.Optional(CONF_PV_NORMAL, default=o.get(CONF_PV_NORMAL, DEFAULT_PV_NORMAL)): _WATT,
+            vol.Optional(CONF_PV_TEMP_HIGH, default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH)): _TEMP,
+            vol.Optional(CONF_PV_TEMP_NORMAL, default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP,
+            vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP,
+            vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
         }
     )
 
@@ -100,12 +145,13 @@ async def _test_connection(host: str, port: int, slave: int) -> bool:
 
 
 class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Einrichtungsassistent: Verbindung -> COP."""
+    """Einrichtungsassistent: Verbindung -> COP -> PV."""
 
     VERSION = 1
 
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
+        self._cop: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -127,14 +173,13 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._data = user_input
                 return await self.async_step_cop()
 
-        default_model = DEFAULT_MODEL_KEY
         schema = vol.Schema(
             {
                 vol.Required(CONF_HOST): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
                 vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): int,
                 vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
-                vol.Required(CONF_MODEL, default=default_model): _MODEL,
+                vol.Required(CONF_MODEL, default=DEFAULT_MODEL_KEY): _MODEL,
                 vol.Required(CONF_TANK_VOLUME, default=TANK_VOLUME_L): int,
             }
         )
@@ -146,11 +191,20 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         if user_input is not None:
-            options = {k: v for k, v in user_input.items() if v not in ("", None)}
+            self._cop = {k: v for k, v in user_input.items() if v not in ("", None)}
+            return await self.async_step_pv()
+        return self.async_show_form(step_id="cop", data_schema=_cop_schema({}))
+
+    async def async_step_pv(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        if user_input is not None:
+            pv = {k: v for k, v in user_input.items() if v not in ("", None)}
+            options = {**self._cop, **pv}
             return self.async_create_entry(
                 title="Haier BWWP", data=self._data, options=options
             )
-        return self.async_show_form(step_id="cop", data_schema=_cop_schema({}))
+        return self.async_show_form(step_id="pv", data_schema=_pv_schema({}))
 
     @staticmethod
     @callback
@@ -161,7 +215,7 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class HaierModbusOptionsFlow(config_entries.OptionsFlow):
-    """Optionen: Abfrageintervall + COP-Energiequellen."""
+    """Optionen: Verbindung (Host/Port/Slave/Modell), Intervall, COP, PV."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -171,14 +225,22 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=cleaned)
 
         o = self.config_entry.options
+        d = self.config_entry.data
 
-        schema = _cop_schema(o).extend(
-            {
-                vol.Optional(
-                    CONF_SCAN_INTERVAL,
-                    default=o.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-                ): int,
-            }
-        )
+        def cur(key: str, default: Any) -> Any:
+            return o.get(key, d.get(key, default))
+
+        connection = {
+            vol.Optional(CONF_HOST, default=cur(CONF_HOST, "")): str,
+            vol.Optional(CONF_PORT, default=cur(CONF_PORT, DEFAULT_PORT)): int,
+            vol.Optional(CONF_SLAVE, default=cur(CONF_SLAVE, DEFAULT_SLAVE)): int,
+            vol.Optional(CONF_MODEL, default=cur(CONF_MODEL, DEFAULT_MODEL_KEY)): _MODEL,
+            vol.Optional(CONF_TANK_VOLUME, default=cur(CONF_TANK_VOLUME, TANK_VOLUME_L)): int,
+            vol.Optional(CONF_SCAN_INTERVAL, default=cur(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
+        }
+
+        schema = vol.Schema(connection)
+        schema = schema.extend(_cop_schema(o).schema)
+        schema = schema.extend(_pv_schema(o).schema)
         schema = self.add_suggested_values_to_schema(schema, o)
         return self.async_show_form(step_id="init", data_schema=schema)

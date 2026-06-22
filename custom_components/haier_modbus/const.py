@@ -35,6 +35,23 @@ SOURCE_EXTERNAL: Final = "external"
 
 DEFAULT_ENERGY_SCALE: Final = 1.0
 
+# --- PV-Überschuss-Steuerung (optional, in der Integration) -----------------
+CONF_PV_ENABLED: Final = "pv_enabled"
+CONF_PV_SENSOR: Final = "pv_sensor"            # Sensor PV-Überschuss in W
+CONF_PV_HIGH: Final = "pv_high"                # Schwelle hoher Überschuss (W)
+CONF_PV_NORMAL: Final = "pv_normal"            # Schwelle normaler Überschuss (W)
+CONF_PV_TEMP_HIGH: Final = "pv_temp_high"      # Zieltemp bei hohem Überschuss
+CONF_PV_TEMP_NORMAL: Final = "pv_temp_normal"  # Zieltemp bei normalem Überschuss
+CONF_PV_TEMP_BASE: Final = "pv_temp_base"      # Grund-Zieltemp ohne Überschuss
+CONF_PV_DEBOUNCE: Final = "pv_debounce"        # Entprellzeit (Minuten)
+
+DEFAULT_PV_HIGH: Final = 1500
+DEFAULT_PV_NORMAL: Final = 400
+DEFAULT_PV_TEMP_HIGH: Final = 70
+DEFAULT_PV_TEMP_NORMAL: Final = 65
+DEFAULT_PV_TEMP_BASE: Final = 50
+DEFAULT_PV_DEBOUNCE: Final = 5
+
 # Gerät
 MANUFACTURER: Final = "Haier"
 MODEL: Final = "HP200M7-F9"          # Standard-/Fallback-Modell

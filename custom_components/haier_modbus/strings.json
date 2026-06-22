@@ -28,6 +28,20 @@
           "cop_heat_entity": "External heat meter (kWh)",
           "energy_scale": "kWh register scaling (x)"
         }
+      },
+      "pv": {
+        "title": "Haier DHWHP – PV surplus (optional)",
+        "description": "Optional control of the target temperature based on PV surplus. Enable and select the surplus sensor (W); the tiers set the target temperature (high/normal/base). Changeable later via \"Configure\".",
+        "data": {
+          "pv_enabled": "Enable PV surplus control",
+          "pv_sensor": "PV surplus sensor (W)",
+          "pv_high": "High surplus threshold (W)",
+          "pv_normal": "Normal surplus threshold (W)",
+          "pv_temp_high": "Target temperature at high surplus (°C)",
+          "pv_temp_normal": "Target temperature at normal surplus (°C)",
+          "pv_temp_base": "Base target temperature without surplus (°C)",
+          "pv_debounce": "Debounce time (minutes)"
+        }
       }
     },
     "error": {
@@ -40,16 +54,29 @@
   "options": {
     "step": {
       "init": {
-        "title": "Settings & COP",
-        "description": "COP = produced heat / electricity used. Sources are configurable. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total.",
+        "title": "Settings (connection, COP, PV)",
+        "description": "Connection, COP/energy sources and optional PV surplus control. Host/port/slave change the link to the Modbus converter.",
         "data": {
+          "host": "Host / IP address (Modbus converter)",
+          "port": "Port",
+          "slave": "Modbus slave ID",
+          "model": "Model",
+          "tank_volume": "Tank volume (litres)",
           "scan_interval": "Polling interval (seconds)",
           "cop_enabled": "Enable COP calculation",
           "cop_elec_source": "Electricity source for COP",
           "cop_elec_entity": "External electricity meter (kWh)",
           "cop_heat_source": "Heat source for COP",
           "cop_heat_entity": "External heat meter (kWh)",
-          "energy_scale": "kWh register scaling (x)"
+          "energy_scale": "kWh register scaling (x)",
+          "pv_enabled": "Enable PV surplus control",
+          "pv_sensor": "PV surplus sensor (W)",
+          "pv_high": "High surplus threshold (W)",
+          "pv_normal": "Normal surplus threshold (W)",
+          "pv_temp_high": "Target temperature at high surplus (°C)",
+          "pv_temp_normal": "Target temperature at normal surplus (°C)",
+          "pv_temp_base": "Base target temperature without surplus (°C)",
+          "pv_debounce": "Debounce time (minutes)"
         }
       }
     }

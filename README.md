@@ -33,8 +33,11 @@ hOn-Cloud, mit **Schreibzugriff** und **gerätegemessener Energie-/COP-Auswertun
 3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „Haier" suchen
 4. **Schritt 1 – Verbindung:** Host (i. d. R. der **Modbus-RTU→TCP-Konverter**,
    z. B. `192.168.42.112`), Port `502`, Slave `1`, Intervall `5`, Modell + Tankvolumen
-5. **Schritt 2 – COP/Energie:** Quellen wählen (kann später jederzeit unter
-   „Konfigurieren" angepasst werden)
+5. **Schritt 2 – COP/Energie:** Quellen wählen
+6. **Schritt 3 – PV-Überschuss (optional):** Überschuss-Sensor + Schwellen
+
+Alles (inkl. **Host/Port/Slave des Modbus-Konverters**) ist später jederzeit unter
+**Geräte & Dienste → Haier … → Konfigurieren** änderbar.
 
 Alternativ rein lokal: Ordner `custom_components/haier_modbus/` nach
 `<config>/custom_components/` kopieren und HA neu starten.
@@ -65,16 +68,17 @@ gezählt, Quell-Resets werden abgefangen. Daraus:
   `total_increasing`-Energiesensoren für **Verbrauchs-/Erzeugungskurven**
   (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen)
 
-## PV-Überschuss-Automation
+## PV-Überschuss-Steuerung
 
-Blueprint: [`blueprints/automation/haier_modbus/pv_surplus.yaml`](blueprints/automation/haier_modbus/pv_surplus.yaml).
-Setzt die Solltemperatur dreistufig nach PV-Überschuss (hoch/normal/aus). Import:
+**Eingebaut (empfohlen):** im Setup-Assistenten (Schritt 3) oder unter
+„Konfigurieren" aktivieren. Du wählst nur den **PV-Überschuss-Sensor (W)** und
+optional die Schwellen/Zieltemperaturen; die Integration setzt die Solltemperatur
+dreistufig (hoch/normal/Grund) mit Entprellzeit und regelt nur, wenn nötig.
 
-> Einstellungen → Automationen & Szenen → Blueprints → **Blueprint importieren** →
-> URL der Blueprint-Datei (Raw-Link auf GitHub) einfügen.
-
-Benötigt: PV-Überschuss-Sensor (W), die **Solltemperatur**-Number der Integration,
-einen Wassertemperatur-Sensor; optional ein `notify`-Dienst.
+**Alternativ als Blueprint:**
+[`blueprints/automation/haier_modbus/pv_surplus.yaml`](blueprints/automation/haier_modbus/pv_surplus.yaml)
+(Einstellungen → Automationen & Szenen → Blueprints → **Blueprint importieren**),
+falls du die Logik lieber als Automation mit eigenen Anpassungen/Notifications führst.
 
 ## Recorder / Datenbank
 

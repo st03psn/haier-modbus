@@ -28,6 +28,20 @@
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
           "energy_scale": "Skalierung der kWh-Register (×)"
         }
+      },
+      "pv": {
+        "title": "Haier BWWP – PV-Überschuss (optional)",
+        "description": "Optionale Steuerung der Solltemperatur nach PV-Überschuss. Aktivieren und den Überschuss-Sensor (W) wählen; die Stufen setzen die Solltemperatur (hoch/normal/Grund). Später jederzeit unter „Konfigurieren“ änderbar.",
+        "data": {
+          "pv_enabled": "PV-Überschuss-Steuerung aktiv",
+          "pv_sensor": "PV-Überschuss-Sensor (W)",
+          "pv_high": "Schwelle hoher Überschuss (W)",
+          "pv_normal": "Schwelle normaler Überschuss (W)",
+          "pv_temp_high": "Zieltemperatur bei hohem Überschuss (°C)",
+          "pv_temp_normal": "Zieltemperatur bei normalem Überschuss (°C)",
+          "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
+          "pv_debounce": "Entprellzeit (Minuten)"
+        }
       }
     },
     "error": {
@@ -40,16 +54,29 @@
   "options": {
     "step": {
       "init": {
-        "title": "Einstellungen & COP",
-        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Quellen frei wählbar. Tipp: Bei externem Stromzähler einen jährlich zurücksetzenden Zähler (utility_meter, cycle: yearly) wählen, damit das Fenster zur Jahres-Wärmemenge passt.",
+        "title": "Einstellungen (Verbindung, COP, PV)",
+        "description": "Verbindung, COP-/Energiequellen und optionale PV-Überschuss-Steuerung. Host/Port/Slave ändern die Anbindung an den Modbus-Konverter.",
         "data": {
+          "host": "Host / IP-Adresse (Modbus-Konverter)",
+          "port": "Port",
+          "slave": "Modbus-Slave-ID",
+          "model": "Modell",
+          "tank_volume": "Tankvolumen (Liter)",
           "scan_interval": "Abfrageintervall (Sekunden)",
           "cop_enabled": "COP-Berechnung aktiv",
           "cop_elec_source": "Stromquelle für COP",
           "cop_elec_entity": "Externer Stromzähler (kWh)",
           "cop_heat_source": "Wärmequelle für COP",
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
-          "energy_scale": "Skalierung der kWh-Register (×)"
+          "energy_scale": "Skalierung der kWh-Register (×)",
+          "pv_enabled": "PV-Überschuss-Steuerung aktiv",
+          "pv_sensor": "PV-Überschuss-Sensor (W)",
+          "pv_high": "Schwelle hoher Überschuss (W)",
+          "pv_normal": "Schwelle normaler Überschuss (W)",
+          "pv_temp_high": "Zieltemperatur bei hohem Überschuss (°C)",
+          "pv_temp_normal": "Zieltemperatur bei normalem Überschuss (°C)",
+          "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
+          "pv_debounce": "Entprellzeit (Minuten)"
         }
       }
     }

@@ -16,7 +16,8 @@ class HaierModbusEntity(CoordinatorEntity[HaierModbusCoordinator]):
 
     def __init__(self, coordinator: HaierModbusCoordinator) -> None:
         super().__init__(coordinator)
-        model_key = coordinator.entry.data.get(CONF_MODEL)
+        entry = coordinator.entry
+        model_key = entry.options.get(CONF_MODEL, entry.data.get(CONF_MODEL))
         model = MODELS[model_key][0] if model_key in MODELS else (model_key or MODEL)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
