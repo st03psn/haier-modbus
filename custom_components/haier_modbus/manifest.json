@@ -1,0 +1,13 @@
+{
+  "domain": "haier_modbus",
+  "name": "Haier Brauchwasserwärmepumpe (Modbus)",
+  "version": "0.1.0",
+  "documentation": "https://github.com/st03psn/haier-modbus",
+  "issue_tracker": "https://github.com/st03psn/haier-modbus/issues",
+  "codeowners": ["@st03psn"],
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "integration_type": "device",
+  "requirements": ["pymodbus>=3.6.0"],
+  "dependencies": []
+}

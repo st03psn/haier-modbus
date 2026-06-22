@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Haier Brauchwasserwärmepumpe",
+        "description": "Verbindungsdaten zur Modbus-TCP-Schnittstelle (RTU↔TCP-Gateway).",
+        "data": {
+          "host": "Host / IP-Adresse",
+          "port": "Port",
+          "slave": "Modbus-Slave-ID",
+          "scan_interval": "Abfrageintervall (Sekunden)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen. Host, Port und Slave-ID prüfen."
+    },
+    "abort": {
+      "already_configured": "Diese Wärmepumpe ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einstellungen & COP",
+        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Quellen frei wählbar. Tipp: Bei externem Stromzähler einen jährlich zurücksetzenden Zähler (utility_meter, cycle: yearly) wählen, damit das Fenster zur Jahres-Wärmemenge passt.",
+        "data": {
+          "scan_interval": "Abfrageintervall (Sekunden)",
+          "cop_enabled": "COP-Berechnung aktiv",
+          "cop_elec_source": "Stromquelle für COP",
+          "cop_elec_entity": "Externer Stromzähler (kWh)",
+          "cop_heat_source": "Wärmequelle für COP",
+          "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
+          "energy_scale": "Skalierung der kWh-Register (×)"
+        }
+      }
+    }
+  },
+  "selector": {
+    "energy_source": {
+      "options": {
+        "modbus": "Integriert (Modbus-Register)",
+        "external": "Externer Sensor"
+      }
+    }
+  }
+}

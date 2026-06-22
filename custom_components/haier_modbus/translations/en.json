@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Haier domestic hot water heat pump",
+        "description": "Connection details for the Modbus TCP interface (RTU-to-TCP gateway).",
+        "data": {
+          "host": "Host / IP address",
+          "port": "Port",
+          "slave": "Modbus slave ID",
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connection failed. Check host, port and slave ID."
+    },
+    "abort": {
+      "already_configured": "This heat pump is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings & COP",
+        "description": "COP = produced heat / electricity used. Sources are configurable. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total.",
+        "data": {
+          "scan_interval": "Polling interval (seconds)",
+          "cop_enabled": "Enable COP calculation",
+          "cop_elec_source": "Electricity source for COP",
+          "cop_elec_entity": "External electricity meter (kWh)",
+          "cop_heat_source": "Heat source for COP",
+          "cop_heat_entity": "External heat meter (kWh)",
+          "energy_scale": "kWh register scaling (x)"
+        }
+      }
+    }
+  },
+  "selector": {
+    "energy_source": {
+      "options": {
+        "modbus": "Integrated (Modbus register)",
+        "external": "External sensor"
+      }
+    }
+  }
+}

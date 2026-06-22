@@ -1,0 +1,5 @@
+{
+  "name": "Haier Brauchwasserwärmepumpe (Modbus)",
+  "render_readme": true,
+  "homeassistant": "2024.2.0"
+}
