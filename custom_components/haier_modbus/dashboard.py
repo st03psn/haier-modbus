@@ -33,7 +33,13 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
     reg = er.async_get(hass)
 
     def eid(domain: str, key: str) -> str | None:
-        return reg.async_get_entity_id(domain, DOMAIN, f"{entry.entry_id}_{key}")
+        ent_id = reg.async_get_entity_id(domain, DOMAIN, f"{entry.entry_id}_{key}")
+        if not ent_id:
+            return None
+        ent = reg.async_get(ent_id)
+        if ent is not None and ent.disabled_by is not None:
+            return None  # deaktivierte Entitäten (z. B. Solar/Kessel) nicht aufnehmen
+        return ent_id
 
     def tile(domain: str, key: str, name: str, **extra) -> dict | None:
         entity = eid(domain, key)
@@ -75,7 +81,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             tile("number", "set_temp", "Solltemperatur",
                  features=[{"type": "numeric-input", "style": "slider"}]),
             tile("select", "mode", "Modus"),
-            tile("switch", "active", "Aktiv", features=[{"type": "toggle"}]),
+            tile("switch", "active", "Betrieb", features=[{"type": "toggle"}]),
             tile("switch", "boost", "Boost", features=[{"type": "toggle"}]),
             tile("switch", "mute", "Leise", features=[{"type": "toggle"}]),
             tile("switch", "sterilize", "Sterilisation", features=[{"type": "toggle"}]),
@@ -99,6 +105,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             tile("binary_sensor", "status_solar", "Solar", color="amber"),
             tile("binary_sensor", "status_boiler", "Kessel", color="red"),
             tile("binary_sensor", "connection", "Verbindung"),
+            tile("sensor", "link_status", "Modbus-Status"),
             tile("sensor", "fault", "Fehlercode"),
         ]),
     ])
