@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import date, timedelta
 
@@ -47,6 +48,8 @@ from .pv import PvController
 _LOGGER = logging.getLogger(__name__)
 
 _SAVE_INTERVAL_S = 300  # Persistenz höchstens alle 5 min
+_READ_ATTEMPTS = 3       # Lese-Versuche je Zyklus (gegen Konverter-Blips)
+_READ_RETRY_DELAY_S = 1  # Pause zwischen den Versuchen
 
 
 def _signed16(value: int) -> int:
@@ -113,27 +116,50 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
                 address, [value], slave=self.slave
             )
 
+    async def _read_block(self) -> dict[int, int]:
+        """Block-Read mit mehreren Versuchen + Reconnect.
+
+        Wackelige RTU↔TCP-Konverter liefern gelegentlich Timeouts/Fehler. Statt
+        bei einem einzelnen Blip sofort „nicht verfügbar" zu melden (Flapping im
+        Logbuch, Lücken im Graphen), wird kurz erneut verbunden und gelesen.
+        """
+        last_err: Exception | None = None
+        for attempt in range(_READ_ATTEMPTS):
+            try:
+                if not self._client.connected:
+                    await self._client.connect()
+                if not self._client.connected:
+                    raise UpdateFailed(
+                        f"Keine Verbindung zum Modbus-Konverter unter {self.host}:{self.port}"
+                    )
+                rr = await self._read_holding(READ_START, READ_COUNT)
+                if rr.isError():
+                    raise UpdateFailed(f"Modbus-Fehler beim Lesen: {rr}")
+                regs = rr.registers
+                data = {
+                    addr: regs[addr - READ_START]
+                    for addr in range(READ_START, READ_START + READ_COUNT)
+                }
+                if REG_AMBIENT in data:
+                    data[REG_AMBIENT] = _signed16(data[REG_AMBIENT])
+                return data
+            except Exception as err:  # noqa: BLE001
+                last_err = err
+                try:
+                    self._client.close()  # Reconnect beim nächsten Versuch erzwingen
+                except Exception:  # noqa: BLE001
+                    pass
+                if attempt < _READ_ATTEMPTS - 1:
+                    await asyncio.sleep(_READ_RETRY_DELAY_S)
+        raise (
+            last_err
+            if isinstance(last_err, UpdateFailed)
+            else UpdateFailed(f"Modbus-Lesefehler: {last_err}")
+        )
+
     async def _async_update_data(self) -> dict[int, int]:
         try:
-            if not self._client.connected:
-                await self._client.connect()
-            if not self._client.connected:
-                raise UpdateFailed(
-                    f"Keine Verbindung zum Modbus-Konverter unter {self.host}:{self.port}"
-                )
-
-            rr = await self._read_holding(READ_START, READ_COUNT)
-            if rr.isError():
-                raise UpdateFailed(f"Modbus-Fehler beim Lesen (Konverter erreichbar?): {rr}")
-
-            regs = rr.registers
-            data = {
-                addr: regs[addr - READ_START]
-                for addr in range(READ_START, READ_START + READ_COUNT)
-            }
-            if REG_AMBIENT in data:
-                data[REG_AMBIENT] = _signed16(data[REG_AMBIENT])
-
+            data = await self._read_block()
             await self._maybe_seed(data)
             await self._accumulate_energy(data)
             await self._compute_ref_cop(data)

@@ -115,17 +115,26 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "heater_elec_year", "Heizstab (Jahr)"),
     ])])
 
+    _avg_h = {"type": "line", "group_by": {"func": "avg", "duration": "1h"}}
     verlauf = section("Verlauf", [
-        apex("Temperaturen 48 h", "48h", [
-            ("sensor", "water_temp", "Wasser", {}),
-            ("sensor", "tank_top", "Tank oben", {}),
-            ("sensor", "tank_bottom", "Tank unten", {}),
-            ("sensor", "ambient", "Umgebung", {}),
-            ("number", "set_temp", "Soll", {"curve": "stepline"}),
-        ]),
-        apex("COP seit Bezugsdatum (30 Tage)", "30d", [
-            ("sensor", "cop_reference", "COP", {"curve": "smooth"}),
-        ]),
+        apex(
+            "Temperaturen (7 Tage)", "7d",
+            [
+                ("sensor", "water_temp", "Wasser", _avg_h),
+                ("sensor", "tank_top", "Tank oben", _avg_h),
+                ("sensor", "tank_bottom", "Tank unten", _avg_h),
+                ("sensor", "ambient", "Umgebung", _avg_h),
+                ("number", "set_temp", "Soll",
+                 {"type": "line", "curve": "stepline", "group_by": {"func": "max", "duration": "1h"}}),
+            ],
+            yaxis=[{"min": 35, "max": 60, "decimals": 0}],
+        ),
+        apex(
+            "COP seit Bezugsdatum (30 Tage)", "30d",
+            [("sensor", "cop_reference", "COP",
+              {"type": "line", "curve": "smooth", "group_by": {"func": "avg", "duration": "1d"}})],
+            yaxis=[{"min": 0, "decimals": 2}],
+        ),
     ])
 
     sections = [s for s in (steuerung, temps, status, energie, verlauf) if s]
