@@ -85,7 +85,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("water_heater", "water_heater", "Brauchwasser",
              features=[{"type": "target-temperature"}]),
         grid([
-            tile("select", "mode", "Modus"),
+            tile("select", "mode", "Modus", features=[{"type": "select-options"}]),
             tile("switch", "active", "Betrieb", features=[{"type": "toggle"}]),
             tile("switch", "boost", "Boost", features=[{"type": "toggle"}]),
             tile("switch", "mute", "Leise", features=[{"type": "toggle"}]),
@@ -172,16 +172,16 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         yaxis=[{"min": 0, "decimals": 2}],
     )
 
-    # Bedien-/Status-Kacheln in schmalen Spalten oben; Diagramme je eigener,
-    # breiterer Sektion (2 Spalten) -> nebeneinander statt alles untereinander.
+    # Bedien-/Status-Kacheln oben in schmalen Spalten; die Diagramme darunter
+    # in EINER vollbreiten Sektion als 3-Spalten-Raster -> saubere Reihe statt
+    # Masonry-Lücken.
+    charts = grid([chart_month, chart_temp, chart_cop], columns=3)
     sections = [
         steuerung,
         temps,
         status,
         energie,
-        section(None, [chart_month], span=2),
-        section(None, [chart_temp], span=2),
-        section(None, [chart_cop], span=2),
+        section(None, [charts], span=4) if charts else None,
     ]
     sections = [s for s in sections if s]
     return {
