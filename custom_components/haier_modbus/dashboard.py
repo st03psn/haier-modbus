@@ -86,6 +86,15 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             tile("switch", "mute", "Leise", features=[{"type": "toggle"}]),
             tile("switch", "sterilize", "Sterilisation", features=[{"type": "toggle"}]),
         ]),
+        {
+            "type": "button",
+            "name": "Einstellungen",
+            "icon": "mdi:cog",
+            "tap_action": {
+                "action": "navigate",
+                "navigation_path": f"/config/integrations/integration/{DOMAIN}",
+            },
+        },
     ])
 
     temps = section("Temperaturen", [grid([

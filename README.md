@@ -108,6 +108,9 @@ verwertbare Statistik wird übersprungen und ab dann vorwärts gezählt.
 „Konfigurieren" aktivieren. Du wählst nur den **PV-Überschuss-Sensor (W)** und
 optional die Schwellen/Zieltemperaturen; die Integration setzt die Solltemperatur
 dreistufig (hoch/normal/Grund) mit Entprellzeit und regelt nur, wenn nötig.
+Optional bei **hohem Überschuss**: zusätzlich **Boost** aktivieren und/oder den
+**Heizstab** (Modus ELEC) zuschalten, um den Überschuss maximal zu nutzen
+(Boost/Modus werden beim Absinken wieder zurückgenommen).
 
 **Alternativ als Blueprint:**
 [`blueprints/automation/haier_modbus/pv_surplus.yaml`](blueprints/automation/haier_modbus/pv_surplus.yaml)
@@ -116,9 +119,11 @@ falls du die Logik lieber als Automation mit eigenen Anpassungen/Notifications f
 
 ## Entity-IDs
 
-Beim Setup werden alle Entitäten auf ein einheitliches Schema **`<domain>.haier_bwwp_<key>`**
-standardisiert (Bestand wird einmalig migriert). Verweise auf zuvor abweichende
-entity_ids in eigenen Automationen/Karten müssen ggf. angepasst werden.
+Beim Setup werden alle Entitäten auf ein einheitliches, internationales Schema
+**`<domain>.hwhp_<key>`** standardisiert (Bestand wird einmalig migriert), z. B.
+`sensor.hwhp_water_temp`, `number.hwhp_set_temp`, `water_heater.hwhp`. Die
+**Anzeigenamen** folgen der HA-Systemsprache (Deutsch, sonst Englisch). Verweise
+auf zuvor abweichende entity_ids in eigenen Automationen/Karten ggf. anpassen.
 
 ## Verbindung & Diagnose
 

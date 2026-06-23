@@ -47,7 +47,11 @@ CONF_PV_TEMP_HIGH: Final = "pv_temp_high"      # Zieltemp bei hohem Überschuss
 CONF_PV_TEMP_NORMAL: Final = "pv_temp_normal"  # Zieltemp bei normalem Überschuss
 CONF_PV_TEMP_BASE: Final = "pv_temp_base"      # Grund-Zieltemp ohne Überschuss
 CONF_PV_DEBOUNCE: Final = "pv_debounce"        # Entprellzeit (Minuten)
+CONF_PV_BOOST: Final = "pv_boost"              # bei hohem Überschuss zusätzlich Boost
+CONF_PV_FORCE_ELEC: Final = "pv_force_elec"    # bei hohem Überschuss Modus ELEC (Heizstab)
 
+DEFAULT_PV_BOOST: Final = False
+DEFAULT_PV_FORCE_ELEC: Final = False
 DEFAULT_PV_HIGH: Final = 1500
 DEFAULT_PV_NORMAL: Final = 400
 DEFAULT_PV_TEMP_HIGH: Final = 70

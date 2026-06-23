@@ -430,15 +430,19 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         finally:
             await self.async_request_refresh()
 
-    async def write_setpoint(self, value: int) -> None:
-        """Solltemperatur (Reg 6) setzen – für die interne PV-Steuerung.
+    async def write_value(self, address: int, value: int) -> None:
+        """Beliebiges Register schreiben – für die interne PV-Steuerung.
 
         Bewusst ohne anschließenden Refresh-Request (wird ohnehin im selben
         Lesezyklus aufgerufen), um keine Rekursion auszulösen.
         """
         if not self._client.connected:
             await self._client.connect()
-        await self._write_holding(REG_SET_TEMP, int(value))
+        await self._write_holding(address, int(value))
+
+    async def write_setpoint(self, value: int) -> None:
+        """Solltemperatur (Reg 6) setzen – für die interne PV-Steuerung."""
+        await self.write_value(REG_SET_TEMP, int(value))
 
     async def async_close(self) -> None:
         try:

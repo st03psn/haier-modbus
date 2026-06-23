@@ -40,7 +40,9 @@
           "pv_temp_high": "Target temperature at high surplus (°C)",
           "pv_temp_normal": "Target temperature at normal surplus (°C)",
           "pv_temp_base": "Base target temperature without surplus (°C)",
-          "pv_debounce": "Debounce time (minutes)"
+          "pv_debounce": "Debounce time (minutes)",
+          "pv_boost": "Also enable Boost at high surplus",
+          "pv_force_elec": "Force electric heater (mode ELEC) at high surplus"
         }
       }
     },
@@ -77,7 +79,9 @@
           "pv_temp_high": "Target temperature at high surplus (°C)",
           "pv_temp_normal": "Target temperature at normal surplus (°C)",
           "pv_temp_base": "Base target temperature without surplus (°C)",
-          "pv_debounce": "Debounce time (minutes)"
+          "pv_debounce": "Debounce time (minutes)",
+          "pv_boost": "Also enable Boost at high surplus",
+          "pv_force_elec": "Force electric heater (mode ELEC) at high surplus"
         }
       }
     }

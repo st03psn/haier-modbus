@@ -40,7 +40,9 @@
           "pv_temp_high": "Zieltemperatur bei hohem Überschuss (°C)",
           "pv_temp_normal": "Zieltemperatur bei normalem Überschuss (°C)",
           "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
-          "pv_debounce": "Entprellzeit (Minuten)"
+          "pv_debounce": "Entprellzeit (Minuten)",
+          "pv_boost": "Bei hohem Überschuss zusätzlich Boost",
+          "pv_force_elec": "Bei hohem Überschuss Heizstab (Modus ELEC)"
         }
       }
     },
@@ -77,7 +79,9 @@
           "pv_temp_high": "Zieltemperatur bei hohem Überschuss (°C)",
           "pv_temp_normal": "Zieltemperatur bei normalem Überschuss (°C)",
           "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
-          "pv_debounce": "Entprellzeit (Minuten)"
+          "pv_debounce": "Entprellzeit (Minuten)",
+          "pv_boost": "Bei hohem Überschuss zusätzlich Boost",
+          "pv_force_elec": "Bei hohem Überschuss Heizstab (Modus ELEC)"
         }
       }
     }

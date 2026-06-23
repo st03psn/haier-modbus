@@ -33,8 +33,10 @@ from .const import (
     CONF_HOST,
     CONF_MODEL,
     CONF_PORT,
+    CONF_PV_BOOST,
     CONF_PV_DEBOUNCE,
     CONF_PV_ENABLED,
+    CONF_PV_FORCE_ELEC,
     CONF_PV_HIGH,
     CONF_PV_NORMAL,
     CONF_PV_SENSOR,
@@ -128,6 +130,8 @@ def _pv_schema(o: dict[str, Any]) -> vol.Schema:
             vol.Optional(CONF_PV_TEMP_NORMAL, default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP,
             vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP,
             vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
+            vol.Optional(CONF_PV_BOOST, default=o.get(CONF_PV_BOOST, False)): bool,
+            vol.Optional(CONF_PV_FORCE_ELEC, default=o.get(CONF_PV_FORCE_ELEC, False)): bool,
         }
     )
 
