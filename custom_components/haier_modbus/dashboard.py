@@ -53,9 +53,16 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         cards = [c for c in cards if c]
         return {"type": "grid", "columns": columns, "square": False, "cards": cards} if cards else None
 
-    def section(title: str, cards: list) -> dict | None:
+    def section(title: str | None, cards: list, span: int = 1) -> dict | None:
         cards = [c for c in cards if c]
-        return {"title": title, "cards": cards} if cards else None
+        if not cards:
+            return None
+        sec: dict = {"type": "grid", "cards": cards}
+        if title:
+            sec["title"] = title
+        if span > 1:
+            sec["column_span"] = span
+        return sec
 
     def apex(title: str, span: str, series_spec: list, **extra) -> dict | None:
         series = []
@@ -145,37 +152,46 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         }
 
     _avg_h = {"type": "line", "group_by": {"func": "avg", "duration": "1h"}}
-    verlauf = section("Verlauf", [
-        statgraph("Energie pro Monat", "month",
-                  [("sensor", "total_heat"), ("sensor", "total_elec")]),
-        apex(
-            "Temperaturen (7 Tage)", "7d",
-            [
-                ("sensor", "water_temp", "Wasser", _avg_h),
-                ("sensor", "tank_top", "Tank oben", _avg_h),
-                ("sensor", "tank_bottom", "Tank unten", _avg_h),
-                ("sensor", "ambient", "Umgebung", _avg_h),
-                ("number", "set_temp", "Soll",
-                 {"type": "line", "curve": "stepline", "group_by": {"func": "max", "duration": "1h"}}),
-            ],
-            yaxis=[{"min": 35, "max": 60, "decimals": 0}],
-            all_series_config={"stroke_width": 2},
-        ),
-        apex(
-            "COP seit Bezugsdatum (30 Tage)", "30d",
-            [("sensor", "cop_reference", "COP",
-              {"type": "line", "curve": "smooth", "group_by": {"func": "avg", "duration": "1d"}})],
-            yaxis=[{"min": 0, "decimals": 2}],
-        ),
-    ])
+    chart_month = statgraph("Energie pro Monat", "month",
+                            [("sensor", "total_heat"), ("sensor", "total_elec")])
+    chart_temp = apex(
+        "Temperaturen (7 Tage)", "7d",
+        [
+            ("sensor", "water_temp", "Wasser", _avg_h),
+            ("sensor", "tank_top", "Tank oben", _avg_h),
+            ("sensor", "tank_bottom", "Tank unten", _avg_h),
+            ("sensor", "ambient", "Umgebung", _avg_h),
+            ("number", "set_temp", "Soll",
+             {"type": "line", "curve": "stepline", "group_by": {"func": "max", "duration": "1h"}}),
+        ],
+        yaxis=[{"min": 35, "max": 60, "decimals": 0}],
+        all_series_config={"stroke_width": 2},
+    )
+    chart_cop = apex(
+        "COP seit Bezugsdatum (30 Tage)", "30d",
+        [("sensor", "cop_reference", "COP",
+          {"type": "line", "curve": "smooth", "group_by": {"func": "avg", "duration": "1d"}})],
+        yaxis=[{"min": 0, "decimals": 2}],
+    )
 
-    sections = [s for s in (steuerung, temps, status, energie, verlauf) if s]
+    # Bedien-/Status-Kacheln in schmalen Spalten oben; Diagramme je eigener,
+    # breiterer Sektion (2 Spalten) -> nebeneinander statt alles untereinander.
+    sections = [
+        steuerung,
+        temps,
+        status,
+        energie,
+        section(None, [chart_month], span=2),
+        section(None, [chart_temp], span=2),
+        section(None, [chart_cop], span=2),
+    ]
+    sections = [s for s in sections if s]
     return {
         "views": [{
             "title": "Übersicht",
             "path": "home",
             "type": "sections",
-            "max_columns": 3,
+            "max_columns": 4,
             "sections": sections,
         }]
     }
