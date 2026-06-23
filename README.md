@@ -16,8 +16,9 @@ hOn-Cloud, mit **Schreibzugriff** und **gerätegemessener Energie-/COP-Auswertun
 - **Ein Gerät** mit allen Entitäten gruppiert; `water_heater`-Kachel als zentrale Bedienung
 - **Steuerung (RW):** Solltemperatur (Number), Modus (Select: AUTO/ECO/ELEC/VAC),
   Schalter Aktiv/Boost/Leise/Sterilisation (Bits im Funktionsregister)
-- **Status:** Wärmepumpe / Heizstab / Solar / Kessel aktiv, **Aktuelle Quelle**
-  (konsolidiert), Verbindung
+- **Status:** Wärmepumpe / Heizstab aktiv, **Aktuelle Quelle** (konsolidiert),
+  Verbindung; **Solar / Kessel** (externe Quellen via Speicher-Heizregister) sind
+  standardmäßig **deaktiviert** – nur bei vorhandenem Anschluss aktivieren
 - **Sensoren:** Wasser-, Ziel-, Tank-oben/-unten-, Umgebungstemperatur, Warmwasser %,
   Fehlercode, Modus-Text
 - **Energie & COP:** WP-Strom, Heizstab-Strom, Wärmemenge (gerätegemessen, dieses Jahr)

@@ -29,8 +29,12 @@ async def async_setup_entry(
         [
             HaierStatusBit(coordinator, "wp", STATUS_HEATPUMP, "mdi:heat-pump"),
             HaierStatusBit(coordinator, "heater", STATUS_EHEATER, "mdi:radiator"),
-            HaierStatusBit(coordinator, "solar", STATUS_SOLAR, "mdi:solar-power"),
-            HaierStatusBit(coordinator, "boiler", STATUS_BOILER, "mdi:water-boiler"),
+            # Solar/Kessel = optionale externe Quellen (Heizregister im Speicher).
+            # Geräte ohne diesen Anschluss zeigen sie nie -> standardmäßig deaktiviert.
+            HaierStatusBit(coordinator, "solar", STATUS_SOLAR, "mdi:solar-power",
+                           enabled_default=False),
+            HaierStatusBit(coordinator, "boiler", STATUS_BOILER, "mdi:water-boiler",
+                           enabled_default=False),
             HaierConnection(coordinator),
         ]
     )
@@ -39,12 +43,14 @@ async def async_setup_entry(
 class HaierStatusBit(HaierModbusEntity, BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.RUNNING
 
-    def __init__(self, coordinator, key: str, bitmask: int, icon: str) -> None:
+    def __init__(self, coordinator, key: str, bitmask: int, icon: str,
+                 enabled_default: bool = True) -> None:
         super().__init__(coordinator)
         self._bitmask = bitmask
         self._attr_translation_key = f"status_{key}"
         self._attr_icon = icon
         self._attr_unique_id = f"{coordinator.entry.entry_id}_status_{key}"
+        self._attr_entity_registry_enabled_default = enabled_default
 
     @property
     def is_on(self) -> bool | None:
