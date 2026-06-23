@@ -52,6 +52,14 @@ CONF_PV_FORCE_ELEC: Final = "pv_force_elec"    # bei hohem Überschuss Modus ELE
 
 DEFAULT_PV_BOOST: Final = False
 DEFAULT_PV_FORCE_ELEC: Final = False
+
+# --- Notfall-Nachheizung (ECO -> AUTO bei kritisch niedriger Temperatur) ----
+CONF_EMERGENCY_ENABLED: Final = "emergency_enabled"
+CONF_EMERGENCY_CRITICAL: Final = "emergency_critical"   # °C: darunter ECO->AUTO
+CONF_EMERGENCY_RECOVER: Final = "emergency_recover"     # °C: darüber zurück AUTO->ECO
+DEFAULT_EMERGENCY_CRITICAL: Final = 38
+DEFAULT_EMERGENCY_RECOVER: Final = 48
+
 DEFAULT_PV_HIGH: Final = 1500
 DEFAULT_PV_NORMAL: Final = 400
 DEFAULT_PV_TEMP_HIGH: Final = 70

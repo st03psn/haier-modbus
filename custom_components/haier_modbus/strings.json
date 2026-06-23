@@ -81,7 +81,10 @@
           "pv_temp_base": "Base target temperature without surplus (°C)",
           "pv_debounce": "Debounce time (minutes)",
           "pv_boost": "Also enable Boost at high surplus",
-          "pv_force_elec": "Force electric heater (mode ELEC) at high surplus"
+          "pv_force_elec": "Force electric heater (mode ELEC, heat pump off) at high surplus",
+          "emergency_enabled": "Emergency reheat (ECO→AUTO at critical temperature)",
+          "emergency_critical": "Critical temperature (°C) – below it ECO→AUTO",
+          "emergency_recover": "Recovered temperature (°C) – above it back to ECO"
         }
       }
     }

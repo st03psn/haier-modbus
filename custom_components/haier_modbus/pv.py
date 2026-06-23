@@ -36,9 +36,11 @@ from .const import (
     REG_FUNCTION,
     REG_MODE,
     REG_SET_TEMP,
+    REG_STATUS,
     REG_WATER_TEMP,
     SET_TEMP_MAX,
     SET_TEMP_MIN,
+    STATUS_HEATPUMP,
 )
 from .energy import state_float
 
@@ -92,16 +94,25 @@ class PvController:
         if self._since is None or (now - self._since).total_seconds() < debounce_s:
             return
 
-        # 1) Solltemperatur (Hochregeln nur, wenn Speicher unter Ziel; runter immer).
+        # Überschuss-Logik greift nur, während die WP läuft (Reg 3, bit0).
+        # Ausnahme: Herunterregeln/Boost-aus läuft immer (Aufräumen).
+        running = bool((data.get(REG_STATUS) or 0) & STATUS_HEATPUMP)
+
+        # 1) Solltemperatur: Hochregeln nur im Betrieb + wenn Speicher unter Ziel;
+        #    Herunterregeln (zur Grundtemperatur) immer.
         current = data.get(REG_SET_TEMP)
         water = data.get(REG_WATER_TEMP)
         if current is not None and int(current) != int(desired):
-            if desired < current or (water is not None and water < desired):
+            lowering = desired < current
+            if lowering:
                 await coordinator.write_value(REG_SET_TEMP, int(desired))
-                _LOGGER.debug("PV: Soll %s -> %s (PV %.0f W)", current, desired, pv)
+                _LOGGER.debug("PV: Soll %s -> %s (runter)", current, desired)
+            elif running and (water is not None and water < desired):
+                await coordinator.write_value(REG_SET_TEMP, int(desired))
+                _LOGGER.debug("PV: Soll %s -> %s (PV %.0f W, WP läuft)", current, desired, pv)
 
-        # 2) Eskalation bei hohem Überschuss (optional, idempotent).
-        await self._apply_escalation(coordinator, o, data, tier == "high", pv)
+        # 2) Eskalation bei hohem Überschuss – nur im Betrieb (idempotent).
+        await self._apply_escalation(coordinator, o, data, tier == "high" and running, pv)
 
     async def _apply_escalation(self, coordinator, o, data, high: bool, pv: float) -> None:
         # Boost

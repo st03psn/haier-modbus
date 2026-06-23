@@ -29,6 +29,9 @@ from .const import (
     CONF_COP_HEAT_ENTITY,
     CONF_COP_HEAT_SOURCE,
     CONF_COP_REF_DATE,
+    CONF_EMERGENCY_CRITICAL,
+    CONF_EMERGENCY_ENABLED,
+    CONF_EMERGENCY_RECOVER,
     CONF_ENERGY_SCALE,
     CONF_HOST,
     CONF_MODEL,
@@ -46,6 +49,8 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
     DEFAULT_AMBIENT_OFFSET,
+    DEFAULT_EMERGENCY_CRITICAL,
+    DEFAULT_EMERGENCY_RECOVER,
     DEFAULT_ENERGY_SCALE,
     DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
@@ -248,8 +253,17 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_AMBIENT_OFFSET, default=cur(CONF_AMBIENT_OFFSET, DEFAULT_AMBIENT_OFFSET)): _OFFSET,
         }
 
+        emergency = {
+            vol.Optional(CONF_EMERGENCY_ENABLED, default=cur(CONF_EMERGENCY_ENABLED, False)): bool,
+            vol.Optional(CONF_EMERGENCY_CRITICAL,
+                         default=cur(CONF_EMERGENCY_CRITICAL, DEFAULT_EMERGENCY_CRITICAL)): _TEMP,
+            vol.Optional(CONF_EMERGENCY_RECOVER,
+                         default=cur(CONF_EMERGENCY_RECOVER, DEFAULT_EMERGENCY_RECOVER)): _TEMP,
+        }
+
         schema = vol.Schema(connection)
         schema = schema.extend(_cop_schema(o).schema)
         schema = schema.extend(_pv_schema(o).schema)
+        schema = schema.extend(emergency)
         schema = self.add_suggested_values_to_schema(schema, o)
         return self.async_show_form(step_id="init", data_schema=schema)

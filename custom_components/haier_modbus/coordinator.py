@@ -46,6 +46,7 @@ from .const import (
     STATUS_BOILER,
     STATUS_SOLAR,
 )
+from .emergency import EmergencyController
 from .energy import EnergyAccumulator, consumption_since, state_float
 from .pv import PvController
 
@@ -85,6 +86,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self._client = AsyncModbusTcpClient(self.host, port=self.port)
         self.energy = EnergyAccumulator(hass, entry.entry_id)
         self._pv = PvController(hass)
+        self._emergency = EmergencyController(hass)
         self._last_save = None
         self._seed_done = False
         # "COP seit Bezugsdatum": Ergebnis + gedrosselter Statistik-Cache
@@ -211,6 +213,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             await self._accumulate_energy(data)
             await self._compute_ref_cop(data)
             await self._pv.async_evaluate(self, data)
+            await self._emergency.async_evaluate(self, data)
             return data
         except UpdateFailed:
             # Kurze Modbus-Aussetzer: letzte Werte bis zu _GRACE_S halten, statt

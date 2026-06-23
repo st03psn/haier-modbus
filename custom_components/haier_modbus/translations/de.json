@@ -81,7 +81,10 @@
           "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_boost": "Bei hohem Überschuss zusätzlich Boost",
-          "pv_force_elec": "Bei hohem Überschuss Heizstab (Modus ELEC)"
+          "pv_force_elec": "Bei hohem Überschuss Heizstab (Modus ELEC, WP aus)",
+          "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO bei kritischer Temperatur)",
+          "emergency_critical": "Kritische Temperatur (°C) – darunter ECO→AUTO",
+          "emergency_recover": "Erholt-Temperatur (°C) – darüber zurück zu ECO"
         }
       }
     }
