@@ -13,7 +13,13 @@ from homeassistant.helpers.issue_registry import (
     async_delete_issue,
 )
 
-from .const import DOMAIN, PLATFORMS
+from .const import (
+    CONF_COP_ELEC_SOURCE,
+    CONF_COP_HEAT_SOURCE,
+    DOMAIN,
+    PLATFORMS,
+    SOURCE_EXTERNAL,
+)
 from .coordinator import HaierModbusCoordinator
 from .dashboard import async_register_dashboard, async_remove_dashboard
 
@@ -52,6 +58,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Entity-IDs standardisieren (Bestand + Neuinstallation -> <domain>.haier_bwwp_<key>).
     _standardize_entity_ids(hass, entry)
 
+    # Geräte-Energieregister ausblenden, wenn die jeweilige Quelle extern ist.
+    _sync_device_register_visibility(hass, entry)
+
     # Mitgeliefertes Dashboard registrieren (Entitäten sind jetzt registriert).
     await async_register_dashboard(hass, entry)
 
@@ -88,6 +97,36 @@ def _standardize_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
             _LOGGER.info("Entity-ID standardisiert: %s -> %s", ent.entity_id, desired)
         except Exception as exc:  # noqa: BLE001
             _LOGGER.warning("Standardisierung von %s fehlgeschlagen: %s", ent.entity_id, exc)
+
+
+def _sync_device_register_visibility(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Geräte-Energieregister-Sensoren je nach Quellenwahl ein-/ausblenden.
+
+    Ist die Strom- bzw. Wärmequelle für COP **extern** konfiguriert, sind die
+    entsprechenden Geräteregister redundant und unzuverlässig -> ausblenden
+    (deaktivieren). Bei „Modbus" als Quelle wieder einblenden. Nur von der
+    Integration deaktivierte Entitäten werden umgeschaltet – manuelle
+    Nutzer-Entscheidungen (disabled_by=user) bleiben unangetastet.
+    """
+    elec_external = entry.options.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL
+    heat_external = entry.options.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL
+    hide_by_key = {
+        "hp_elec_year": elec_external,
+        "heater_elec_year": elec_external,
+        "heat_year": heat_external,
+    }
+    reg = er.async_get(hass)
+    for key, hide in hide_by_key.items():
+        ent_id = reg.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}")
+        if not ent_id:
+            continue
+        ent = reg.async_get(ent_id)
+        if ent is None:
+            continue
+        if hide and ent.disabled_by is None:
+            reg.async_update_entity(ent_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION)
+        elif not hide and ent.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
+            reg.async_update_entity(ent_id, disabled_by=None)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
