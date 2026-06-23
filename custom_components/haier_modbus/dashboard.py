@@ -87,25 +87,27 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         card.update(extra)
         return card
 
+    settings_btn = {
+        "type": "button",
+        "name": "Einstellungen",
+        "icon": "mdi:cog",
+        "tap_action": {
+            "action": "navigate",
+            "navigation_path": f"/config/integrations/integration/{DOMAIN}",
+        },
+    }
     steuerung = section("Steuerung", [
         tile("water_heater", "water_heater", "Brauchwasser",
              features=[{"type": "target-temperature"}]),
+        tile("select", "mode", "Modus", features=[{"type": "select-options"}]),
+        # Schalter + kompakter Einstellungen-Button im 2-Spalten-Raster.
         grid([
-            tile("select", "mode", "Modus", features=[{"type": "select-options"}]),
             tile("switch", "active", "Betrieb", features=[{"type": "toggle"}]),
             tile("switch", "boost", "Boost", features=[{"type": "toggle"}]),
             tile("switch", "mute", "Leise", features=[{"type": "toggle"}]),
             tile("switch", "sterilize", "Sterilisation", features=[{"type": "toggle"}]),
+            settings_btn,
         ]),
-        {
-            "type": "button",
-            "name": "Einstellungen",
-            "icon": "mdi:cog",
-            "tap_action": {
-                "action": "navigate",
-                "navigation_path": f"/config/integrations/integration/{DOMAIN}",
-            },
-        },
     ])
 
     temps = section("Temperaturen", [grid([
@@ -178,18 +180,19 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         yaxis=[{"min": 0, "decimals": 2}],
     )
 
-    # Bedien-/Status-Kacheln oben (je eine Spalte); die Diagramme darunter in
-    # EINER vollbreiten Sektion als horizontale Reihe -> nebeneinander, gleich
-    # breit, ohne Masonry-Lücken. Nur als editierbarer Startpunkt gedacht; der
-    # Nutzer kann im UI frei umsortieren.
-    chart_cards = [c for c in (chart_month, chart_temp, chart_cop) if c]
-    charts_row = {"type": "horizontal-stack", "cards": chart_cards} if chart_cards else None
+    # Bedien-/Status-Kacheln oben; jedes Diagramm in EINER EIGENEN Sektion.
+    # So bricht die Sections-Ansicht auf schmalen Schirmen (Smartphone) sauber
+    # auf 1 Spalte um -> Diagramm = volle Breite/lesbar; am Desktop liegen sie
+    # nebeneinander. (Ein horizontal-stack würde NICHT umbrechen und die Charts
+    # auf dem Handy unleserlich quetschen.) Editierbarer Startpunkt.
     sections = [
         steuerung,
         temps,
         status,
         energie,
-        section("Verläufe", [charts_row], span=3) if charts_row else None,
+        section(None, [chart_month]),
+        section(None, [chart_temp]),
+        section(None, [chart_cop]),
     ]
     sections = [s for s in sections if s]
     return {
