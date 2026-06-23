@@ -108,7 +108,7 @@
       "hotwater_pct": { "name": "Hot water level" },
       "fault": { "name": "Fault code" },
       "mode_text": { "name": "Mode" },
-      "current_source": { "name": "Active" },
+      "current_source": { "name": "Current source" },
       "hp_elec_year": { "name": "Heat pump electricity (device, year)" },
       "heater_elec_year": { "name": "Electric heater electricity (device, year)" },
       "heat_year": { "name": "Heat produced (device, year)" },

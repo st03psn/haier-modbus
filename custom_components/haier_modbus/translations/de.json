@@ -108,7 +108,7 @@
       "hotwater_pct": { "name": "Warmwasserstand" },
       "fault": { "name": "Fehlercode" },
       "mode_text": { "name": "Modus" },
-      "current_source": { "name": "Aktiv" },
+      "current_source": { "name": "Aktuelle Quelle" },
       "hp_elec_year": { "name": "WP-Strom (Gerät, Jahr)" },
       "heater_elec_year": { "name": "Heizstab-Strom (Gerät, Jahr)" },
       "heat_year": { "name": "Wärmemenge (Gerät, Jahr)" },
