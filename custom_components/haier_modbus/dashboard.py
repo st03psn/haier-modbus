@@ -20,7 +20,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DASHBOARD_ICON, DASHBOARD_TITLE, DASHBOARD_URL_PATH, DOMAIN
+from .const import (
+    DASHBOARD_ICON,
+    DASHBOARD_LEGACY_URL_PATH,
+    DASHBOARD_TITLE,
+    DASHBOARD_URL_PATH,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -172,16 +178,18 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         yaxis=[{"min": 0, "decimals": 2}],
     )
 
-    # Bedien-/Status-Kacheln oben in schmalen Spalten; die Diagramme darunter
-    # in EINER vollbreiten Sektion als 3-Spalten-Raster -> saubere Reihe statt
-    # Masonry-Lücken.
-    charts = grid([chart_month, chart_temp, chart_cop], columns=3)
+    # Bedien-/Status-Kacheln oben (je eine Spalte); die Diagramme darunter in
+    # EINER vollbreiten Sektion als horizontale Reihe -> nebeneinander, gleich
+    # breit, ohne Masonry-Lücken. Nur als editierbarer Startpunkt gedacht; der
+    # Nutzer kann im UI frei umsortieren.
+    chart_cards = [c for c in (chart_month, chart_temp, chart_cop) if c]
+    charts_row = {"type": "horizontal-stack", "cards": chart_cards} if chart_cards else None
     sections = [
         steuerung,
         temps,
         status,
         energie,
-        section(None, [charts], span=4) if charts else None,
+        section("Verläufe", [charts_row], span=3) if charts_row else None,
     ]
     sections = [s for s in sections if s]
     return {
@@ -189,7 +197,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             "title": "Übersicht",
             "path": "home",
             "type": "sections",
-            "max_columns": 4,
+            "max_columns": 3,
             "sections": sections,
         }]
     }
@@ -200,56 +208,127 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Dashboard erzeugen, ablegen und als Lovelace-YAML + Panel registrieren."""
+def _remove_legacy_yaml_dashboard(hass: HomeAssistant) -> None:
+    """Altes, gesperrtes YAML-Dashboard (``haier-bwwp``) aus der Seitenleiste nehmen.
+
+    Bestehende Installationen hatten ein nicht editierbares YAML-Dashboard; das
+    wird hier entfernt, damit nicht zwei Einträge nebeneinander stehen. Die
+    YAML-Datei bleibt liegen (schadet nicht), wird aber nicht mehr registriert.
+    """
     try:
-        import yaml
-
-        config = _build_config(hass, entry)
-        text = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
-        path = Path(hass.config.path(_DASH_DIR)) / _DASH_FILE
-        await hass.async_add_executor_job(_write, path, text)
-
-        lovelace = hass.data.get("lovelace")
-        dashboards = getattr(lovelace, "dashboards", None)
-        if dashboards is not None and DASHBOARD_URL_PATH not in dashboards:
-            from homeassistant.components.lovelace.dashboard import LovelaceYAML
-
-            dashboards[DASHBOARD_URL_PATH] = LovelaceYAML(
-                hass,
-                DASHBOARD_URL_PATH,
-                {
-                    "mode": "yaml",
-                    "filename": str(path),
-                    "title": DASHBOARD_TITLE,
-                    "icon": DASHBOARD_ICON,
-                    "show_in_sidebar": True,
-                    "require_admin": False,
-                },
-            )
-
-        frontend.async_register_built_in_panel(
-            hass,
-            component_name="lovelace",
-            sidebar_title=DASHBOARD_TITLE,
-            sidebar_icon=DASHBOARD_ICON,
-            frontend_url_path=DASHBOARD_URL_PATH,
-            config={"mode": "yaml", "filename": str(path)},
-            require_admin=False,
-            update=True,
-        )
-        _LOGGER.info("Haier-BWWP-Dashboard registriert unter /%s", DASHBOARD_URL_PATH)
-    except Exception as exc:  # noqa: BLE001
-        _LOGGER.warning("Dashboard-Registrierung übersprungen: %s", exc)
-
-
-async def async_remove_dashboard(hass: HomeAssistant) -> None:
-    """Panel + Lovelace-Eintrag entfernen (Datei bleibt, schadet nicht)."""
-    try:
-        frontend.async_remove_panel(hass, DASHBOARD_URL_PATH)
+        frontend.async_remove_panel(hass, DASHBOARD_LEGACY_URL_PATH)
     except Exception:  # noqa: BLE001
         pass
     lovelace = hass.data.get("lovelace")
     dashboards = getattr(lovelace, "dashboards", None)
     if isinstance(dashboards, dict):
-        dashboards.pop(DASHBOARD_URL_PATH, None)
+        dashboards.pop(DASHBOARD_LEGACY_URL_PATH, None)
+
+
+async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> bool:
+    """Editierbares Storage-Dashboard EINMALIG anlegen.
+
+    Gibt True zurück, wenn ein Storage-Dashboard existiert (neu angelegt ODER
+    bereits vorhanden – dann bleiben die Anpassungen des Nutzers unangetastet).
+    Greift auf die interne Lovelace-Collection zu; bei abweichender API wird
+    False geliefert, sodass der Aufrufer auf YAML zurückfallen kann.
+    """
+    lovelace = hass.data.get("lovelace")
+    if lovelace is None:
+        return False
+    dashboards = getattr(lovelace, "dashboards", None)
+    collection = getattr(lovelace, "dashboards_collection", None)
+    if not isinstance(dashboards, dict) or collection is None:
+        return False
+
+    # Bereits vorhanden? -> nicht überschreiben (Nutzer-Layout behalten).
+    if DASHBOARD_URL_PATH in dashboards:
+        return True
+    try:
+        items = list(collection.async_items())
+    except Exception:  # noqa: BLE001
+        items = []
+    if any((i or {}).get("url_path") == DASHBOARD_URL_PATH for i in items):
+        return True
+
+    # Registry-Eintrag anlegen (registriert via Listener Panel + LovelaceStorage).
+    await collection.async_create_item(
+        {
+            "url_path": DASHBOARD_URL_PATH,
+            "title": DASHBOARD_TITLE,
+            "icon": DASHBOARD_ICON,
+            "show_in_sidebar": True,
+            "require_admin": False,
+        }
+    )
+    store = dashboards.get(DASHBOARD_URL_PATH)
+    if store is None:
+        return False
+    await store.async_save(config)  # Start-Layout hinterlegen
+    return True
+
+
+async def _register_yaml_dashboard(hass: HomeAssistant, config: dict) -> None:
+    """Fallback: Dashboard als (nicht editierbares) Lovelace-YAML + Panel anmelden."""
+    import yaml
+
+    text = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
+    path = Path(hass.config.path(_DASH_DIR)) / _DASH_FILE
+    await hass.async_add_executor_job(_write, path, text)
+
+    lovelace = hass.data.get("lovelace")
+    dashboards = getattr(lovelace, "dashboards", None)
+    if isinstance(dashboards, dict) and DASHBOARD_URL_PATH not in dashboards:
+        from homeassistant.components.lovelace.dashboard import LovelaceYAML
+
+        dashboards[DASHBOARD_URL_PATH] = LovelaceYAML(
+            hass,
+            DASHBOARD_URL_PATH,
+            {
+                "mode": "yaml",
+                "filename": str(path),
+                "title": DASHBOARD_TITLE,
+                "icon": DASHBOARD_ICON,
+                "show_in_sidebar": True,
+                "require_admin": False,
+            },
+        )
+
+    frontend.async_register_built_in_panel(
+        hass,
+        component_name="lovelace",
+        sidebar_title=DASHBOARD_TITLE,
+        sidebar_icon=DASHBOARD_ICON,
+        frontend_url_path=DASHBOARD_URL_PATH,
+        config={"mode": "yaml", "filename": str(path)},
+        require_admin=False,
+        update=True,
+    )
+
+
+async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Editierbares Dashboard bereitstellen (Storage; YAML nur als Fallback)."""
+    try:
+        _remove_legacy_yaml_dashboard(hass)
+        config = _build_config(hass, entry)
+        if await _seed_storage_dashboard(hass, config):
+            _LOGGER.info(
+                "Editierbares Haier-Dashboard unter /%s", DASHBOARD_URL_PATH
+            )
+            return
+        await _register_yaml_dashboard(hass, config)
+        _LOGGER.info(
+            "Haier-Dashboard (YAML-Fallback) unter /%s", DASHBOARD_URL_PATH
+        )
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.warning("Dashboard-Registrierung übersprungen: %s", exc)
+
+
+async def async_remove_dashboard(hass: HomeAssistant) -> None:
+    """Beim Entladen NICHTS löschen.
+
+    Das Storage-Dashboard gehört nun dem Nutzer (Drag&Drop-Anpassungen) und
+    bleibt über Reloads/Neustarts erhalten. Ein evtl. YAML-Fallback-Panel wird
+    beim nächsten Setup ohnehin mit ``update=True`` neu registriert.
+    """
+    return

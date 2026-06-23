@@ -71,8 +71,9 @@ DEFAULT_PV_DEBOUNCE: Final = 5
 MANUFACTURER: Final = "Haier"
 MODEL: Final = "HP200M7-F9"          # Standard-/Fallback-Modell
 
-# Mitgeliefertes Dashboard
-DASHBOARD_URL_PATH: Final = "haier-bwwp"
+# Mitgeliefertes Dashboard (Storage-Modus = im UI editierbar)
+DASHBOARD_URL_PATH: Final = "haier-hwhp"
+DASHBOARD_LEGACY_URL_PATH: Final = "haier-bwwp"  # altes, gesperrtes YAML-Dashboard
 DASHBOARD_TITLE: Final = "Haier BWWP"
 DASHBOARD_ICON: Final = "mdi:water-boiler"
 
