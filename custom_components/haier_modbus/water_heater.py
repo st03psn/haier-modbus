@@ -39,6 +39,7 @@ class HaierWaterHeater(HaierModbusEntity, WaterHeaterEntity):
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_min_temp = SET_TEMP_MIN
     _attr_max_temp = SET_TEMP_MAX
+    _attr_target_temperature_step = 1  # Modbus-Register ist ganzzahlig (keine 0,5°)
     _attr_operation_list = OPERATIONS
     _attr_supported_features = (
         WaterHeaterEntityFeature.TARGET_TEMPERATURE

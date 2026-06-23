@@ -85,8 +85,6 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("water_heater", "water_heater", "Brauchwasser",
              features=[{"type": "target-temperature"}]),
         grid([
-            tile("number", "set_temp", "Solltemperatur",
-                 features=[{"type": "numeric-input", "style": "slider"}]),
             tile("select", "mode", "Modus"),
             tile("switch", "active", "Betrieb", features=[{"type": "toggle"}]),
             tile("switch", "boost", "Boost", features=[{"type": "toggle"}]),
