@@ -170,29 +170,20 @@ class EnergyAccumulator:
             self._data = _empty()
         d = self._data
         self._roll(dt_util.now())
+        # Totale starten bei 0 und wachsen rein über positive Deltas – kein
+        # Baseline-Seed (das erzeugte sonst einen einmaligen Statistik-Sprung).
         if heat is not None:
-            if not d.get("totals_seeded_heat"):
-                # Gesamt-Sensor mit aktuellem Quellenstand starten (nicht bei 0).
-                d["total_heat"] = heat
-                d["totals_seeded_heat"] = True
-                d["prev_heat"] = heat
-            else:
-                dh = _delta(d["prev_heat"], heat)
-                d["prev_heat"] = heat
-                d["month_heat"] += dh
-                d["year_heat"] += dh
-                d["total_heat"] += dh
+            dh = _delta(d["prev_heat"], heat)
+            d["prev_heat"] = heat
+            d["month_heat"] += dh
+            d["year_heat"] += dh
+            d["total_heat"] += dh
         if elec is not None:
-            if not d.get("totals_seeded_elec"):
-                d["total_elec"] = elec
-                d["totals_seeded_elec"] = True
-                d["prev_elec"] = elec
-            else:
-                de = _delta(d["prev_elec"], elec)
-                d["prev_elec"] = elec
-                d["month_elec"] += de
-                d["year_elec"] += de
-                d["total_elec"] += de
+            de = _delta(d["prev_elec"], elec)
+            d["prev_elec"] = elec
+            d["month_elec"] += de
+            d["year_elec"] += de
+            d["total_elec"] += de
         self._dirty = True
 
     async def async_seed(

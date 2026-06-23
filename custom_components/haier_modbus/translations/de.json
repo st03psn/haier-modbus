@@ -43,6 +43,10 @@
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_boost": "Bei hohem Überschuss zusätzlich Boost",
           "pv_force_elec": "Bei hohem Überschuss Heizstab (Modus ELEC)"
+        },
+        "data_description": {
+          "pv_boost": "Ab der hohen Schwelle zusätzlich Boost (Wärmepumpe + Heizstab gleichzeitig) einschalten, um den Sollwert schneller zu erreichen. Greift nur, während die WP läuft.",
+          "pv_force_elec": "Ab der hohen Schwelle in den ELEC-Modus schalten – dann heizt NUR der Heizstab, die Wärmepumpe ist AUS (ineffizient, nur zum reinen Verheizen von Überschuss). Für Effizienz lieber Boost."
         }
       }
     },
@@ -85,6 +89,13 @@
           "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO bei kritischer Temperatur)",
           "emergency_critical": "Kritische Temperatur (°C) – darunter ECO→AUTO",
           "emergency_recover": "Erholt-Temperatur (°C) – darüber zurück zu ECO"
+        },
+        "data_description": {
+          "pv_boost": "Ab der hohen Schwelle zusätzlich Boost (WP + Heizstab gleichzeitig). Nur während die WP läuft.",
+          "pv_force_elec": "Ab der hohen Schwelle ELEC-Modus: NUR Heizstab, WP AUS (ineffizient – nur zum Verheizen von Überschuss). Sonst Boost nutzen.",
+          "emergency_enabled": "Schaltet bei kritisch niedriger Wassertemperatur vorübergehend ECO→AUTO, damit sofort geheizt wird (auch außerhalb des ECO-Zeitfensters); bei Erholung zurück zu ECO.",
+          "emergency_critical": "Unter dieser Wassertemperatur wird von ECO auf AUTO geschaltet.",
+          "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet."
         }
       }
     }

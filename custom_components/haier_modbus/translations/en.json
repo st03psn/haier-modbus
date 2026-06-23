@@ -43,6 +43,10 @@
           "pv_debounce": "Debounce time (minutes)",
           "pv_boost": "Also enable Boost at high surplus",
           "pv_force_elec": "Force electric heater (mode ELEC) at high surplus"
+        },
+        "data_description": {
+          "pv_boost": "Above the high threshold, also turn on Boost (heat pump + electric heater together) to reach the setpoint faster. Only while the heat pump runs.",
+          "pv_force_elec": "Above the high threshold, switch to ELEC mode — only the electric heater runs, the heat pump is OFF (inefficient, only to dump surplus). Prefer Boost for efficiency."
         }
       }
     },
@@ -85,6 +89,13 @@
           "emergency_enabled": "Emergency reheat (ECO→AUTO at critical temperature)",
           "emergency_critical": "Critical temperature (°C) – below it ECO→AUTO",
           "emergency_recover": "Recovered temperature (°C) – above it back to ECO"
+        },
+        "data_description": {
+          "pv_boost": "Above the high threshold, also enable Boost (heat pump + heater together). Only while the heat pump runs.",
+          "pv_force_elec": "Above the high threshold, ELEC mode: heater only, heat pump OFF (inefficient — only to dump surplus). Otherwise use Boost.",
+          "emergency_enabled": "When the water gets critically cold, temporarily switches ECO→AUTO to heat immediately (even outside the ECO time window); back to ECO on recovery.",
+          "emergency_critical": "Below this water temperature it switches from ECO to AUTO.",
+          "emergency_recover": "At/above this water temperature it switches back to ECO."
         }
       }
     }
