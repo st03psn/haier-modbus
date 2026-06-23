@@ -87,10 +87,13 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         card.update(extra)
         return card
 
+    # Kompakter Einstellungen-Button: nur Zahnrad-Icon (niedrig), unter den
+    # Schaltern – statt einer großen Kachel.
     settings_btn = {
         "type": "button",
         "name": "Einstellungen",
         "icon": "mdi:cog",
+        "show_name": False,
         "tap_action": {
             "action": "navigate",
             "navigation_path": f"/config/integrations/integration/{DOMAIN}",
@@ -100,14 +103,13 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("water_heater", "water_heater", "Brauchwasser",
              features=[{"type": "target-temperature"}]),
         tile("select", "mode", "Modus", features=[{"type": "select-options"}]),
-        # Schalter + kompakter Einstellungen-Button im 2-Spalten-Raster.
         grid([
             tile("switch", "active", "Betrieb", features=[{"type": "toggle"}]),
             tile("switch", "boost", "Boost", features=[{"type": "toggle"}]),
             tile("switch", "mute", "Leise", features=[{"type": "toggle"}]),
             tile("switch", "sterilize", "Sterilisation", features=[{"type": "toggle"}]),
-            settings_btn,
         ]),
+        settings_btn,
     ])
 
     temps = section("Temperaturen", [grid([
