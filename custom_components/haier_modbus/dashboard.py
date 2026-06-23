@@ -131,8 +131,23 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "heater_elec_year", "Heizstab (Jahr)"),
     ])])
 
+    def statgraph(title: str, period: str, specs: list) -> dict | None:
+        ents = [e for e in (eid(d, k) for d, k in specs) if e]
+        if not ents:
+            return None
+        return {
+            "type": "statistics-graph",
+            "title": title,
+            "period": period,
+            "stat_types": ["change"],
+            "chart_type": "bar",
+            "entities": ents,
+        }
+
     _avg_h = {"type": "line", "group_by": {"func": "avg", "duration": "1h"}}
     verlauf = section("Verlauf", [
+        statgraph("Energie pro Monat", "month",
+                  [("sensor", "total_heat"), ("sensor", "total_elec")]),
         apex(
             "Temperaturen (7 Tage)", "7d",
             [
