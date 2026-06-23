@@ -88,7 +88,7 @@ def _standardize_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if not uid.startswith(prefix):
             continue
         suffix = uid[len(prefix):]
-        obj = "hwhp" if suffix == "water_heater" else f"hwhp_{suffix}"
+        obj = "haier_hwhp" if suffix == "water_heater" else f"haier_hwhp_{suffix}"
         desired = f"{ent.domain}.{obj}"
         if ent.entity_id == desired or reg.async_get(desired) is not None:
             continue

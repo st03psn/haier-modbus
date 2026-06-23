@@ -119,9 +119,9 @@ falls du die Logik lieber als Automation mit eigenen Anpassungen/Notifications f
 
 ## Entity-IDs
 
-Beim Setup werden alle Entitäten auf ein einheitliches, internationales Schema
-**`<domain>.hwhp_<key>`** standardisiert (Bestand wird einmalig migriert), z. B.
-`sensor.hwhp_water_temp`, `number.hwhp_set_temp`, `water_heater.hwhp`. Die
+Beim Setup werden alle Entitäten auf ein einheitliches Schema
+**`<domain>.haier_hwhp_<key>`** standardisiert (Bestand wird einmalig migriert), z. B.
+`sensor.haier_hwhp_water_temp`, `number.haier_hwhp_set_temp`, `water_heater.haier_hwhp`. Die
 **Anzeigenamen** folgen der HA-Systemsprache (Deutsch, sonst Englisch). Verweise
 auf zuvor abweichende entity_ids in eigenen Automationen/Karten ggf. anpassen.
 
