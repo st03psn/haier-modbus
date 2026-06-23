@@ -50,6 +50,11 @@ _LOGGER = logging.getLogger(__name__)
 _SAVE_INTERVAL_S = 300  # Persistenz höchstens alle 5 min
 _READ_ATTEMPTS = 3       # Lese-Versuche je Zyklus (gegen Konverter-Blips)
 _READ_RETRY_DELAY_S = 1  # Pause zwischen den Versuchen
+_GRACE_S = 300           # bis zu 5 min letzte Werte halten, bevor "nicht verfügbar"
+
+LINK_OK = "ok"
+LINK_NO_CONVERTER = "no_converter"   # TCP zum Konverter nicht erreichbar
+LINK_NO_DEVICE = "no_device"         # Konverter erreichbar, aber Gerät (RTU) antwortet nicht
 
 
 def _signed16(value: int) -> int:
@@ -82,6 +87,8 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self.ref_cop: float | None = None
         self.ref_cop_attrs: dict = {}
         self._ref_cache: dict = {}
+        self.link_status: str = LINK_OK   # ok | no_converter | no_device
+        self._fail_since: float | None = None
         super().__init__(
             hass,
             _LOGGER,
@@ -124,6 +131,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         Logbuch, Lücken im Graphen), wird kurz erneut verbunden und gelesen.
         """
         last_err: Exception | None = None
+        reached_converter = False
         for attempt in range(_READ_ATTEMPTS):
             try:
                 if not self._client.connected:
@@ -132,6 +140,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
                     raise UpdateFailed(
                         f"Keine Verbindung zum Modbus-Konverter unter {self.host}:{self.port}"
                     )
+                reached_converter = True  # TCP zum Konverter steht
                 rr = await self._read_holding(READ_START, READ_COUNT)
                 if rr.isError():
                     raise UpdateFailed(f"Modbus-Fehler beim Lesen: {rr}")
@@ -142,6 +151,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
                 }
                 if REG_AMBIENT in data:
                     data[REG_AMBIENT] = _signed16(data[REG_AMBIENT])
+                self.link_status = LINK_OK
                 return data
             except Exception as err:  # noqa: BLE001
                 last_err = err
@@ -151,6 +161,9 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
                     pass
                 if attempt < _READ_ATTEMPTS - 1:
                     await asyncio.sleep(_READ_RETRY_DELAY_S)
+        # Diagnose: Konverter erreichbar (TCP ok), aber Gerät stumm -> no_device;
+        # gar keine TCP-Verbindung -> no_converter.
+        self.link_status = LINK_NO_DEVICE if reached_converter else LINK_NO_CONVERTER
         raise (
             last_err
             if isinstance(last_err, UpdateFailed)
@@ -160,12 +173,26 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
     async def _async_update_data(self) -> dict[int, int]:
         try:
             data = await self._read_block()
+            self._fail_since = None
             await self._maybe_seed(data)
             await self._accumulate_energy(data)
             await self._compute_ref_cop(data)
             await self._pv.async_evaluate(self, data)
             return data
         except UpdateFailed:
+            # Kurze Modbus-Aussetzer: letzte Werte bis zu _GRACE_S halten, statt
+            # alle Entitäten sofort auf "nicht verfügbar" zu setzen. Der echte
+            # Verbindungszustand steht im Sensor "Modbus-Status" (link_status).
+            now = self.hass.loop.time()
+            if self._fail_since is None:
+                self._fail_since = now
+            if self.data is not None and (now - self._fail_since) < _GRACE_S:
+                _LOGGER.debug(
+                    "Modbus-Aussetzer (%s) – halte letzte Werte (%.0fs)",
+                    self.link_status,
+                    now - self._fail_since,
+                )
+                return self.data
             raise
         except Exception as err:  # noqa: BLE001
             raise UpdateFailed(str(err)) from err

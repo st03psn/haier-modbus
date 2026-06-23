@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -103,7 +104,35 @@ async def async_setup_entry(
     entities.append(HaierCopSensor(coordinator, entry, "year"))
     entities.append(HaierPrevYearCop(coordinator))
     entities.append(HaierRefCop(coordinator))
+    entities.append(HaierLinkStatus(coordinator))
     async_add_entities(entities)
+
+
+class HaierLinkStatus(HaierModbusEntity, SensorEntity):
+    """Modbus-Verbindungsstatus: ok / Konverter nicht erreichbar / Gerät stumm.
+
+    Eigener Grundtest je Zyklus (TCP zum Konverter vs. RTU-Antwort des Geräts).
+    Bleibt bewusst immer verfügbar – auch wenn die Datenentitäten (nach Ablauf
+    der Karenzzeit) auf „nicht verfügbar" gehen.
+    """
+
+    _attr_translation_key = "link_status"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["ok", "no_converter", "no_device"]
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:lan-connect"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_link_status"
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self):
+        return self.coordinator.link_status
 
 
 # Reg-3-Bits -> (Schlüssel, Reihenfolge = Anzeigereihenfolge).

@@ -108,7 +108,7 @@
       "hotwater_pct": { "name": "Hot water level" },
       "fault": { "name": "Fault code" },
       "mode_text": { "name": "Mode" },
-      "current_source": { "name": "Current source" },
+      "current_source": { "name": "Active" },
       "hp_elec_year": { "name": "Electricity used (year)" },
       "heater_elec_year": { "name": "Electric heater electricity (device, this year)" },
       "heat_year": { "name": "Heat produced (year)" },
@@ -117,7 +117,15 @@
       "cop_month": { "name": "COP (month)" },
       "cop_year": { "name": "SPF (year)" },
       "cop_prev_year": { "name": "SPF (last year)" },
-      "cop_reference": { "name": "COP (since reference date)" }
+      "cop_reference": { "name": "COP (since reference date)" },
+      "link_status": {
+        "name": "Modbus status",
+        "state": {
+          "ok": "OK",
+          "no_converter": "Converter unreachable",
+          "no_device": "Device not responding"
+        }
+      }
     },
     "binary_sensor": {
       "status_wp": { "name": "Heat pump" },
@@ -130,7 +138,7 @@
       "mode_select": { "name": "Select mode" }
     },
     "switch": {
-      "active": { "name": "Active" },
+      "active": { "name": "Operation" },
       "boost": { "name": "Boost" },
       "mute": { "name": "Mute" },
       "sterilize": { "name": "Sterilize" }

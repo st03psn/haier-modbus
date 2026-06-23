@@ -63,7 +63,8 @@ class HaierConnection(HaierModbusEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return self.coordinator.last_update_success
+        # Spiegelt den echten Modbus-Linkstatus (nicht nur die Daten-Karenzzeit).
+        return self.coordinator.link_status == "ok"
 
     @property
     def available(self) -> bool:

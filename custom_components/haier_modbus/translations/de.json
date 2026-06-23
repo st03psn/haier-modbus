@@ -108,7 +108,7 @@
       "hotwater_pct": { "name": "Warmwasserstand" },
       "fault": { "name": "Fehlercode" },
       "mode_text": { "name": "Modus" },
-      "current_source": { "name": "Aktuelle Quelle" },
+      "current_source": { "name": "Aktiv" },
       "hp_elec_year": { "name": "Stromverbrauch (Jahr)" },
       "heater_elec_year": { "name": "Heizstab-Strom (Gerät, dieses Jahr)" },
       "heat_year": { "name": "Wärme erzeugt (Jahr)" },
@@ -117,7 +117,15 @@
       "cop_month": { "name": "COP (Monat)" },
       "cop_year": { "name": "JAZ (Jahr)" },
       "cop_prev_year": { "name": "JAZ (Vorjahr)" },
-      "cop_reference": { "name": "COP (seit Bezugsdatum)" }
+      "cop_reference": { "name": "COP (seit Bezugsdatum)" },
+      "link_status": {
+        "name": "Modbus-Status",
+        "state": {
+          "ok": "OK",
+          "no_converter": "Konverter nicht erreichbar",
+          "no_device": "Gerät antwortet nicht"
+        }
+      }
     },
     "binary_sensor": {
       "status_wp": { "name": "Wärmepumpe" },
@@ -130,7 +138,7 @@
       "mode_select": { "name": "Modus wählen" }
     },
     "switch": {
-      "active": { "name": "Aktiv" },
+      "active": { "name": "Betrieb" },
       "boost": { "name": "Boost" },
       "mute": { "name": "Leise" },
       "sterilize": { "name": "Sterilisation" }

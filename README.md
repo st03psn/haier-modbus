@@ -117,6 +117,16 @@ Beim Setup werden alle Entitäten auf ein einheitliches Schema **`<domain>.haier
 standardisiert (Bestand wird einmalig migriert). Verweise auf zuvor abweichende
 entity_ids in eigenen Automationen/Karten müssen ggf. angepasst werden.
 
+## Verbindung & Diagnose
+
+Ein **Modbus-Grundtest** je Zyklus unterscheidet, ob der **Konverter** (TCP)
+nicht erreichbar ist oder der Konverter zwar antwortet, aber das **Gerät** (RTU)
+stumm bleibt. Ergebnis im diagnostischen Sensor **`Modbus-Status`**
+(`ok` / `Konverter nicht erreichbar` / `Gerät antwortet nicht`); der Binärsensor
+**`Verbindung`** spiegelt `ok`. Kurze Aussetzer setzen die Entitäten **nicht**
+sofort auf „nicht verfügbar" – die letzten Werte werden bis zu **5 Minuten**
+gehalten (danach erst „nicht verfügbar"). So flappt nichts bei einzelnen Blips.
+
 ## Kalibrierung
 
 Der geräteseitige **Umgebungstemperatur**-Fühler liegt oft daneben. Unter
