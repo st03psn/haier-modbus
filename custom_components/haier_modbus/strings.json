@@ -62,6 +62,7 @@
           "slave": "Modbus slave ID",
           "model": "Model",
           "scan_interval": "Polling interval (seconds)",
+          "ambient_offset": "Ambient temperature offset (°C)",
           "cop_enabled": "Enable COP calculation",
           "cop_elec_source": "Electricity source for COP",
           "cop_elec_entity": "External electricity meter (kWh)",

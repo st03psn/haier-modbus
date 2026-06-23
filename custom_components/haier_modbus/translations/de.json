@@ -62,6 +62,7 @@
           "slave": "Modbus-Slave-ID",
           "model": "Modell",
           "scan_interval": "Abfrageintervall (Sekunden)",
+          "ambient_offset": "Offset Umgebungstemperatur (°C)",
           "cop_enabled": "COP-Berechnung aktiv",
           "cop_elec_source": "Stromquelle für COP",
           "cop_elec_entity": "Externer Stromzähler (kWh)",

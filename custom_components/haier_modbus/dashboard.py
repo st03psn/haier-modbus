@@ -128,6 +128,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
                  {"type": "line", "curve": "stepline", "group_by": {"func": "max", "duration": "1h"}}),
             ],
             yaxis=[{"min": 35, "max": 60, "decimals": 0}],
+            stroke_width=2,
         ),
         apex(
             "COP seit Bezugsdatum (30 Tage)", "30d",

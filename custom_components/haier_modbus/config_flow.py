@@ -22,6 +22,7 @@ from homeassistant.helpers import selector
 from pymodbus.client import AsyncModbusTcpClient
 
 from .const import (
+    CONF_AMBIENT_OFFSET,
     CONF_COP_ELEC_ENTITY,
     CONF_COP_ELEC_SOURCE,
     CONF_COP_ENABLED,
@@ -42,6 +43,7 @@ from .const import (
     CONF_PV_TEMP_NORMAL,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
+    DEFAULT_AMBIENT_OFFSET,
     DEFAULT_ENERGY_SCALE,
     DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
@@ -92,6 +94,10 @@ _WATT = selector.NumberSelector(
 _TEMP = selector.NumberSelector(
     selector.NumberSelectorConfig(min=SET_TEMP_MIN, max=SET_TEMP_MAX, step=1,
                                   unit_of_measurement="°C", mode=selector.NumberSelectorMode.SLIDER)
+)
+_OFFSET = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=-15, max=15, step=0.1,
+                                  unit_of_measurement="°C", mode=selector.NumberSelectorMode.BOX)
 )
 
 
@@ -235,6 +241,7 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_SLAVE, default=cur(CONF_SLAVE, DEFAULT_SLAVE)): int,
             vol.Optional(CONF_MODEL, default=cur(CONF_MODEL, DEFAULT_MODEL_KEY)): _MODEL,
             vol.Optional(CONF_SCAN_INTERVAL, default=cur(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
+            vol.Optional(CONF_AMBIENT_OFFSET, default=cur(CONF_AMBIENT_OFFSET, DEFAULT_AMBIENT_OFFSET)): _OFFSET,
         }
 
         schema = vol.Schema(connection)

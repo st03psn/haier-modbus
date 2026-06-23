@@ -117,6 +117,12 @@ Beim Setup werden alle Entitäten auf ein einheitliches Schema **`<domain>.haier
 standardisiert (Bestand wird einmalig migriert). Verweise auf zuvor abweichende
 entity_ids in eigenen Automationen/Karten müssen ggf. angepasst werden.
 
+## Kalibrierung
+
+Der geräteseitige **Umgebungstemperatur**-Fühler liegt oft daneben. Unter
+**Konfigurieren** lässt sich ein additiver **Offset (°C)** setzen, der direkt auf
+den Sensor `Umgebungstemperatur` angewandt wird.
+
 ## Dashboard
 
 Die Integration liefert ein **fertiges Dashboard** mit und registriert es beim

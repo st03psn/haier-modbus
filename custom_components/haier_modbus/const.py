@@ -29,6 +29,9 @@ CONF_COP_HEAT_SOURCE: Final = "cop_heat_source"   # "modbus" | "external"
 CONF_COP_HEAT_ENTITY: Final = "cop_heat_entity"   # externer Wärmemengenzähler (kWh)
 CONF_ENERGY_SCALE: Final = "energy_scale"         # kWh-Register-Skalierung (1.0 / 0.1 / ...)
 CONF_COP_REF_DATE: Final = "cop_ref_date"         # Bezugsdatum (Wärmezähler-Reset) für COP seit Datum
+CONF_AMBIENT_OFFSET: Final = "ambient_offset"     # Korrektur-Offset für die Umgebungstemperatur (°C)
+
+DEFAULT_AMBIENT_OFFSET: Final = 0.0
 
 SOURCE_MODBUS: Final = "modbus"
 SOURCE_EXTERNAL: Final = "external"
