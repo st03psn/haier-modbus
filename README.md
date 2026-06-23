@@ -17,8 +17,10 @@ hOn-Cloud, mit **Schreibzugriff** und **gerätegemessener Energie-/COP-Auswertun
 - **Steuerung (RW):** Solltemperatur (Number), Modus (Select: AUTO/ECO/ELEC/VAC),
   Schalter Aktiv/Boost/Leise/Sterilisation (Bits im Funktionsregister)
 - **Status:** Wärmepumpe / Heizstab aktiv, **Aktuelle Quelle** (konsolidiert),
-  Verbindung; **Solar / Kessel** (externe Quellen via Speicher-Heizregister) sind
-  standardmäßig **deaktiviert** – nur bei vorhandenem Anschluss aktivieren
+  Verbindung, **Modbus-Status**; **Solar / Kessel** (externe Quellen via Speicher-
+  Heizregister) sind standardmäßig **deaktiviert** und werden **automatisch
+  freigeschaltet, sobald die Quelle erstmals aktiv** ist (kein Capability-Register
+  am Gerät – ein gesetztes Bit beweist die Existenz)
 - **Sensoren:** Wasser-, Ziel-, Tank-oben/-unten-, Umgebungstemperatur, Warmwasser %,
   Fehlercode, Modus-Text
 - **Energie & COP:** WP-Strom, Heizstab-Strom, Wärmemenge (gerätegemessen, dieses Jahr)

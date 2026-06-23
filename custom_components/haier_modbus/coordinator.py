@@ -8,6 +8,7 @@ from datetime import date, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from pymodbus.client import AsyncModbusTcpClient
@@ -40,7 +41,10 @@ from .const import (
     REG_HP_ELEC_MONTHS,
     REG_HP_ELEC_YEAR,
     REG_SET_TEMP,
+    REG_STATUS,
     SOURCE_EXTERNAL,
+    STATUS_BOILER,
+    STATUS_SOLAR,
 )
 from .energy import EnergyAccumulator, consumption_since, state_float
 from .pv import PvController
@@ -89,6 +93,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self._ref_cache: dict = {}
         self.link_status: str = LINK_OK   # ok | no_converter | no_device
         self._fail_since: float | None = None
+        self._auto_enabled: set[str] = set()  # Solar/Kessel bei erster Aktivität freigeschaltet
         super().__init__(
             hass,
             _LOGGER,
@@ -170,10 +175,38 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             else UpdateFailed(f"Modbus-Lesefehler: {last_err}")
         )
 
+    def _auto_enable_sources(self, data: dict[int, int]) -> None:
+        """Solar/Kessel-Sensoren freischalten, sobald die Quelle erstmals aktiv ist.
+
+        Es gibt kein Capability-Register; ein gesetztes Statusbit beweist aber,
+        dass die Quelle real vorhanden ist. Standardmäßig sind diese Sensoren
+        deaktiviert – hier werden (nur von der Integration deaktivierte) einmalig
+        aktiviert. Eine manuelle Nutzer-Deaktivierung bleibt unangetastet.
+        """
+        raw = data.get(REG_STATUS)
+        if raw is None:
+            return
+        reg = None
+        for key, bit in (("solar", STATUS_SOLAR), ("boiler", STATUS_BOILER)):
+            if key in self._auto_enabled or not (raw & bit):
+                continue
+            if reg is None:
+                reg = er.async_get(self.hass)
+            ent_id = reg.async_get_entity_id(
+                "binary_sensor", DOMAIN, f"{self.entry.entry_id}_status_{key}"
+            )
+            if ent_id:
+                ent = reg.async_get(ent_id)
+                if ent is not None and ent.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
+                    reg.async_update_entity(ent_id, disabled_by=None)
+                    _LOGGER.info("Quelle '%s' erstmals aktiv -> Sensor aktiviert", key)
+            self._auto_enabled.add(key)
+
     async def _async_update_data(self) -> dict[int, int]:
         try:
             data = await self._read_block()
             self._fail_since = None
+            self._auto_enable_sources(data)
             await self._maybe_seed(data)
             await self._accumulate_energy(data)
             await self._compute_ref_cop(data)
