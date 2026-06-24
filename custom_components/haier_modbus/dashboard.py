@@ -129,11 +129,22 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         {"type": "tile", "entity": pv_sensor, "name": "PV-Überschuss",
          "icon": "mdi:solar-power"} if pv_sensor else None
     )
-    # "Aktuelle Quelle" prominent (großes, dynamisches Icon vom Sensor); die
-    # einzelnen Bit-Kacheln (WP/Heizstab/Solar/Externe) entfallen – die
-    # kombinierte Anzeige deckt sie ab.
+    # "Aktuelle Quelle" prominent: großes, dynamisches Icon (vom Sensor) plus
+    # dynamische Farbe via card-mod (--tile-color je aktiver Quelle). Die
+    # einzelnen Bit-Kacheln (WP/Heizstab/Solar/Externe) entfallen.
+    _cs_eid = eid("sensor", "current_source")
+    _cs_color = (
+        "ha-card { --tile-color: "
+        "{% set s = state_attr('" + _cs_eid + "','active_sources') or [] %}"
+        "{% if 'electric_heater' in s %}var(--orange-color)"
+        "{% elif 'heat_pump' in s %}var(--green-color)"
+        "{% elif 'solar' in s %}var(--amber-color)"
+        "{% elif 'boiler' in s %}var(--red-color)"
+        "{% else %}var(--disabled-color){% endif %}; }"
+    ) if _cs_eid else None
+    cs_extra = {"vertical": True, "card_mod": {"style": _cs_color}} if _cs_color else {"vertical": True}
     status = section("Status", [
-        tile("sensor", "current_source", "Aktuelle Quelle", vertical=True),
+        tile("sensor", "current_source", "Aktuelle Quelle", **cs_extra),
         grid([
             tile("binary_sensor", "connection", "Verbindung"),
             tile("sensor", "link_status", "Modbus-Status"),

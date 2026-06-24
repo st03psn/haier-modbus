@@ -27,13 +27,20 @@ from .dashboard import async_register_dashboard, async_remove_dashboard
 _LOGGER = logging.getLogger(__name__)
 
 # (card_name, url_substring, hacs_repo, fs_fallback_path)
-# Nur ApexCharts – wird von der mitgelieferten JAZ/COP-Vergleichskarte benötigt.
+# ApexCharts -> JAZ/COP-/Verlaufsdiagramme; card-mod -> dynamische Farbe der
+# "Aktuelle Quelle"-Kachel. Beide werden bei Bedarf via HACS nachgezogen.
 _REQUIRED_FRONTEND_CARDS = [
     (
         "apexcharts-card",
         "apexcharts-card/apexcharts-card",
         "RomRider/apexcharts-card",
         "www/community/apexcharts-card/apexcharts-card.js",
+    ),
+    (
+        "card-mod",
+        "lovelace-card-mod/card-mod",
+        "thomasloven/lovelace-card-mod",
+        "www/community/lovelace-card-mod/card-mod.js",
     ),
 ]
 

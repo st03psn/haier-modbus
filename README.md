@@ -118,7 +118,7 @@ Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWW
 (`/haier-hwhp`) angelegt – per Drag&Drop frei anpassbar, Änderungen bleiben bei
 Updates erhalten. Abschnitte: Steuerung, Temperaturen, Status, Energie & COP sowie
 Diagramme (Energie pro Monat/Tag, Temperaturen 7 Tage, JAZ-Vergleich). Benötigte
-Karten (ApexCharts) werden bei Bedarf via HACS nachgezogen.
+Karten (ApexCharts, card-mod) werden bei Bedarf via HACS nachgezogen.
 
 ## Entity-IDs & Verbindung
 Alle Entitäten werden auf **`<domain>.haier_hwhp_<key>`** standardisiert. Ein
