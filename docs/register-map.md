@@ -54,11 +54,23 @@ Originalbegriff `累计制热量` bedeutet *akkumulierte erzeugte Wärmemenge* (
 = Wärme-Erzeugung), im Gegensatz zu `耗电量` (= Stromverbrauch) der beiden
 anderen Blöcke. Register 90 ist demnach **erzeugte Wärme**, nicht Strom.
 
-> ⚠️ **Empirischer Widerspruch:** Eine Testinstanz zeigte COP ≈ 0,11
-> (Wärme 60 kWh ÷ Strom ~545 kWh). Erzeugte Wärme < eingesetztem Strom ist für
-> eine WP unmöglich. Also ist entweder die **Skalierung falsch** (Strom- vs.
-> Wärme-Register) oder Register 90 misst doch keine echte Wärme. Bis das am
-> Gerät geklärt ist: **Modbus-COP nicht vertrauen, externe Quellen nutzen.**
+> **Hinweis zum früheren „COP ≈ 0,11":** Der einmalig beobachtete Wert (Wärme
+> 60 kWh ÷ Strom ~545 kWh) war **kein** echter Messwert, sondern ein Artefakt:
+> Der Gesamt-Stromzähler war versehentlich auf den **Lebenswert** der externen
+> Quelle (Shelly, ~524 kWh) vorbefüllt worden. Das ist behoben (Totale starten
+> bei 0). Bei verbleibenden Alt-Ausreißern hilft der Dienst
+> `haier_modbus.reset_energy_statistics`.
+
+### System-COP vs. Geräte-COP
+
+Der berechnete COP/JAZ ist ein **System-COP**: Bei externer Stromquelle (Shelly)
+steckt die **real gemessene** Energie drin – **inkl. Standby, Steuerung,
+Umwälzpumpe, Abtauen**. Der **geräteinterne** Zähler (Reg 42/66) bilanziert
+dagegen offenbar nur den **Betriebsverbrauch** während aktiver Heizphasen, **ohne
+Nebenverbraucher/Standby**, ist auf **ganze kWh** gerundet und liegt erfahrungs-
+gemäß **deutlich (teils um ein Vielfaches) zu niedrig**. Der Geräte-COP fällt
+dadurch zu optimistisch aus. **Für eine belastbare JAZ den externen Stromzähler
+nutzen**, den Geräte-Zähler nur als groben Anhaltspunkt.
 
 Die offene Frage ist also Existenz *und* Qualität:
 

@@ -23,9 +23,10 @@ hOn-Cloud, mit **Schreibzugriff** und **gerätegemessener Energie-/COP-Auswertun
   am Gerät – ein gesetztes Bit beweist die Existenz)
 - **Sensoren:** Wasser-, Ziel-, Tank-oben/-unten-, Umgebungstemperatur, Warmwasser %,
   Fehlercode, Modus-Text
-- **Energie & COP:** WP-Strom, Heizstab-Strom, Wärmemenge (gerätegemessen, dieses Jahr)
-  und ein **berechneter COP** – mit **frei wählbaren Energiequellen** (Modbus-intern
-  oder externer Sensor wie Shelly)
+- **Energie & COP:** WP-Strom, Heizstab-Strom, Wärmemenge (gerätegemessen) und ein
+  **berechneter COP/JAZ** – mit **frei wählbaren Energiequellen** (Modbus-intern
+  oder externer Sensor wie Shelly). Empfohlen ist ein **externer Stromzähler** →
+  **System-COP** inkl. Standby/Verluste (der Geräte-Zähler ist nur grob, siehe unten)
 - **PV-Überschuss-Blueprint** für die Solltemperatur-Steuerung
 - **Ein Block-Read** (Register 1–90) je Intervall; Schreibzugriff über FC `0x10`
 
@@ -53,9 +54,16 @@ Im Einrichtungs-Assistenten oder später unter **Geräte & Dienste → Haier …
 - **Stromquelle:** Modbus (Register 42 + 66) oder externer Zähler (z. B. `sensor.shelly_…_energy`)
 - **Skalierung** der kWh-Register (`×1` / `×0.1`), siehe `docs/register-map.md`
 
-> **Wichtig:** Das Wärmeregister (累计制热量) existiert laut Doku. Ob der Geräte-COP
-> belastbar ist, hängt davon ab, ob Register 90 die Wärme *misst* oder nur aus dem
-> Strom *zurückrechnet*. Vor Nutzung verifizieren – siehe `docs/register-map.md`.
+> **System-COP vs. Geräte-COP (wichtig):** Der hier ausgewiesene COP/JAZ ist ein
+> **System-COP** – berechnet aus der **real am Stromzähler (z. B. Shelly) gemessenen**
+> Energie, also **inklusive Standby, Steuerung, Umwälzpumpe, Abtauen** und allem,
+> was die Maschine über den Tag zieht. Er ist deshalb **deutlich niedriger** als der
+> **geräteinterne COP**: Das Gerät bilanziert offenbar nur den **Betriebs-COP**
+> während aktiver Heizphasen, **ohne Standby/Verluste/Nebenverbraucher**, und sein
+> **interner Stromzähler** ist nur grob (ganze kWh, theoretischer/nominaler Wert) und
+> liegt teils **um ein Vielfaches zu niedrig**. Für eine belastbare Jahresarbeitszahl
+> daher **einen externen Stromzähler als Stromquelle** wählen; der Geräte-Zähler taugt
+> nur als grober Anhaltspunkt. Details/Validierung: `docs/register-map.md`.
 
 ### COP/JAZ & aligned windows
 
@@ -67,23 +75,15 @@ gezählt, Quell-Resets werden abgefangen. Daraus:
 
 - **`COP (Monat)`** – monatlicher Arbeitszahl-Wert
 - **`JAZ (Jahr)`** – Jahresarbeitszahl
-- **`Wärme erzeugt (gesamt)`** / **`Stromverbrauch (gesamt)`** – monotone
+- **`Wärmemenge (gesamt)`** / **`Stromverbrauch (gesamt)`** – monotone
   `total_increasing`-Energiesensoren für **Verbrauchs-/Erzeugungskurven**
   (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen).
   Beim ersten Start auf den Zeitraum **„seit dem ersten Wärmewert"** vorbefüllt
   (Wärme = Geräte-Jahreswert, Strom = Verbrauch ab dem ersten Monat mit Wärme),
   danach reset-fest weiterzählend – so sind Wärme und Strom direkt vergleichbar.
 
-**`COP (seit Bezugsdatum)`:** Liefert **sofort** einen Wert, ohne auf eine volle
-Periode zu warten. Das **Bezugsdatum wird automatisch ermittelt** – der erste
-Monat des laufenden Jahres mit Wärme > 0 (aus den Geräte-Monatswerten, Reg 74–85);
-ein manuelles Datum im COP-Setup überschreibt das nur bei Bedarf. Dann gilt:
-Wärme = aktueller Geräte-Zähler (seit diesem Datum), Strom = Verbrauch seit
-demselben Datum (aus der Statistik der gewählten Stromquelle). Beide decken
-denselben Zeitraum ab – ohne dass eine Wärme-Historie nötig ist. Attribute:
-`reference_date` und `reference_auto`. Ein gesetztes Bezugsdatum richtet auch das
-**Monats-/Jahres-/Gesamt-Seeding** danach aus (Strom erst ab dem Datum); eine
-Änderung des Datums seedet einmalig neu.
+> Der früher vorhandene Sensor **`COP (seit Bezugsdatum)`** wurde entfernt
+> (redundant zu `COP (Monat)` + `JAZ (Jahr)`).
 
 **Jahres-/Monatsvergleich (JAZ/COP):** Beim Jahres-/Monatswechsel wird der fertige
 Wert dauerhaft archiviert: Attribut `jaz_per_year` am **`JAZ (Jahr)`**-Sensor und
@@ -143,14 +143,30 @@ den Sensor `Umgebungstemperatur` angewandt wird.
 
 ## Dashboard
 
-Die Integration liefert ein **fertiges Dashboard** mit und registriert es beim
-Setup automatisch in der Seitenleiste (**„Haier BWWP"**, `/haier-bwwp`).
-Es wird zur Laufzeit aus den real registrierten Entitäten erzeugt (Auflösung über
+Die Integration liefert ein **fertiges, editierbares Dashboard** mit und legt es beim
+Setup **einmalig** als **Storage-Dashboard** in der Seitenleiste an
+(**„Haier BWWP"** / engl. „Haier HWHP", `/haier-hwhp`). Weil es im Storage-Modus
+liegt, kannst du es im **UI per Drag&Drop** frei umsortieren – deine Änderungen
+bleiben erhalten und werden bei Updates **nicht überschrieben** (es wird nur
+einmalig erzeugt; ist es vorhanden, fasst die Integration es nicht mehr an).
+Das Start-Layout wird aus den real registrierten Entitäten gebaut (Auflösung über
 `unique_id`), passt also unabhängig von den konkreten entity_ids – Karten zu
 (noch) fehlenden Entitäten werden ausgelassen. Abschnitte: Steuerung,
-Temperaturen, Status, Energie & COP, Verlauf (ApexCharts). Beim Entfernen der
-Integration verschwindet das Dashboard wieder. (Die ApexCharts-Karte wird bei
-Bedarf automatisch via HACS nachgezogen.)
+Temperaturen, Status, Energie & COP, sowie Diagramme **Energie pro Monat**,
+**Energie pro Tag (30 Tage)**, **Temperaturen (7 Tage)** und **JAZ-Vergleich
+(Jahre)** (ApexCharts). Die **PV-Überschuss-Kachel** erscheint nur, wenn ein
+PV-Sensor konfiguriert ist. (Die ApexCharts-Karte wird bei Bedarf automatisch via
+HACS nachgezogen.) Steht nur ein älteres HA ohne Storage-Dashboard-API zur
+Verfügung, fällt die Integration auf ein YAML-Dashboard zurück (nicht editierbar).
+
+## Energie-Statistik zurücksetzen
+
+Falls die Energie-Diagramme einen **einmaligen Ausreißer** zeigen (z. B. zu hoher
+Stromverbrauch aus einem alten Baseline-Sprung), gibt es den Dienst
+**`haier_modbus.reset_energy_statistics`** (Entwicklerwerkzeuge → Aktionen). Er
+löscht die Langzeitstatistik der Gesamt-Zähler (Wärme/Strom) und baut sie ab dem
+aktuellen, sauberen Wert neu auf. **Achtung:** betrifft **beide** Gesamt-Zähler –
+die bisherige Tages-/Monatshistorie dieser zwei Sensoren geht dabei verloren.
 
 ## Recorder / Datenbank
 
