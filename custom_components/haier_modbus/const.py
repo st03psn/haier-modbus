@@ -60,8 +60,12 @@ CONF_EMERGENCY_RECOVER: Final = "emergency_recover"     # °C: darüber zurück 
 DEFAULT_EMERGENCY_CRITICAL: Final = 38
 DEFAULT_EMERGENCY_RECOVER: Final = 48
 
-DEFAULT_PV_HIGH: Final = 1500
-DEFAULT_PV_NORMAL: Final = 400
+# Schwellen mit Reserve über den realen Aufnahmen abgestimmt, damit Überschuss-
+# Schwankungen nicht sofort Netzbezug auslösen:
+#  - Heizstab ~1500 W -> hohe Schwelle deutlich darüber (Boost = WP+Stab ~2000 W)
+#  - Wärmepumpe allein ~535 W -> normale Schwelle knapp darüber
+DEFAULT_PV_HIGH: Final = 1800
+DEFAULT_PV_NORMAL: Final = 600
 DEFAULT_PV_TEMP_HIGH: Final = 70
 DEFAULT_PV_TEMP_NORMAL: Final = 65
 DEFAULT_PV_TEMP_BASE: Final = 50
@@ -157,6 +161,42 @@ STATUS_HEATPUMP: Final = 1 << 0
 STATUS_EHEATER: Final = 1 << 1
 STATUS_SOLAR: Final = 1 << 2
 STATUS_BOILER: Final = 1 << 3
+
+# --- Fehlercodes (Anzeige-Codes laut Hersteller-Handbuch) ------------------
+# ACHTUNG: Reg 18 liefert eine Zahl (0..64); welche Zahl welchem Anzeige-Code
+# entspricht, ist im Handbuch NICHT dokumentiert. Diese Tabelle bildet daher die
+# Anzeige-Codes (F2, E1, P1 …) auf Klartext ab – nutzbar, sobald die Zahl→Code-
+# Zuordnung bekannt ist (siehe docs/fault-codes.md).
+FAULT_CODES: Final = {
+    "F2": "Verdichterschutz: Betriebstemperatur",
+    "F3": "Verdichterschutz: Abluft-Temperatur",
+    "F5": "Verdichterschutz: Verdampfer-Übertemperatur",
+    "E1": "Stromableitung: zu niedrige elektrische Isolation",
+    "E2": "Übertemperatur: Wassertemperatur ≥ 88 °C",
+    "E3": "Tank-Temperaturfühler: Kurzschluss/Unterbrechung",
+    "E4": "Umgebungs-Temperaturfühler: Kurzschluss/Unterbrechung",
+    "E5": "Verdampfer-Temperaturfühler: Kurzschluss/Unterbrechung",
+    "E6": "Verdichter-Abluft-Temperaturfühler: Kurzschluss/Unterbrechung",
+    "ED": "Verdichter-Ansaug-Temperaturfühler: Kurzschluss/Unterbrechung",
+    "E7": "Kommunikationsfehler Hauptplatine ↔ Anzeige",
+    "E9": "Umgebungstemperatur-Schutz: < -7 °C oder > 43 °C",
+    "EF": "Off-Peak-Signal nicht empfangen",
+    "Lb": "Externer Wärmequellen-Temperaturfühler: Kurzschluss/Unterbrechung",
+    "E8": "Druckschalter-Schutz (Auslass)",
+    "L7": "Lüfterfehler: blockiert oder Kommunikationsfehler",
+    "F0": "WiFi-Kommunikationsfehler (Konfig-Modus)",
+    "P1": "Umrichter: Phasenstrom Hardware-Überstrom",
+    "P2": "Umrichter: Phasenstrom Software-Überstrom",
+    "P3": "Umrichter: IPM-Temperaturanomalie",
+    "P4": "Umrichter: Überlast",
+    "P5": "Umrichter: Unterspannungsschutz",
+    "P6": "Umrichter: Überspannungsschutz",
+    "P7": "Kommunikation Hauptsteuerung ↔ Treiber",
+    "P8": "Umrichter: Stromerkennungsschaltung fehlerhaft",
+    "PB": "Schrittverlust-Erkennung (out of step)",
+    "PD": "Gleichrichter: Software-Überstrom",
+    "PF": "Gleichrichter: Hardware-Überstrom",
+}
 
 PLATFORMS: Final = [
     "water_heater",

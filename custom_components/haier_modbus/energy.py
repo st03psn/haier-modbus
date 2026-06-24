@@ -62,6 +62,7 @@ def _empty() -> dict:
         "year_elec": 0.0,
         "seeded": False,
         "seed_ref": None,
+        "started_at": None,   # ISO-Datum der ersten Akkumulation ("seit …")
         "history": {},
         "history_month": {},
     }
@@ -169,7 +170,11 @@ class EnergyAccumulator:
         if self._data is None:
             self._data = _empty()
         d = self._data
-        self._roll(dt_util.now())
+        now = dt_util.now()
+        self._roll(now)
+        # Startdatum einmalig festhalten ("seit Inbetriebnahme").
+        if not d.get("started_at"):
+            d["started_at"] = now.isoformat()
         # Totale starten bei 0 und wachsen rein über positive Deltas – kein
         # Baseline-Seed (das erzeugte sonst einen einmaligen Statistik-Sprung).
         if heat is not None:
@@ -239,6 +244,10 @@ class EnergyAccumulator:
     def value(self, key: str) -> float:
         """Akkumulierter kWh-Wert, z. B. 'total_heat', 'month_elec', 'year_heat'."""
         return round(self._g(key), 3)
+
+    def started_at(self) -> str | None:
+        """ISO-Datum, seit dem akkumuliert wird ('seit Inbetriebnahme')."""
+        return (self._data or {}).get("started_at")
 
     def cop(self, period: str) -> float | None:
         """period: 'month' | 'year' (JAZ). None bei unplausiblen Werten."""

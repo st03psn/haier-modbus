@@ -292,6 +292,12 @@ class HaierAccEnergy(HaierModbusEntity, SensorEntity):
     def native_value(self):
         return self.coordinator.energy.value(self._key)
 
+    @property
+    def extra_state_attributes(self):
+        # "seit Inbetriebnahme": Datum, ab dem dieser Gesamtwert akkumuliert.
+        started = self.coordinator.energy.started_at()
+        return {"seit": started[:10]} if started else {}
+
 
 class HaierCopSensor(HaierModbusEntity, SensorEntity):
     """COP über ein kalender-ausgerichtetes Fenster: Monat oder Jahr (JAZ).
