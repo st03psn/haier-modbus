@@ -196,6 +196,8 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         "header": {"show": True, "title": "JAZ-Vergleich (Jahre)"},
         "graph_span": "1830d",
         "span": {"end": "year"},
+        # Schmale Säulen (sonst füllt ein einzelner Jahreswert die ganze Breite).
+        "apex_config": {"plotOptions": {"bar": {"columnWidth": "10%"}}},
         "series": [{
             "entity": _cop_year_eid,
             "name": "JAZ",
