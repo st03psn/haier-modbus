@@ -76,8 +76,8 @@ Alternativ lokal: Ordner `custom_components/haier_modbus/` nach
 
 ### System-COP vs. Geräte-COP (wichtig)
 Der ausgewiesene COP/JAZ ist ein **System-COP**: bei externer Stromquelle (Shelly)
-steckt die **real gemessene** Energie drin – **inkl. Standby, Steuerung,
-Umwälzpumpe, Abtauen**. Der **geräteinterne** Zähler bilanziert nur den
+steckt die **real gemessene** Energie drin – **inkl. Standby, Steuerelektronik
+und Lüfter**. Der **geräteinterne** Zähler bilanziert nur den
 **Betriebsverbrauch** (ohne Nebenverbraucher/Standby), ist auf ganze kWh gerundet
 und liegt erfahrungsgemäß **deutlich zu niedrig** → der Geräte-COP fällt zu
 optimistisch aus. **Für eine belastbare JAZ einen externen Stromzähler nutzen.**
@@ -167,7 +167,7 @@ calculated **COP/JAZ** with selectable sources, Modbus link diagnostics, built-i
 
 ### COP / JAZ – system vs. device
 The reported COP/JAZ is a **system COP**: with an external meter (Shelly) it includes
-**standby, controls, pump, defrost** – so it is **noticeably lower** than the
+**standby, control electronics and the fan** – so it is **noticeably lower** than the
 **device's internal** value, which only counts **operating** consumption (no standby/
 aux loads), is rounded to whole kWh and reads **far too low**. **Use an external
 electricity meter for a meaningful seasonal performance factor.** See

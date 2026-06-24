@@ -89,10 +89,6 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self._emergency = EmergencyController(hass)
         self._last_save = None
         self._seed_done = False
-        # "COP seit Bezugsdatum": Ergebnis + gedrosselter Statistik-Cache
-        self.ref_cop: float | None = None
-        self.ref_cop_attrs: dict = {}
-        self._ref_cache: dict = {}
         self.link_status: str = LINK_OK   # ok | no_converter | no_device
         self._fail_since: float | None = None
         self._auto_enabled: set[str] = set()  # Solar/Kessel bei erster Aktivität freigeschaltet
@@ -211,7 +207,6 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             self._auto_enable_sources(data)
             await self._maybe_seed(data)
             await self._accumulate_energy(data)
-            await self._compute_ref_cop(data)
             await self._pv.async_evaluate(self, data)
             await self._emergency.async_evaluate(self, data)
             return data
@@ -321,61 +316,6 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             self._seed_done = True
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Seeding übersprungen: %s", err)
-
-    async def _ref_stat(self, kind: str, ids: list[str], start, now) -> float | None:
-        """Statistik-Verbrauch seit Bezugsdatum – pro Quelle gecacht (alle 5 min)."""
-        cache = self._ref_cache.get(kind)
-        if cache and cache["start"] == start and (now - cache["ts"]).total_seconds() < 300:
-            return cache["value"]
-        value = await consumption_since(self.hass, ids, start, now)
-        self._ref_cache[kind] = {"ts": now, "start": start, "value": value}
-        return value
-
-    async def _compute_ref_cop(self, data: dict[int, int]) -> None:
-        """COP seit einem Bezugsdatum (Wärmezähler-Reset).
-
-        Wärme = aktueller Geräte-Zähler (Annahme: am Bezugsdatum genullt) bzw.
-        externer Zähler seit Datum; Strom = Verbrauch seit Datum (Statistik bei
-        externer Quelle, Geräte-Zähler bei Modbus). Damit decken beide denselben
-        Zeitraum ab, ohne dass eine Wärme-Historie nötig ist.
-        """
-        o = self.entry.options
-        ref_str = o.get(CONF_COP_REF_DATE)
-        auto = False
-        if ref_str:
-            ref_date = dt_util.parse_date(ref_str)
-        else:
-            ref_date = self._auto_ref_date(data)
-            auto = True
-        if ref_date is None:
-            self.ref_cop = None
-            self.ref_cop_attrs = {}
-            return
-
-        start = dt_util.start_of_local_day(ref_date)
-        now = dt_util.now()
-        scale = o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)
-
-        if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
-            heat = await self._ref_stat("heat", [o.get(CONF_COP_HEAT_ENTITY)], start, now)
-        else:
-            raw = data.get(REG_HEAT_YEAR)
-            heat = raw * scale if raw is not None else None
-
-        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
-            elec = await self._ref_stat("elec", [o.get(CONF_COP_ELEC_ENTITY)], start, now)
-        else:
-            hp = data.get(REG_HP_ELEC_YEAR)
-            heater = data.get(REG_HEATER_ELEC_YEAR)
-            elec = ((hp or 0) + (heater or 0)) * scale if (hp is not None or heater is not None) else None
-
-        self.ref_cop = round(heat / elec, 2) if (heat and elec) else None
-        self.ref_cop_attrs = {
-            "reference_date": ref_date.isoformat(),
-            "reference_auto": auto,
-            "heat_kwh": round(heat, 3) if heat else heat,
-            "electricity_kwh": round(elec, 3) if elec else elec,
-        }
 
     def _auto_ref_date(self, data: dict[int, int]) -> date | None:
         """Bezugsdatum automatisch: erster Monat des laufenden Jahres mit Wärme > 0.

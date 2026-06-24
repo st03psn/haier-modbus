@@ -64,8 +64,8 @@ anderen Blöcke. Register 90 ist demnach **erzeugte Wärme**, nicht Strom.
 ### System-COP vs. Geräte-COP
 
 Der berechnete COP/JAZ ist ein **System-COP**: Bei externer Stromquelle (Shelly)
-steckt die **real gemessene** Energie drin – **inkl. Standby, Steuerung,
-Umwälzpumpe, Abtauen**. Der **geräteinterne** Zähler (Reg 42/66) bilanziert
+steckt die **real gemessene** Energie drin – **inkl. Standby, Steuerelektronik
+und Lüfter**. Der **geräteinterne** Zähler (Reg 42/66) bilanziert
 dagegen offenbar nur den **Betriebsverbrauch** während aktiver Heizphasen, **ohne
 Nebenverbraucher/Standby**, ist auf **ganze kWh** gerundet und liegt erfahrungs-
 gemäß **deutlich (teils um ein Vielfaches) zu niedrig**. Der Geräte-COP fällt
