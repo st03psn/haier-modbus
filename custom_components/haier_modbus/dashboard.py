@@ -129,13 +129,12 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         {"type": "tile", "entity": pv_sensor, "name": "PV-Überschuss",
          "icon": "mdi:solar-power"} if pv_sensor else None
     )
+    # "Aktuelle Quelle" prominent (großes, dynamisches Icon vom Sensor); die
+    # einzelnen Bit-Kacheln (WP/Heizstab/Solar/Externe) entfallen – die
+    # kombinierte Anzeige deckt sie ab.
     status = section("Status", [
-        tile("sensor", "current_source", "Aktuelle Quelle"),
+        tile("sensor", "current_source", "Aktuelle Quelle", vertical=True),
         grid([
-            tile("binary_sensor", "status_wp", "Wärmepumpe", color="green"),
-            tile("binary_sensor", "status_heater", "Heizstab", color="orange"),
-            tile("binary_sensor", "status_solar", "Solar", color="amber"),
-            tile("binary_sensor", "status_boiler", "Externe Wärmequelle", color="red"),
             tile("binary_sensor", "connection", "Verbindung"),
             tile("sensor", "link_status", "Modbus-Status"),
             tile("sensor", "fault", "Fehlercode"),

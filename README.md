@@ -1,186 +1,190 @@
-# Haier Brauchwasserwärmepumpe / BWWP (Modbus)
+# Haier Brauchwasserwärmepumpe (Modbus) · Haier Heat-Pump Water Heater (Modbus)
 
-Lokale Home-Assistant-Integration für die Haier Brauchwasserwärmepumpe (**BWWP**,
-engl. DHWHP) der **M7-Familie** (HP160/HP200/HP260 M7) über **Modbus-TCP** – ohne
-hOn-Cloud, mit **Schreibzugriff** und **gerätegemessener Energie-/COP-Auswertung**.
+> 🇩🇪 **Deutsch zuerst** · 🇬🇧 [English version below](#-english)
 
-> Standalone-Integration, unabhängig von `hOn-unified`. Die BWWP ist das eine Gerät
-> mit lokalem Interface – hier ist der lokale Pfad dem Cloud-Pfad auf jeder Achse
-> überlegen (Schreibzugriff, Energieregister, keine Cloud-Abhängigkeit).
+Lokale Home-Assistant-Integration für die Haier Brauchwasserwärmepumpe der
+**M7-Familie** (HP160/HP200/HP260 M7, R290) über **Modbus-TCP** – mit
+**Schreibzugriff**, Energie-/COP-Auswertung und mitgeliefertem, editierbarem
+Dashboard. Anzeigename je nach Systemsprache: **„Haier BWWP"** (Deutsch),
+sonst **„Haier HWHP"** (Englisch).
+
+Vollständig **lokal** über Modbus – kein hOn-Cloud-Konto nötig. Gegenüber der
+Cloud bietet der lokale Weg **Schreibzugriff**, direkten Zugriff auf die
+**Energieregister** und läuft **ohne Internet-/Cloud-Abhängigkeit**.
+
+---
+
+## ⚠️ Wichtig: Hat dein Gerät überhaupt Modbus?
+
+**Nicht jede** Brauchwasserwärmepumpe dieser Serie besitzt die Modbus-Schnittstelle.
+Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst du es:
+
+- Im **Geräte-/Service-Menü** oder im **Handbuch** nachsehen, ob es einen Punkt
+  zur **Modbus-/Slave-ID-Konfiguration** gibt. Ist dieser vorhanden, unterstützt
+  dein Gerät Modbus; dort wird auch die **Slave-ID** (Standard `1`) eingestellt.
+
+**Benötigte Hardware:**
+- Die native Schnittstelle ist **Modbus RTU über RS485** (9600 Baud, 8N1).
+- Du brauchst einen **Modbus-RTU→TCP-Konverter (Gateway)** im Netzwerk; Home
+  Assistant verbindet sich mit dessen **IP-Adresse auf Port 502** (nicht mit der
+  Wärmepumpe direkt).
+- Das **RS485-Kabel** von der Wärmepumpe (Klemmen A/B, ggf. GND) zum Konverter
+  muss man sich i. d. R. **selbst konfektionieren**. Die genaue Klemmen-/
+  Anschlussbelegung steht im Handbuch; praktische Hinweise und Erfahrungen im
+  Community-Thread:
+  [haustechnikdialog.de – Brauchwasserwärmepumpe Haier R290](https://www.haustechnikdialog.de/Forum/t/285616/Brauchwasserwaermepumpe-Haier-R290).
+
+> Hinweis: Schreibbare Register akzeptieren nur FC `0x10` (Mehrfach-Write); ein
+> einzelnes `0x06` lehnt das Gerät ab. Das erledigt die Integration intern.
+
+---
 
 ## Funktionen
 
-- **Einrichtungs-Assistent** (Config-Flow): Verbindung (Host, Port, Slave-ID,
-  Intervall) + **Modell**, danach direkt der **COP-Assistent**
-- **Zweisprachig** (Deutsch / Englisch) – folgt der HA-Nutzersprache
-- **Ein Gerät** mit allen Entitäten gruppiert; `water_heater`-Kachel als zentrale Bedienung
-- **Steuerung (RW):** Solltemperatur (Number), Modus (Select: AUTO/ECO/ELEC/VAC),
-  Schalter Aktiv/Boost/Leise/Sterilisation (Bits im Funktionsregister)
-- **Status:** Wärmepumpe / Heizstab aktiv, **Aktuelle Quelle** (konsolidiert),
-  Verbindung, **Modbus-Status**; **Solar / Kessel** (externe Quellen via Speicher-
-  Heizregister) sind standardmäßig **deaktiviert** und werden **automatisch
-  freigeschaltet, sobald die Quelle erstmals aktiv** ist (kein Capability-Register
-  am Gerät – ein gesetztes Bit beweist die Existenz)
-- **Sensoren:** Wasser-, Ziel-, Tank-oben/-unten-, Umgebungstemperatur, Warmwasser %,
-  Fehlercode, Modus-Text
-- **Energie & COP:** WP-Strom, Heizstab-Strom, Wärmemenge (gerätegemessen) und ein
-  **berechneter COP/JAZ** – mit **frei wählbaren Energiequellen** (Modbus-intern
-  oder externer Sensor wie Shelly). Empfohlen ist ein **externer Stromzähler** →
-  **System-COP** inkl. Standby/Verluste (der Geräte-Zähler ist nur grob, siehe unten)
-- **PV-Überschuss-Blueprint** für die Solltemperatur-Steuerung
-- **Ein Block-Read** (Register 1–90) je Intervall; Schreibzugriff über FC `0x10`
+- **Einrichtungs-Assistent** (Verbindung + Modell → COP → optional PV-Überschuss);
+  später alles unter **Konfigurieren** änderbar (inkl. Host/Port/Slave).
+- **Zweisprachig** – Entitätsnamen folgen der Nutzersprache; Geräte-/Dashboard-Name
+  der Systemsprache (DE „Haier BWWP", sonst „Haier HWHP").
+- **Steuerung (RW):** Solltemperatur, Modus (AUTO/ECO/ELEC/VAC), Schalter
+  Aktiv/Boost/Leise/Sterilisation.
+- **Aktuelle Quelle:** kombinierte, dynamische Anzeige aus dem Statusregister
+  (z. B. „Wärmepumpe", „Wärmepumpe + Heizstab", „Solar", „Externe Wärmequelle"),
+  mit wechselndem Icon. Attribute `active_sources`/`status_register` für Automationen.
+- **Sensoren:** Wasser-/Ziel-/Tank-/Umgebungstemperatur, Warmwasser %, Modus-Text,
+  **Fehlercode** (mit Klartext, siehe unten).
+- **Energie & COP:** gerätegemessene Register + **berechneter COP/JAZ** mit frei
+  wählbaren Quellen (Modbus-intern oder externer Zähler wie Shelly).
+- **Diagnose:** **Modbus-Status** (`OK` / `Konverter nicht erreichbar` /
+  `Gerät antwortet nicht`) und Binärsensor **Verbindung**.
+- **PV-Überschuss-Steuerung** eingebaut (optional) + Blueprint.
+- **Editierbares Dashboard** (Storage-Modus) wird automatisch angelegt.
+- **Ein Block-Read** (Register 1–90) je Intervall (Standard 5 s).
 
 ## Installation (HACS)
 
-1. HACS → ⋮ → **Benutzerdefinierte Repositorys** → URL dieses Repos, Kategorie **Integration**
-2. „Haier BWWP (Modbus)" herunterladen, HA neu starten
-3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „Haier" suchen
-4. **Schritt 1 – Verbindung:** Host (i. d. R. der **Modbus-RTU→TCP-Konverter**,
-   z. B. `192.168.42.112`), Port `502`, Slave `1`, Intervall `5`, Modell
-5. **Schritt 2 – COP/Energie:** Quellen wählen
-6. **Schritt 3 – PV-Überschuss (optional):** Überschuss-Sensor + Schwellen
+1. HACS → ⋮ → **Benutzerdefinierte Repositorys** → URL dieses Repos, Kategorie **Integration**.
+2. Herunterladen, Home Assistant neu starten.
+3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „Haier".
+4. **Verbindung:** Host = **IP des Modbus-Konverters** (nicht der WP), Port `502`,
+   Slave `1`, Intervall `5`, Modell.
+5. **COP/Energie:** Quellen wählen. 6. **PV (optional):** Sensor + Schwellen.
 
-Alles (inkl. **Host/Port/Slave des Modbus-Konverters**) ist später jederzeit unter
-**Geräte & Dienste → Haier … → Konfigurieren** änderbar.
+Alternativ lokal: Ordner `custom_components/haier_modbus/` nach
+`<config>/custom_components/` kopieren und neu starten.
 
-Alternativ rein lokal: Ordner `custom_components/haier_modbus/` nach
-`<config>/custom_components/` kopieren und HA neu starten.
+## COP / JAZ
 
-## COP konfigurieren
+### System-COP vs. Geräte-COP (wichtig)
+Der ausgewiesene COP/JAZ ist ein **System-COP**: bei externer Stromquelle (Shelly)
+steckt die **real gemessene** Energie drin – **inkl. Standby, Steuerung,
+Umwälzpumpe, Abtauen**. Der **geräteinterne** Zähler bilanziert nur den
+**Betriebsverbrauch** (ohne Nebenverbraucher/Standby), ist auf ganze kWh gerundet
+und liegt erfahrungsgemäß **deutlich zu niedrig** → der Geräte-COP fällt zu
+optimistisch aus. **Für eine belastbare JAZ einen externen Stromzähler nutzen.**
+Details: [`docs/register-map.md`](docs/register-map.md).
 
-Im Einrichtungs-Assistenten oder später unter **Geräte & Dienste → Haier … → Konfigurieren**:
+### Kalender-ausgerichtete Fenster
+Die geräteinternen „dieses Jahr"-Register von Strom und Wärme resetten zu
+*unterschiedlichen* Zeitpunkten. Die Integration zählt beide in **gemeinsame
+Monats-/Jahres-Fenster** (utility_meter-Logik, reset-fest). Daraus: **`COP (Monat)`**,
+**`JAZ (Jahr)`**, **`JAZ (Vorjahr)`** sowie monotone Gesamt-Zähler
+**`Wärmemenge (gesamt)`** / **`Stromverbrauch (gesamt)`** (für Verbrauchskurven;
+Attribut `seit` = Start der Erfassung). Jahreswerte werden beim Jahreswechsel
+archiviert (Attribut `jaz_per_year`) und im Dashboard als **JAZ-Vergleich** gezeigt.
 
-- **Wärmequelle:** Modbus (Register 90, gerätegemessen) oder externer Wärmemengenzähler
-- **Stromquelle:** Modbus (Register 42 + 66) oder externer Zähler (z. B. `sensor.shelly_…_energy`)
-- **Skalierung** der kWh-Register (`×1` / `×0.1`), siehe `docs/register-map.md`
+### Energie-Statistik zurücksetzen
+Bei einem einmaligen Ausreißer in den Diagrammen: Dienst
+**`haier_modbus.reset_energy_statistics`** (Entwicklerwerkzeuge → Aktionen) löscht
+die Langzeitstatistik der Gesamt-Zähler und baut sie sauber neu auf. **Betrifft
+beide Zähler** (Wärme + Strom); deren bisherige Tages-/Monatshistorie geht verloren.
 
-> **System-COP vs. Geräte-COP (wichtig):** Der hier ausgewiesene COP/JAZ ist ein
-> **System-COP** – berechnet aus der **real am Stromzähler (z. B. Shelly) gemessenen**
-> Energie, also **inklusive Standby, Steuerung, Umwälzpumpe, Abtauen** und allem,
-> was die Maschine über den Tag zieht. Er ist deshalb **deutlich niedriger** als der
-> **geräteinterne COP**: Das Gerät bilanziert offenbar nur den **Betriebs-COP**
-> während aktiver Heizphasen, **ohne Standby/Verluste/Nebenverbraucher**, und sein
-> **interner Stromzähler** ist nur grob (ganze kWh, theoretischer/nominaler Wert) und
-> liegt teils **um ein Vielfaches zu niedrig**. Für eine belastbare Jahresarbeitszahl
-> daher **einen externen Stromzähler als Stromquelle** wählen; der Geräte-Zähler taugt
-> nur als grober Anhaltspunkt. Details/Validierung: `docs/register-map.md`.
-
-### COP/JAZ & aligned windows
-
-Geräteinterne „dieses Jahr"-Register von Strom und Wärme resetten zu
-*unterschiedlichen* Zeitpunkten – ihr Verhältnis wäre wertlos. Die Integration
-löst das mit einem internen, kalender-ausgerichteten Akkumulator (utility_meter-
-Logik): Strom und Wärme werden in **gemeinsame Monats- und Jahres-Fenster**
-gezählt, Quell-Resets werden abgefangen. Daraus:
-
-- **`COP (Monat)`** – monatlicher Arbeitszahl-Wert
-- **`JAZ (Jahr)`** – Jahresarbeitszahl
-- **`Wärmemenge (gesamt)`** / **`Stromverbrauch (gesamt)`** – monotone
-  `total_increasing`-Energiesensoren für **Verbrauchs-/Erzeugungskurven**
-  (History/Statistik automatisch; im **Energie-Dashboard** einmalig hinzufügen).
-  Beim ersten Start auf den Zeitraum **„seit dem ersten Wärmewert"** vorbefüllt
-  (Wärme = Geräte-Jahreswert, Strom = Verbrauch ab dem ersten Monat mit Wärme),
-  danach reset-fest weiterzählend – so sind Wärme und Strom direkt vergleichbar.
-
-> Der früher vorhandene Sensor **`COP (seit Bezugsdatum)`** wurde entfernt
-> (redundant zu `COP (Monat)` + `JAZ (Jahr)`).
-
-**Jahres-/Monatsvergleich (JAZ/COP):** Beim Jahres-/Monatswechsel wird der fertige
-Wert dauerhaft archiviert: Attribut `jaz_per_year` am **`JAZ (Jahr)`**-Sensor und
-`cop_per_month` am **`COP (Monat)`**-Sensor (je `{heat, elec, cop}`), plus Sensor
-**`JAZ (Vorjahr)`**. Fertige Vergleichskarte (ApexCharts):
-[`docs/lovelace-jaz-card.yaml`](docs/lovelace-jaz-card.yaml). Wächst ab Mess-Start.
-
-> Die benötigte **ApexCharts-Card wird automatisch über HACS nachinstalliert**
-> (sofern HACS vorhanden). Klappt das nicht, erscheint ein Reparatur-Hinweis mit
-> Installationslink. Danach Browser neu laden (Strg+Shift+R).
-
-**Rückwirkendes Seeding:** Beim ersten Start werden Monats- und Jahres-Fenster
-einmalig aus der HA-Langzeitstatistik vorbefüllt (reset-bereinigte `sum`), damit
-COP/JAZ nicht erst ab Inbetriebnahme zählen. Wärme- und Stromquelle werden dabei
-auf den **gemeinsamen frühesten Datenzeitpunkt** ausgerichtet (also „ab dem auch
-Wärme verfügbar war"), damit beide denselben Zeitraum abdecken. Best-effort: ohne
-verwertbare Statistik wird übersprungen und ab dann vorwärts gezählt.
+## Fehlercodes
+Register 18 liefert eine Zahl, die gruppenweise auf die Anzeige-Codes abbildet
+(`1–15 E.., 16–31 L.., 32–47 F.., 48–63 P.., 64 PP`). Der **Fehlercode**-Sensor
+dekodiert das automatisch und zeigt **Anzeige-Code + Klartext** als Attribute.
+Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 
 ## PV-Überschuss-Steuerung
-
-**Eingebaut (empfohlen):** im Setup-Assistenten (Schritt 3) oder unter
-„Konfigurieren" aktivieren. Du wählst nur den **PV-Überschuss-Sensor (W)** und
-optional die Schwellen/Zieltemperaturen; die Integration setzt die Solltemperatur
-dreistufig (hoch/normal/Grund) mit Entprellzeit und regelt nur, wenn nötig.
-Optional bei **hohem Überschuss**: zusätzlich **Boost** aktivieren und/oder den
-**Heizstab** (Modus ELEC) zuschalten, um den Überschuss maximal zu nutzen
-(Boost/Modus werden beim Absinken wieder zurückgenommen).
-
-**Alternativ als Blueprint:**
-[`blueprints/automation/haier_modbus/pv_surplus.yaml`](blueprints/automation/haier_modbus/pv_surplus.yaml)
-(Einstellungen → Automationen & Szenen → Blueprints → **Blueprint importieren**),
-falls du die Logik lieber als Automation mit eigenen Anpassungen/Notifications führst.
-
-## Entity-IDs
-
-Beim Setup werden alle Entitäten auf ein einheitliches Schema
-**`<domain>.haier_hwhp_<key>`** standardisiert (Bestand wird einmalig migriert), z. B.
-`sensor.haier_hwhp_water_temp`, `number.haier_hwhp_set_temp`, `water_heater.haier_hwhp`. Die
-**Anzeigenamen** folgen der HA-Systemsprache (Deutsch, sonst Englisch). Verweise
-auf zuvor abweichende entity_ids in eigenen Automationen/Karten ggf. anpassen.
-
-## Verbindung & Diagnose
-
-Ein **Modbus-Grundtest** je Zyklus unterscheidet, ob der **Konverter** (TCP)
-nicht erreichbar ist oder der Konverter zwar antwortet, aber das **Gerät** (RTU)
-stumm bleibt. Ergebnis im diagnostischen Sensor **`Modbus-Status`**
-(`ok` / `Konverter nicht erreichbar` / `Gerät antwortet nicht`); der Binärsensor
-**`Verbindung`** spiegelt `ok`. Kurze Aussetzer setzen die Entitäten **nicht**
-sofort auf „nicht verfügbar" – die letzten Werte werden bis zu **5 Minuten**
-gehalten (danach erst „nicht verfügbar"). So flappt nichts bei einzelnen Blips.
-
-## Kalibrierung
-
-Der geräteseitige **Umgebungstemperatur**-Fühler liegt oft daneben. Unter
-**Konfigurieren** lässt sich ein additiver **Offset (°C)** setzen, der direkt auf
-den Sensor `Umgebungstemperatur` angewandt wird.
+Im Setup (Schritt 3) oder unter „Konfigurieren" aktivieren: PV-Überschuss-Sensor (W)
+wählen, die Integration setzt die Solltemperatur dreistufig (hoch/normal/Grund) mit
+Entprellung – und **hebt nur an, während die WP läuft** (Absenken jederzeit).
+Optional bei hohem Überschuss zusätzlich **Boost** und/oder **Heizstab (ELEC)**.
+Standard-Schwellen mit Reserve über den realen Aufnahmen (Heizstab ~1500 W,
+WP ~535 W). Alternativ als
+[Blueprint](blueprints/automation/haier_modbus/pv_surplus.yaml).
 
 ## Dashboard
+Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWWP"
+(`/haier-hwhp`) angelegt – per Drag&Drop frei anpassbar, Änderungen bleiben bei
+Updates erhalten. Abschnitte: Steuerung, Temperaturen, Status, Energie & COP sowie
+Diagramme (Energie pro Monat/Tag, Temperaturen 7 Tage, JAZ-Vergleich). Benötigte
+Karten (ApexCharts) werden bei Bedarf via HACS nachgezogen.
 
-Die Integration liefert ein **fertiges, editierbares Dashboard** mit und legt es beim
-Setup **einmalig** als **Storage-Dashboard** in der Seitenleiste an
-(**„Haier BWWP"** / engl. „Haier HWHP", `/haier-hwhp`). Weil es im Storage-Modus
-liegt, kannst du es im **UI per Drag&Drop** frei umsortieren – deine Änderungen
-bleiben erhalten und werden bei Updates **nicht überschrieben** (es wird nur
-einmalig erzeugt; ist es vorhanden, fasst die Integration es nicht mehr an).
-Das Start-Layout wird aus den real registrierten Entitäten gebaut (Auflösung über
-`unique_id`), passt also unabhängig von den konkreten entity_ids – Karten zu
-(noch) fehlenden Entitäten werden ausgelassen. Abschnitte: Steuerung,
-Temperaturen, Status, Energie & COP, sowie Diagramme **Energie pro Monat**,
-**Energie pro Tag (30 Tage)**, **Temperaturen (7 Tage)** und **JAZ-Vergleich
-(Jahre)** (ApexCharts). Die **PV-Überschuss-Kachel** erscheint nur, wenn ein
-PV-Sensor konfiguriert ist. (Die ApexCharts-Karte wird bei Bedarf automatisch via
-HACS nachgezogen.) Steht nur ein älteres HA ohne Storage-Dashboard-API zur
-Verfügung, fällt die Integration auf ein YAML-Dashboard zurück (nicht editierbar).
+## Entity-IDs & Verbindung
+Alle Entitäten werden auf **`<domain>.haier_hwhp_<key>`** standardisiert. Ein
+Modbus-Grundtest je Zyklus unterscheidet Konverter- vs. Geräte-Störung; kurze
+Aussetzer halten die letzten Werte bis zu **5 Minuten** (kein Flattern).
 
-## Energie-Statistik zurücksetzen
+## Register & Lizenz
+Registerkarte & Herleitung: [`docs/register-map.md`](docs/register-map.md)
+(Quelle: Hersteller-Doku „MODBUS Einstellung"). Lizenz: [MIT](LICENSE).
 
-Falls die Energie-Diagramme einen **einmaligen Ausreißer** zeigen (z. B. zu hoher
-Stromverbrauch aus einem alten Baseline-Sprung), gibt es den Dienst
-**`haier_modbus.reset_energy_statistics`** (Entwicklerwerkzeuge → Aktionen). Er
-löscht die Langzeitstatistik der Gesamt-Zähler (Wärme/Strom) und baut sie ab dem
-aktuellen, sauberen Wert neu auf. **Achtung:** betrifft **beide** Gesamt-Zähler –
-die bisherige Tages-/Monatshistorie dieser zwei Sensoren geht dabei verloren.
+---
 
-## Recorder / Datenbank
+## 🇬🇧 English
 
-Standard-Abfrageintervall ist **5 s**. Damit die Datenbank nicht durch
-historienlose Werte wächst, empfiehlt sich ein Recorder-Ausschluss für
-flatternde/redundante Entitäten (Verbindung, Modus-Text, Warmwasserstand,
-Zieltemperatur). Fertiger Block: [`docs/recorder-exclude.yaml`](docs/recorder-exclude.yaml)
-– in die `configuration.yaml` übernehmen und HA neu starten.
+Local Home Assistant integration for the Haier heat-pump water heater of the
+**M7 family** (HP160/HP200/HP260 M7, R290) over **Modbus-TCP** – with **write
+access**, energy/COP evaluation and a bundled, editable dashboard. Display name
+depends on the system language: **“Haier HWHP”** (English), **“Haier BWWP”** (German).
 
-## Register & Validierung
+Fully **local** over Modbus – no hOn cloud account required. Versus the cloud, the
+local path offers write access, direct access to the energy registers and runs
+**without any internet/cloud dependency**.
 
-Vollständige Registerkarte und COP-Herleitung: [`docs/register-map.md`](docs/register-map.md).
-Quelle: offizielle Hersteller-Doku „Haier-Haustechnik.de Brauchwasser-WP MODBUS Einstellung".
+### ⚠️ Important: does your unit even have Modbus?
+**Not every** unit in this series has the Modbus interface – unofficially it is only
+fitted from **production date ~April 2025**. Check the **device/service menu** or the
+**manual** for a **Modbus / Slave-ID configuration** item; if present, your unit
+supports Modbus (and that's where the **Slave ID**, default `1`, is set).
 
-## Lizenz
+**Required hardware:**
+- Native interface is **Modbus RTU over RS485** (9600 baud, 8N1).
+- You need a **Modbus-RTU→TCP converter (gateway)** on the network; Home Assistant
+  connects to **its IP on port 502** (not to the heat pump directly).
+- The **RS485 cable** from the heat pump (terminals A/B, possibly GND) to the
+  converter usually has to be **made yourself**. See the manual for the exact
+  terminal layout and this community thread for practical notes:
+  [haustechnikdialog.de](https://www.haustechnikdialog.de/Forum/t/285616/Brauchwasserwaermepumpe-Haier-R290).
+- Writable registers only accept FC `0x10` (the integration handles this).
 
-[MIT](LICENSE).
+### Features
+Setup wizard (connection + model → COP → optional PV surplus), bilingual names,
+control (setpoint, mode AUTO/ECO/ELEC/VAC, switches), a combined **current source**
+display with dynamic icon, temperature/energy sensors, **fault code with plain text**,
+calculated **COP/JAZ** with selectable sources, Modbus link diagnostics, built-in
+**PV surplus control**, and an **editable storage dashboard**.
+
+### COP / JAZ – system vs. device
+The reported COP/JAZ is a **system COP**: with an external meter (Shelly) it includes
+**standby, controls, pump, defrost** – so it is **noticeably lower** than the
+**device's internal** value, which only counts **operating** consumption (no standby/
+aux loads), is rounded to whole kWh and reads **far too low**. **Use an external
+electricity meter for a meaningful seasonal performance factor.** See
+[`docs/register-map.md`](docs/register-map.md).
+
+### Reset energy statistics
+On a one-off spike, the service **`haier_modbus.reset_energy_statistics`** clears the
+long-term statistics of the total counters (heat + electricity) and rebuilds them
+cleanly. This affects **both** counters – their previous daily/monthly history is lost.
+
+### Fault codes
+Register 18 returns a number mapped group-wise to the display codes
+(`1–15 E.., 16–31 L.., 32–47 F.., 48–63 P.., 64 PP`). The fault sensor decodes it and
+exposes **code + description** attributes. Full table:
+[`docs/fault-codes.md`](docs/fault-codes.md).
+
+### Installation (HACS)
+HACS → custom repository (category *Integration*) → download → restart → add the
+integration → enter the **converter's IP**, port `502`, slave `1`, interval, model.
+Everything is changeable later under *Configure*. License: [MIT](LICENSE).

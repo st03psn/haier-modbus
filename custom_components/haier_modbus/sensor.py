@@ -227,11 +227,24 @@ class HaierCurrentSource(HaierModbusEntity, SensorEntity):
     """
 
     _attr_translation_key = "current_source"
-    _attr_icon = "mdi:transmission-tower"
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.entry.entry_id}_current_source"
+
+    @property
+    def icon(self) -> str:
+        """Dynamisches Icon je nach aktiver Quelle (Heizstab dominiert optisch)."""
+        keys = self._active_keys() or []
+        if "electric_heater" in keys:
+            return "mdi:radiator"        # Heizstab (allein oder WP+Heizstab)
+        if "heat_pump" in keys:
+            return "mdi:heat-pump"
+        if "solar" in keys:
+            return "mdi:solar-power"
+        if "boiler" in keys:
+            return "mdi:water-boiler"
+        return "mdi:power-standby"       # nichts aktiv
 
     def _active_keys(self) -> list[str] | None:
         raw = self._regs.get(REG_STATUS)
