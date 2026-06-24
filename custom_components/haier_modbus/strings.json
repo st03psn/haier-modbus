@@ -129,13 +129,12 @@
       "current_source": { "name": "Current source" },
       "hp_elec_year": { "name": "Heat pump electricity (device, year)" },
       "heater_elec_year": { "name": "Electric heater electricity (device, year)" },
-      "heat_year": { "name": "Heat produced (device, year)" },
-      "heat_total": { "name": "Heat produced (total)" },
+      "heat_year": { "name": "Heat quantity (current year)" },
+      "heat_total": { "name": "Heat quantity (total)" },
       "elec_total": { "name": "Electricity used (total)" },
       "cop_month": { "name": "COP (month)" },
       "cop_year": { "name": "SPF (year)" },
       "cop_prev_year": { "name": "SPF (last year)" },
-      "cop_reference": { "name": "COP (since reference date)" },
       "link_status": {
         "name": "Modbus status",
         "state": {

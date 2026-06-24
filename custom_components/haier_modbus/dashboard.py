@@ -135,13 +135,12 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
     ])
 
     energie = section("Energie & COP", [grid([
-        tile("sensor", "cop_reference", "COP (seit Start)", color="green"),
-        tile("sensor", "cop_month", "COP (Monat)"),
+        tile("sensor", "cop_month", "COP (Monat)", color="green"),
         tile("sensor", "cop_year", "JAZ (Jahr)"),
         tile("sensor", "cop_prev_year", "JAZ (Vorjahr)"),
-        tile("sensor", "heat_total", "Wärme gesamt"),
+        tile("sensor", "heat_total", "Wärmemenge (gesamt)"),
         tile("sensor", "total_elec", "Strom gesamt"),
-        tile("sensor", "heat_year", "Wärme (Gerät)"),
+        tile("sensor", "heat_year", "Wärmemenge (akt. Jahr)"),
         tile("sensor", "hp_elec_year", "WP-Strom (Jahr)"),
         tile("sensor", "heater_elec_year", "Heizstab (Jahr)"),
     ])])
@@ -175,12 +174,30 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         yaxis=[{"min": 35, "max": 60, "decimals": 0}],
         all_series_config={"stroke_width": 2},
     )
-    chart_cop = apex(
-        "COP seit Bezugsdatum (30 Tage)", "30d",
-        [("sensor", "cop_reference", "COP",
-          {"type": "line", "curve": "smooth", "group_by": {"func": "avg", "duration": "1d"}})],
-        yaxis=[{"min": 0, "decimals": 2}],
-    )
+    # JAZ-Vergleich der letzten ~5 Jahre als Balken. Quelle: das Attribut
+    # ``jaz_per_year`` der JAZ-(Jahr-)Entität (abgeschlossene Jahre) plus der
+    # laufende Jahreswert aus dem State – zusammengeführt im data_generator.
+    _cop_year_eid = eid("sensor", "cop_year")
+    chart_jaz = {
+        "type": "custom:apexcharts-card",
+        "chart_type": "bar",
+        "header": {"show": True, "title": "JAZ-Vergleich (Jahre)"},
+        "graph_span": "1830d",
+        "span": {"end": "year"},
+        "series": [{
+            "entity": _cop_year_eid,
+            "name": "JAZ",
+            "data_generator": (
+                "const h = entity.attributes.jaz_per_year || {}; "
+                "let pts = Object.keys(h).map(y => [new Date(Number(y),0,1).getTime(), h[y].cop]); "
+                "const cur = new Date().getFullYear(); const cv = parseFloat(entity.state); "
+                "if(!isNaN(cv)) pts.push([new Date(cur,0,1).getTime(), cv]); "
+                "const seen={}; pts.forEach(p => {seen[p[0]]=p[1];}); "
+                "return Object.keys(seen).map(k => [Number(k),seen[k]]).sort((a,b)=>a[0]-b[0]);"
+            ),
+        }],
+        "yaxis": [{"min": 0, "decimals": 2}],
+    } if _cop_year_eid else None
 
     # Bedien-/Status-Kacheln oben; jedes Diagramm in EINER EIGENEN Sektion.
     # So bricht die Sections-Ansicht auf schmalen Schirmen (Smartphone) sauber
@@ -194,7 +211,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         energie,
         section(None, [chart_month]),
         section(None, [chart_temp]),
-        section(None, [chart_cop]),
+        section(None, [chart_jaz]),
     ]
     sections = [s for s in sections if s]
     return {
