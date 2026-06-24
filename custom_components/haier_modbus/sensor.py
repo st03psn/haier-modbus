@@ -23,6 +23,8 @@ from .const import (
     CONF_ENERGY_SCALE,
     DEFAULT_ENERGY_SCALE,
     DOMAIN,
+    FAULT_CODES,
+    fault_code,
     MODE_TO_TEXT,
     REG_AMBIENT,
     REG_FAULT,
@@ -188,6 +190,16 @@ class HaierRegSensor(HaierModbusEntity, SensorEntity):
             if offset:
                 val = round(val + offset, 1)
         return val
+
+    @property
+    def extra_state_attributes(self):
+        # Beim Fehlercode-Sensor zusätzlich Anzeige-Code + Klartext aus Reg 18.
+        if self._desc.key != "fault":
+            return None
+        code = fault_code(self._regs.get(self._desc.register))
+        if not code:
+            return {"code": "—", "description": "Kein Fehler"}
+        return {"code": code, "description": FAULT_CODES.get(code, "Unbekannter Code")}
 
 
 class HaierModeText(HaierModbusEntity, SensorEntity):

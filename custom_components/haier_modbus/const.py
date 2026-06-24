@@ -162,11 +162,11 @@ STATUS_EHEATER: Final = 1 << 1
 STATUS_SOLAR: Final = 1 << 2
 STATUS_BOILER: Final = 1 << 3
 
-# --- Fehlercodes (Anzeige-Codes laut Hersteller-Handbuch) ------------------
-# ACHTUNG: Reg 18 liefert eine Zahl (0..64); welche Zahl welchem Anzeige-Code
-# entspricht, ist im Handbuch NICHT dokumentiert. Diese Tabelle bildet daher die
-# Anzeige-Codes (F2, E1, P1 …) auf Klartext ab – nutzbar, sobald die Zahl→Code-
-# Zuordnung bekannt ist (siehe docs/fault-codes.md).
+# --- Fehlercodes -----------------------------------------------------------
+# Reg 18 liefert eine Zahl, die laut Modbus-Doku gruppenweise auf Anzeige-Codes
+# abbildet: 0 = keiner; 1–15 = E1–EF; 16–31 = L0–LF; 32–47 = F0–FF;
+# 48–63 = P0–PF; 64 = PP (Buchstabengruppe + Hex-Ziffer). fault_code() rechnet
+# die Zahl in den Anzeige-Code um, FAULT_CODES liefert den Klartext dazu.
 FAULT_CODES: Final = {
     "F2": "Verdichterschutz: Betriebstemperatur",
     "F3": "Verdichterschutz: Abluft-Temperatur",
@@ -181,8 +181,8 @@ FAULT_CODES: Final = {
     "E7": "Kommunikationsfehler Hauptplatine ↔ Anzeige",
     "E9": "Umgebungstemperatur-Schutz: < -7 °C oder > 43 °C",
     "EF": "Off-Peak-Signal nicht empfangen",
-    "Lb": "Externer Wärmequellen-Temperaturfühler: Kurzschluss/Unterbrechung",
     "E8": "Druckschalter-Schutz (Auslass)",
+    "LB": "Externer Wärmequellen-Temperaturfühler: Kurzschluss/Unterbrechung",
     "L7": "Lüfterfehler: blockiert oder Kommunikationsfehler",
     "F0": "WiFi-Kommunikationsfehler (Konfig-Modus)",
     "P1": "Umrichter: Phasenstrom Hardware-Überstrom",
@@ -197,6 +197,24 @@ FAULT_CODES: Final = {
     "PD": "Gleichrichter: Software-Überstrom",
     "PF": "Gleichrichter: Hardware-Überstrom",
 }
+
+
+def fault_code(value: int | None) -> str | None:
+    """Rohwert von Reg 18 in den Anzeige-Code umrechnen (None = kein Fehler).
+
+    Gruppen laut Modbus-Doku: 1–15 E.., 16–31 L.., 32–47 F.., 48–63 P..,
+    64 PP – jeweils Buchstabe + Hex-Ziffer (z. B. 34 -> F2, 27 -> LB, 59 -> PB).
+    """
+    if value is None or value == 0:
+        return None
+    if value == 64:
+        return "PP"
+    if 1 <= value <= 15:               # E-Gruppe: E1..EF (ohne 0)
+        return f"E{value:X}"
+    for base, letter in ((16, "L"), (32, "F"), (48, "P")):   # L0..LF / F0..FF / P0..PF
+        if base <= value <= base + 15:
+            return f"{letter}{value - base:X}"
+    return None
 
 PLATFORMS: Final = [
     "water_heater",

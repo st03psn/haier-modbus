@@ -3,12 +3,12 @@
 Anzeige-Codes der Haier-BWWP-M7-Familie laut Hersteller-Handbuch
 („Faults and protection"). Sie erscheinen auf dem Geräte-Display.
 
-> **Hinweis zum Modbus-Sensor:** Register 18 (`Fehlercode`) liefert eine **Zahl
-> (0..64)**, `0` = kein Fehler. Welche Zahl welchem Anzeige-Code unten entspricht,
-> ist im Handbuch **nicht** dokumentiert. Sobald bei einem echten Fehler der
-> Zahlenwert bekannt ist, kann der Sensor die Klartext-Bedeutung direkt anzeigen
-> (Mapping in `const.py` → `FAULT_CODES`). Bis dahin dient diese Tabelle als
-> Nachschlagewerk.
+> **Modbus-Sensor:** Register 18 (`Fehlercode`) liefert eine **Zahl**, `0` = kein
+> Fehler. Laut Modbus-Doku bildet sie gruppenweise auf den Anzeige-Code ab:
+> **1–15 = E1–EF, 16–31 = L0–LF, 32–47 = F0–FF, 48–63 = P0–PF, 64 = PP**
+> (Buchstabe + Hex-Ziffer, z. B. 34 → F2, 27 → Lb, 59 → PB). Der Sensor
+> `Fehlercode` rechnet das automatisch um und zeigt **Anzeige-Code + Klartext**
+> als Attribute (`code`, `description`).
 
 | Code | Fehlertyp | Auslöser / Bedeutung | Reset |
 |------|-----------|----------------------|-------|

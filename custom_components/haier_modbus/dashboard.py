@@ -142,6 +142,17 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         ]),
     ])
 
+    # "Erfasst seit …"-Hinweis (dynamisches Datum aus dem 'seit'-Attribut).
+    _heat_eid = eid("sensor", "heat_total")
+    seit_md = {
+        "type": "markdown",
+        "content": (
+            "{% set s = state_attr('" + _heat_eid + "','seit') %}"
+            "Energie erfasst seit **{{ as_datetime(s).strftime('%d.%m.%Y') "
+            "if s else 'Inbetriebnahme' }}**"
+        ),
+    } if _heat_eid else None
+
     energie = section("Energie & COP", [grid([
         tile("sensor", "cop_month", "COP (Monat)", color="green"),
         tile("sensor", "cop_year", "JAZ (Jahr)"),
@@ -152,7 +163,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "hp_elec_year", "WP-Strom (Jahr)"),
         tile("sensor", "heater_elec_year", "Heizstab (Jahr)"),
         pv_tile,
-    ])])
+    ]), seit_md])
 
     def statgraph(title: str, period: str, specs: list) -> dict | None:
         ents = [e for e in (eid(d, k) for d, k in specs) if e]
