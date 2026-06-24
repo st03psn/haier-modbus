@@ -1,0 +1,9 @@
+reset_energy_statistics:
+  name: Energie-Statistik zurücksetzen
+  description: >-
+    Löscht die Langzeitstatistik der integrationseigenen Gesamt-Zähler (Wärme
+    erzeugt gesamt / Stromverbrauch gesamt) und baut sie ab dem aktuellen Wert
+    sauber neu auf. Nötig, falls die Energie-Diagramme einen einmaligen
+    Ausreißer (z. B. zu hohen Stromverbrauch aus einem alten Baseline-Sprung)
+    zeigen. Reset / Resets the long-term statistics of the integration's total
+    counters and rebuilds them cleanly from the current value.

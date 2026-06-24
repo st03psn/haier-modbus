@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Haier DHWHP – connection",
-        "description": "Connection details for the Modbus TCP interface. The DHWHP's native interface is Modbus RTU (9600 8N1), so the host is usually a Modbus RTU-to-TCP converter (gateway).",
+        "title": "Haier HWHP – connection",
+        "description": "Connection details for the Modbus TCP interface. The HWHP's native interface is Modbus RTU (9600 8N1), so the host is usually a Modbus RTU-to-TCP converter (gateway).",
         "data": {
           "host": "Host / IP address",
           "port": "Port",
@@ -17,7 +17,7 @@
         }
       },
       "cop": {
-        "title": "Haier DHWHP – COP & energy",
+        "title": "Haier HWHP – COP & energy",
         "description": "COP = produced heat / electricity used. Sources are configurable. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total. Everything can be changed later via \"Configure\".",
         "data": {
           "cop_enabled": "Enable COP calculation",
@@ -30,7 +30,7 @@
         }
       },
       "pv": {
-        "title": "Haier DHWHP – PV surplus (optional)",
+        "title": "Haier HWHP – PV surplus (optional)",
         "description": "Optional control of the target temperature based on PV surplus. Enable and select the surplus sensor (W); the tiers set the target temperature (high/normal/base). Changeable later via \"Configure\".",
         "data": {
           "pv_enabled": "Enable PV surplus control",
@@ -171,7 +171,7 @@
   "issues": {
     "missing_frontend_card": {
       "title": "Missing Lovelace card: {card_name}",
-      "description": "The Haier BWWP comparison card requires the **{card_name}** Lovelace card. Install `{hacs_repo}` via HACS → Frontend, then reload the browser tab (Ctrl+Shift+R)."
+      "description": "The Haier HWHP comparison card requires the **{card_name}** Lovelace card. Install `{hacs_repo}` via HACS → Frontend, then reload the browser tab (Ctrl+Shift+R)."
     }
   }
 }

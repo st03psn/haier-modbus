@@ -19,6 +19,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SOURCE_EXTERNAL,
+    localized_title,
 )
 from .coordinator import HaierModbusCoordinator
 from .dashboard import async_register_dashboard, async_remove_dashboard
@@ -69,7 +70,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_create_background_task(
         hass, _async_ensure_frontend_cards(hass), "haier_modbus_frontend_cards"
     )
+
+    _async_register_services(hass)
     return True
+
+
+SERVICE_RESET_ENERGY_STATS = "reset_energy_statistics"
+
+
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Dienst zum Zurücksetzen der Energie-Langzeitstatistik (einmalig registriert).
+
+    Hintergrund: Ein früherer Baseline-Seed-Bug ließ den Gesamt-Stromzähler
+    einmalig auf den Lebenswert der Quelle springen; als ``total_increasing``
+    trägt die Langzeitstatistik diesen Sprung als einmaligen Ausreißer mit.
+    HA bietet dafür keinen eingebauten Dienst – dieser löscht gezielt die
+    Langzeitstatistik der integrationseigenen Gesamt-Zähler (Wärme/Strom),
+    danach baut der Recorder sie ab dem aktuellen (sauberen) Wert neu auf.
+    """
+    if hass.services.has_service(DOMAIN, SERVICE_RESET_ENERGY_STATS):
+        return
+
+    async def _handle_reset(call) -> None:
+        reg = er.async_get(hass)
+        stat_ids = [
+            e.entity_id
+            for e in reg.entities.values()
+            if e.platform == DOMAIN
+            and (e.unique_id.endswith("_total_heat") or e.unique_id.endswith("_total_elec"))
+        ]
+        if not stat_ids:
+            _LOGGER.warning("Reset-Energie-Statistik: keine Gesamt-Zähler gefunden")
+            return
+        from homeassistant.components.recorder import get_instance
+
+        get_instance(hass).async_clear_statistics(stat_ids)
+        _LOGGER.info("Energie-Langzeitstatistik zurückgesetzt: %s", stat_ids)
+
+    hass.services.async_register(DOMAIN, SERVICE_RESET_ENERGY_STATS, _handle_reset)
 
 
 def _standardize_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -218,7 +256,7 @@ async def _async_ensure_frontend_cards(hass: HomeAssistant) -> None:
                 "persistent_notification", "create",
                 {
                     "notification_id": "haier_modbus_frontend_installed",
-                    "title": "Haier BWWP – Frontend-Karte installiert",
+                    "title": f"{localized_title(hass.config.language)} – Frontend-Karte installiert",
                     "message": (
                         f"Über HACS installiert: {', '.join(installed)}.\n\n"
                         "**Browser neu laden (Strg+Shift+R)**, um die Karte zu aktivieren."

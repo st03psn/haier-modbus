@@ -71,10 +71,23 @@ DEFAULT_PV_DEBOUNCE: Final = 5
 MANUFACTURER: Final = "Haier"
 MODEL: Final = "HP200M7-F9"          # Standard-/Fallback-Modell
 
+# Anzeigename nach Systemsprache: Deutsch -> "Haier BWWP"
+# (Brauchwasserwärmepumpe), alle anderen Sprachen -> Fallback Englisch
+# "Haier HWHP" (Hot Water Heat Pump). Zentral, damit alle Ebenen (Gerät,
+# Eintrag, Dashboard, Hinweise) konsistent benannt sind.
+TITLE_DE: Final = "Haier BWWP"
+TITLE_EN: Final = "Haier HWHP"
+
+
+def localized_title(language: str | None) -> str:
+    """Sprachabhängiger Anzeigename (DE = BWWP, sonst Fallback EN = HWHP)."""
+    lang = (language or "en").split("-")[0].lower()
+    return TITLE_DE if lang == "de" else TITLE_EN
+
+
 # Mitgeliefertes Dashboard (Storage-Modus = im UI editierbar)
 DASHBOARD_URL_PATH: Final = "haier-hwhp"
 DASHBOARD_LEGACY_URL_PATH: Final = "haier-bwwp"  # altes, gesperrtes YAML-Dashboard
-DASHBOARD_TITLE: Final = "Haier BWWP"
 DASHBOARD_ICON: Final = "mdi:water-boiler"
 
 # Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte).

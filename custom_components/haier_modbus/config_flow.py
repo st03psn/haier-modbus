@@ -69,6 +69,7 @@ from .const import (
     SET_TEMP_MIN,
     SOURCE_EXTERNAL,
     SOURCE_MODBUS,
+    localized_title,
 )
 
 _ENERGY_ENTITY = selector.EntitySelector(
@@ -224,7 +225,9 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             pv = {k: v for k, v in user_input.items() if v not in ("", None)}
             options = {**self._cop, **pv}
             return self.async_create_entry(
-                title="Haier BWWP", data=self._data, options=options
+                title=localized_title(self.hass.config.language),
+                data=self._data,
+                options=options,
             )
         return self.async_show_form(step_id="pv", data_schema=_pv_schema({}))
 

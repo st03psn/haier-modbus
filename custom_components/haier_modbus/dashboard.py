@@ -24,9 +24,9 @@ from .const import (
     CONF_PV_SENSOR,
     DASHBOARD_ICON,
     DASHBOARD_LEGACY_URL_PATH,
-    DASHBOARD_TITLE,
     DASHBOARD_URL_PATH,
     DOMAIN,
+    localized_title,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -291,7 +291,7 @@ async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> bool:
     await collection.async_create_item(
         {
             "url_path": DASHBOARD_URL_PATH,
-            "title": DASHBOARD_TITLE,
+            "title": localized_title(hass.config.language),
             "icon": DASHBOARD_ICON,
             "show_in_sidebar": True,
             "require_admin": False,
@@ -323,7 +323,7 @@ async def _register_yaml_dashboard(hass: HomeAssistant, config: dict) -> None:
             {
                 "mode": "yaml",
                 "filename": str(path),
-                "title": DASHBOARD_TITLE,
+                "title": localized_title(hass.config.language),
                 "icon": DASHBOARD_ICON,
                 "show_in_sidebar": True,
                 "require_admin": False,
@@ -333,7 +333,7 @@ async def _register_yaml_dashboard(hass: HomeAssistant, config: dict) -> None:
     frontend.async_register_built_in_panel(
         hass,
         component_name="lovelace",
-        sidebar_title=DASHBOARD_TITLE,
+        sidebar_title=localized_title(hass.config.language),
         sidebar_icon=DASHBOARD_ICON,
         frontend_url_path=DASHBOARD_URL_PATH,
         config={"mode": "yaml", "filename": str(path)},
