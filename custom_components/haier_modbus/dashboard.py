@@ -273,13 +273,23 @@ async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> bool:
     if lovelace is None:
         return False
     dashboards = getattr(lovelace, "dashboards", None)
-    collection = getattr(lovelace, "dashboards_collection", None)
-    if not isinstance(dashboards, dict) or collection is None:
+    if not isinstance(dashboards, dict):
         return False
 
-    # Bereits vorhanden? -> nicht überschreiben (Nutzer-Layout behalten).
+    # WICHTIG zuerst: existiert das Dashboard schon (Storage o. ä.)? Dann nichts
+    # tun und True liefern -> der Aufrufer registriert KEIN YAML-Panel darüber.
+    # (Die Collection wird nur zum NEU-Anlegen gebraucht; ihr Attributname ist
+    # HA-versionsabhängig – sie hier zu früh zu verlangen, führte sonst zum
+    # YAML-Fallback, der das editierbare Storage-Dashboard überdeckt hat.)
     if DASHBOARD_URL_PATH in dashboards:
         return True
+
+    collection = (
+        getattr(lovelace, "dashboards_collection", None)
+        or getattr(lovelace, "dashboard_collection", None)
+    )
+    if collection is None:
+        return False
     try:
         items = list(collection.async_items())
     except Exception:  # noqa: BLE001
@@ -306,6 +316,13 @@ async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> bool:
 
 async def _register_yaml_dashboard(hass: HomeAssistant, config: dict) -> None:
     """Fallback: Dashboard als (nicht editierbares) Lovelace-YAML + Panel anmelden."""
+    # Schutz: niemals ein YAML-Panel über ein bereits existierendes (Storage-)
+    # Dashboard legen – das würde den editierbaren Modus verdecken.
+    lovelace = hass.data.get("lovelace")
+    dashboards = getattr(lovelace, "dashboards", None)
+    if isinstance(dashboards, dict) and DASHBOARD_URL_PATH in dashboards:
+        return
+
     import yaml
 
     text = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
