@@ -152,7 +152,7 @@
       "status_wp": { "name": "Wärmepumpe" },
       "status_heater": { "name": "Heizstab" },
       "status_solar": { "name": "Solar" },
-      "status_boiler": { "name": "Kessel" },
+      "status_boiler": { "name": "Externe Wärmequelle" },
       "connection": { "name": "Verbindung" }
     },
     "select": {

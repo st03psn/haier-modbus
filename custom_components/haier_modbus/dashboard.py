@@ -135,7 +135,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             tile("binary_sensor", "status_wp", "Wärmepumpe", color="green"),
             tile("binary_sensor", "status_heater", "Heizstab", color="orange"),
             tile("binary_sensor", "status_solar", "Solar", color="amber"),
-            tile("binary_sensor", "status_boiler", "Kessel", color="red"),
+            tile("binary_sensor", "status_boiler", "Externe Wärmequelle", color="red"),
             tile("binary_sensor", "connection", "Verbindung"),
             tile("sensor", "link_status", "Modbus-Status"),
             tile("sensor", "fault", "Fehlercode"),

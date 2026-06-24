@@ -151,14 +151,14 @@ _SOURCE_LABELS: dict[str, dict[str, str]] = {
         "idle": "Aus",
         "heat_pump": "Wärmepumpe",
         "solar": "Solar",
-        "boiler": "Kessel",
+        "boiler": "Externe Wärmequelle",
         "electric_heater": "Heizstab",
     },
     "en": {
         "idle": "Off",
         "heat_pump": "Heat pump",
         "solar": "Solar",
-        "boiler": "Boiler",
+        "boiler": "External heat source",
         "electric_heater": "Electric heater",
     },
 }

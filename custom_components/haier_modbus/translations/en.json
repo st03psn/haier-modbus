@@ -152,7 +152,7 @@
       "status_wp": { "name": "Heat pump" },
       "status_heater": { "name": "Electric heater" },
       "status_solar": { "name": "Solar" },
-      "status_boiler": { "name": "Boiler" },
+      "status_boiler": { "name": "External heat source" },
       "connection": { "name": "Connection" }
     },
     "select": {
