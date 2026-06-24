@@ -124,21 +124,29 @@ def _cop_schema(o: dict[str, Any]) -> vol.Schema:
 
 
 def _pv_schema(o: dict[str, Any]) -> vol.Schema:
-    """PV-Überschuss-Steuerung – im Wizard und im Options-Flow identisch."""
-    return vol.Schema(
-        {
-            vol.Optional(CONF_PV_ENABLED, default=o.get(CONF_PV_ENABLED, False)): bool,
-            vol.Optional(CONF_PV_SENSOR): _PV_SENSOR,
-            vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
-            vol.Optional(CONF_PV_NORMAL, default=o.get(CONF_PV_NORMAL, DEFAULT_PV_NORMAL)): _WATT,
-            vol.Optional(CONF_PV_TEMP_HIGH, default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH)): _TEMP,
-            vol.Optional(CONF_PV_TEMP_NORMAL, default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP,
-            vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP,
-            vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
-            vol.Optional(CONF_PV_BOOST, default=o.get(CONF_PV_BOOST, False)): bool,
-            vol.Optional(CONF_PV_FORCE_ELEC, default=o.get(CONF_PV_FORCE_ELEC, False)): bool,
-        }
-    )
+    """PV-Überschuss-Steuerung – im Wizard und im Options-Flow identisch.
+
+    Die Aktivierung samt Schwellen erscheint NUR, wenn bereits ein PV-Sensor
+    konfiguriert ist (HA-Formulare können Felder nicht abhängig ausgrauen –
+    daher werden sie erst eingeblendet, sobald ein Sensor gespeichert wurde).
+    Ohne Sensor wird nur das Sensor-Feld gezeigt.
+    """
+    fields: dict[Any, Any] = {vol.Optional(CONF_PV_SENSOR): _PV_SENSOR}
+    if o.get(CONF_PV_SENSOR):
+        fields.update(
+            {
+                vol.Optional(CONF_PV_ENABLED, default=o.get(CONF_PV_ENABLED, False)): bool,
+                vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
+                vol.Optional(CONF_PV_NORMAL, default=o.get(CONF_PV_NORMAL, DEFAULT_PV_NORMAL)): _WATT,
+                vol.Optional(CONF_PV_TEMP_HIGH, default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH)): _TEMP,
+                vol.Optional(CONF_PV_TEMP_NORMAL, default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP,
+                vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP,
+                vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
+                vol.Optional(CONF_PV_BOOST, default=o.get(CONF_PV_BOOST, False)): bool,
+                vol.Optional(CONF_PV_FORCE_ELEC, default=o.get(CONF_PV_FORCE_ELEC, False)): bool,
+            }
+        )
+    return vol.Schema(fields)
 
 
 async def _test_connection(host: str, port: int, slave: int) -> bool:
@@ -234,11 +242,15 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
             cleaned = {k: v for k, v in user_input.items() if v not in ("", None)}
-            return self.async_create_entry(title="", data=cleaned)
+            if cleaned.get(CONF_PV_ENABLED) and not cleaned.get(CONF_PV_SENSOR):
+                errors["base"] = "pv_sensor_required"
+            else:
+                return self.async_create_entry(title="", data=cleaned)
 
-        o = self.config_entry.options
+        o = {**self.config_entry.options, **(user_input or {})}
         d = self.config_entry.data
 
         def cur(key: str, default: Any) -> Any:
@@ -266,4 +278,4 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         schema = schema.extend(_pv_schema(o).schema)
         schema = schema.extend(emergency)
         schema = self.add_suggested_values_to_schema(schema, o)
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)

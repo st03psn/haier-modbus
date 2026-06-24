@@ -51,7 +51,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Verbindung fehlgeschlagen. Host, Port und Slave-ID prüfen."
+      "cannot_connect": "Verbindung fehlgeschlagen. Host, Port und Slave-ID prüfen.",
+      "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird."
     },
     "abort": {
       "already_configured": "Diese Wärmepumpe ist bereits eingerichtet."
@@ -98,6 +99,9 @@
           "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet."
         }
       }
+    },
+    "error": {
+      "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird."
     }
   },
   "selector": {

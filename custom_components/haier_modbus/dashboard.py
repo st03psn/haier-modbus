@@ -21,6 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
+    CONF_PV_SENSOR,
     DASHBOARD_ICON,
     DASHBOARD_LEGACY_URL_PATH,
     DASHBOARD_TITLE,
@@ -121,8 +122,15 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "hotwater_pct", "Warmwasser"),
     ])])
 
+    # PV-Überschuss nur zeigen, wenn ein Sensor konfiguriert ist.
+    pv_sensor = entry.options.get(CONF_PV_SENSOR)
+    pv_tile = (
+        {"type": "tile", "entity": pv_sensor, "name": "PV-Überschuss",
+         "icon": "mdi:solar-power"} if pv_sensor else None
+    )
     status = section("Status", [
         tile("sensor", "current_source", "Aktuelle Quelle"),
+        pv_tile,
         grid([
             tile("binary_sensor", "status_wp", "Wärmepumpe", color="green"),
             tile("binary_sensor", "status_heater", "Heizstab", color="orange"),
@@ -161,6 +169,10 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
     _avg_h = {"type": "line", "group_by": {"func": "avg", "duration": "1h"}}
     chart_month = statgraph("Energie pro Monat", "month",
                             [("sensor", "total_heat"), ("sensor", "total_elec")])
+    chart_day = statgraph("Energie pro Tag (30 Tage)", "day",
+                          [("sensor", "total_heat"), ("sensor", "total_elec")])
+    if chart_day:
+        chart_day["days_to_show"] = 30
     chart_temp = apex(
         "Temperaturen (7 Tage)", "7d",
         [
@@ -180,13 +192,13 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
     _cop_year_eid = eid("sensor", "cop_year")
     chart_jaz = {
         "type": "custom:apexcharts-card",
-        "chart_type": "bar",
         "header": {"show": True, "title": "JAZ-Vergleich (Jahre)"},
         "graph_span": "1830d",
         "span": {"end": "year"},
         "series": [{
             "entity": _cop_year_eid,
             "name": "JAZ",
+            "type": "column",  # apexcharts-card kennt kein chart_type: bar
             "data_generator": (
                 "const h = entity.attributes.jaz_per_year || {}; "
                 "let pts = Object.keys(h).map(y => [new Date(Number(y),0,1).getTime(), h[y].cop]); "
@@ -210,6 +222,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         status,
         energie,
         section(None, [chart_month]),
+        section(None, [chart_day]),
         section(None, [chart_temp]),
         section(None, [chart_jaz]),
     ]

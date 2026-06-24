@@ -51,7 +51,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Connection failed. Check host, port and slave ID."
+      "cannot_connect": "Connection failed. Check host, port and slave ID.",
+      "pv_sensor_required": "Please select a PV surplus sensor before enabling the control."
     },
     "abort": {
       "already_configured": "This heat pump is already configured."
@@ -98,6 +99,9 @@
           "emergency_recover": "At/above this water temperature it switches back to ECO."
         }
       }
+    },
+    "error": {
+      "pv_sensor_required": "Please select a PV surplus sensor before enabling the control."
     }
   },
   "selector": {
