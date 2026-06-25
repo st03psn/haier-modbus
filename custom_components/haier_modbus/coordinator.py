@@ -83,7 +83,13 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         scan = entry.options.get(
             CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
-        self._client = AsyncModbusTcpClient(self.host, port=self.port)
+        # retries=1 + timeout=3: der Coordinator hat eine eigene Retry-Schleife
+        # (mit Reconnect) in _read_block. Sonst würde pymodbus darunter nochmal
+        # bis zu 3× retryen (≈9 Versuche/Zyklus) und genau die redundante
+        # 'No response received after 3 retries'-ERROR-Zeile erzeugen.
+        self._client = AsyncModbusTcpClient(
+            self.host, port=self.port, timeout=3, retries=1
+        )
         self.energy = EnergyAccumulator(hass, entry.entry_id)
         self._pv = PvController(hass)
         self._emergency = EmergencyController(hass)

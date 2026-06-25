@@ -26,6 +26,24 @@ from .dashboard import async_register_dashboard, async_remove_dashboard
 
 _LOGGER = logging.getLogger(__name__)
 
+
+class _PymodbusRetryNoise(logging.Filter):
+    """Verschluckt pymodbus' transport-level 'No response received after N
+    retries'-ERROR. Der Coordinator retryt bereits selbst (mit Reconnect) und
+    führt den echten Verbindungszustand über den ``link_status``-Sensor – diese
+    Zeile ist daher nur redundanter Lärm. Andere pymodbus-Fehler bleiben sichtbar.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "No response received after" not in record.getMessage()
+
+
+# Filter einmalig anhängen (idempotent – übersteht Reloads, kein Doppel-Filter).
+_pymodbus_logger = logging.getLogger("pymodbus.logging")
+if not any(isinstance(f, _PymodbusRetryNoise) for f in _pymodbus_logger.filters):
+    _pymodbus_logger.addFilter(_PymodbusRetryNoise())
+
+
 # (card_name, url_substring, hacs_repo, fs_fallback_path)
 # ApexCharts -> JAZ/COP-/Verlaufsdiagramme; card-mod -> dynamische Farbe der
 # "Aktuelle Quelle"-Kachel. Beide werden bei Bedarf via HACS nachgezogen.
