@@ -105,6 +105,16 @@ dekodiert das automatisch und zeigt **Anzeige-Code + Klartext** als Attribute.
 Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 
 ## PV-Überschuss-Steuerung
+
+> **Voraussetzung – externe Leistungsmessung (W):** Die Modbus-Schnittstelle liefert
+> nur kumulative **kWh**-Register, **keine Momentanleistung**. Die PV-Überschuss-Steuerung
+> braucht daher externe **Watt**-Sensoren: den **PV-Überschuss-Sensor** (Pflicht) und –
+> für das pendelfreie „verfügbar"-Modell – den **BWWP-Leistungssensor** (z. B. ein Shelly
+> an der Wärmepumpe). Ohne BWWP-Sensor regelt die Funktion nur auf den rohen Überschuss
+> (Pendel-Gefahr) und ist dann nur eingeschränkt sinnvoll. Ohne diese externen Sensoren
+> ergibt das Feature **keinen Sinn** – die Modbus-Integration allein kennt die nötigen
+> Watt-Werte nicht.
+
 Im Setup (Schritt 3) oder unter „Konfigurieren" aktivieren: **PV-Überschuss-Sensor**
 und **BWWP-Leistungssensor** wählen. Die Integration regelt die Solltemperatur
 dreistufig nach **verfügbarem Solarstrom** (`PV-Überschuss + aktuelle WP-Aufnahme`).
@@ -192,6 +202,14 @@ exposes **code + description** attributes. Full table:
 [`docs/fault-codes.md`](docs/fault-codes.md).
 
 ### PV surplus
+> **Prerequisite – external power (W) metering:** the Modbus interface only exposes
+> cumulative **kWh** registers, **not instantaneous power**. PV-surplus control therefore
+> needs external **watt** sensors: the **PV-surplus sensor** (required) and — for the
+> oscillation-free "available solar" model — the **heat-pump power sensor** (e.g. a Shelly
+> on the heat pump). Without the heat-pump sensor it falls back to the raw surplus
+> (oscillation risk). Without these external sensors the feature makes **little sense** —
+> the Modbus integration alone does not know the required watt values.
+
 Enable in the setup wizard / *Configure*, pick a **PV-surplus sensor** and a
 **heat-pump power sensor**. The integration regulates the setpoint in three tiers
 based on **available solar** (`PV surplus + current HP draw`) — switch-invariant,

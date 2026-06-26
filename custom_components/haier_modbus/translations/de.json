@@ -46,7 +46,7 @@
           "pv_force_elec": "Bei hohem Überschuss Heizstab (Modus ELEC)"
         },
         "data_description": {
-          "pv_bwwp_sensor": "Wird zum PV-Überschuss addiert und ergibt den verfügbaren Solarstrom – unabhängig davon, ob die WP gerade läuft, was Pendeln verhindert. Optional; ohne ihn wird der rohe Überschuss genutzt.",
+          "pv_bwwp_sensor": "Wird zum PV-Überschuss addiert und ergibt den verfügbaren Solarstrom – unabhängig davon, ob die WP gerade läuft, was Pendeln verhindert. Empfohlen; ohne ihn fällt die Regelung auf den rohen Überschuss zurück (Pendel-Gefahr) und ist nur eingeschränkt sinnvoll.",
           "pv_high": "Hochschalten auf die Hochstufe, sobald der verfügbare Solarstrom diesen Wert erreicht; zurück bei diesem Wert minus Hysterese.",
           "pv_normal": "Hochschalten auf die Normalstufe, sobald der verfügbare Solarstrom diesen Wert erreicht (≈ max. WP-Aufnahme + etwas Reserve); zurück auf Grund bei diesem Wert minus Hysterese.",
           "pv_min_off": "Anti-Takt: Ein neuer Zyklus startet erst, wenn der Verdichter so lange aus war. Läuft die WP bereits, wird die Stufe nur verlängert (Piggyback).",
@@ -98,7 +98,7 @@
           "emergency_recover": "Erholt-Temperatur (°C) – darüber zurück zu ECO"
         },
         "data_description": {
-          "pv_bwwp_sensor": "Wird zum PV-Überschuss addiert und ergibt den verfügbaren Solarstrom – unabhängig vom WP-Schaltzustand, was Pendeln verhindert. Optional; ohne ihn wird der rohe Überschuss genutzt.",
+          "pv_bwwp_sensor": "Wird zum PV-Überschuss addiert und ergibt den verfügbaren Solarstrom – unabhängig vom WP-Schaltzustand, was Pendeln verhindert. Empfohlen; ohne ihn fällt die Regelung auf den rohen Überschuss zurück (Pendel-Gefahr) und ist nur eingeschränkt sinnvoll.",
           "pv_high": "Hochschalten auf die Hochstufe, sobald der verfügbare Solarstrom diesen Wert erreicht; zurück bei diesem Wert minus Hysterese.",
           "pv_normal": "Hochschalten auf die Normalstufe, sobald der verfügbare Solarstrom diesen Wert erreicht (≈ max. WP-Aufnahme + etwas Reserve); zurück auf Grund bei diesem Wert minus Hysterese.",
           "pv_min_off": "Anti-Takt: Ein neuer Zyklus startet erst, wenn der Verdichter so lange aus war. Läuft die WP bereits, wird die Stufe nur verlängert (Piggyback).",

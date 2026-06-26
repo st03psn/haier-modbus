@@ -46,7 +46,7 @@
           "pv_force_elec": "Force electric heater (mode ELEC) at high surplus"
         },
         "data_description": {
-          "pv_bwwp_sensor": "Added to the PV surplus to get available solar — invariant to the heat pump switching on/off, which prevents oscillation. Optional; without it the raw surplus is used.",
+          "pv_bwwp_sensor": "Added to the PV surplus to get available solar — invariant to the heat pump switching on/off, which prevents oscillation. Recommended; without it the control falls back to the raw surplus (oscillation risk) and is of limited use.",
           "pv_high": "Raise to the high target once available solar reaches this; switch back at this value minus the hysteresis.",
           "pv_normal": "Raise to the normal target once available solar reaches this (≈ max heat-pump draw + a little); back to base at this value minus the hysteresis.",
           "pv_min_off": "Anti-short-cycle: a new cycle starts only after the compressor has been off this long. If it is already running, the tier is just extended (piggyback).",
@@ -98,7 +98,7 @@
           "emergency_recover": "Recovered temperature (°C) – above it back to ECO"
         },
         "data_description": {
-          "pv_bwwp_sensor": "Added to the PV surplus to get available solar — invariant to the heat pump switching on/off, preventing oscillation. Optional; without it the raw surplus is used.",
+          "pv_bwwp_sensor": "Added to the PV surplus to get available solar — invariant to the heat pump switching on/off, preventing oscillation. Recommended; without it the control falls back to the raw surplus (oscillation risk) and is of limited use.",
           "pv_high": "Raise to the high target once available solar reaches this; switch back at this value minus the hysteresis.",
           "pv_normal": "Raise to the normal target once available solar reaches this (≈ max heat-pump draw + a little); back to base at this value minus the hysteresis.",
           "pv_min_off": "Anti-short-cycle: a new cycle starts only after the compressor has been off this long. If already running, the tier is just extended (piggyback).",
