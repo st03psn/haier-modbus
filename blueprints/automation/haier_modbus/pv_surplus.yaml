@@ -11,6 +11,10 @@ blueprint:
     die Netz-Toleranz darunter fällt (Hysterese). Die WP startet/stoppt selbst
     anhand der Solltemperatur – diese Automation setzt nur das Ziel.
 
+    Anti-Takt-Schutz: Ein NEUER Zyklus wird nur gestartet, wenn der Verdichter
+    schon min_off_time aus war. Läuft er bereits, wird die Zielstufe verlängert
+    (Piggyback) – kein unnötiger Mehrfachstart bei wechselhaftem Himmel.
+
     Controls the Haier DHW heat pump's target temperature in three tiers based
     on *available* solar power (= PV surplus + current heat-pump draw). That
     figure is independent of whether the pump is running, killing oscillation at
@@ -50,6 +54,16 @@ blueprint:
         entity:
           domain: sensor
           device_class: temperature
+    wp_status_binary:
+      name: WP-Status (binary_sensor)
+      description: >
+        Binärsensor, der angibt, ob der Verdichter gerade läuft (on = läuft).
+        Für den Anti-Takt-Schutz: ein neuer Zyklus wird nur gestartet, wenn die
+        WP schon min_off_time aus ist; läuft sie bereits, wird die Zielstufe
+        immer verlängert (Piggyback) statt neu gestartet.
+      selector:
+        entity:
+          domain: binary_sensor
     max_draw:
       name: Max. Leistungsaufnahme der WP (W)
       description: >
@@ -108,6 +122,15 @@ blueprint:
       default: 5
       selector:
         number: { min: 0, max: 60, step: 1, unit_of_measurement: min, mode: box }
+    min_off_time:
+      name: Mindest-Stillstand vor Neustart (Minuten)
+      description: >
+        Anti-Takt-Schutz: So lange muss der Verdichter aus gewesen sein, bevor
+        ein NEUER PV-Zyklus gestartet wird. Läuft die WP bereits, greift der
+        Schutz nicht (die Stufe wird dann verlängert, Piggyback).
+      default: 30
+      selector:
+        number: { min: 0, max: 240, step: 5, unit_of_measurement: min, mode: box }
     notify_target:
       name: Benachrichtigungsdienst (optional)
       description: notify-Dienst für Statusmeldungen, z. B. notify.mobile_app_xyz. Leer = aus.
@@ -202,6 +225,17 @@ action:
           - condition: numeric_state
             entity_id: !input target_number
             below: "{{ v_temp_high }}"
+          # Anti-Takt: läuft die WP, verlängern (Piggyback); ist sie aus,
+          # nur starten, wenn sie schon min_off_time aus war.
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: !input wp_status_binary
+                state: "on"
+              - condition: state
+                entity_id: !input wp_status_binary
+                state: "off"
+                for: { minutes: !input min_off_time }
         sequence:
           - action: number.set_value
             target:
@@ -233,6 +267,17 @@ action:
           - condition: numeric_state
             entity_id: !input target_number
             below: "{{ v_temp_normal }}"
+          # Anti-Takt: läuft die WP, verlängern (Piggyback); ist sie aus,
+          # nur starten, wenn sie schon min_off_time aus war.
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: !input wp_status_binary
+                state: "on"
+              - condition: state
+                entity_id: !input wp_status_binary
+                state: "off"
+                for: { minutes: !input min_off_time }
         sequence:
           - action: number.set_value
             target:
