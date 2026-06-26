@@ -34,11 +34,10 @@ from .const import (
     CONF_HOST,
     CONF_MODEL,
     CONF_PORT,
-    CONF_PV_BOOST,
     CONF_PV_BWWP_SENSOR,
     CONF_PV_DEBOUNCE,
     CONF_PV_ENABLED,
-    CONF_PV_FORCE_ELEC,
+    CONF_PV_ESCALATION,
     CONF_PV_HIGH,
     CONF_PV_HYSTERESIS,
     CONF_PV_MIN_OFF,
@@ -56,6 +55,7 @@ from .const import (
     DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
     DEFAULT_PV_DEBOUNCE,
+    DEFAULT_PV_ESCALATION,
     DEFAULT_PV_HIGH,
     DEFAULT_PV_HYSTERESIS,
     DEFAULT_PV_MIN_OFF,
@@ -67,6 +67,9 @@ from .const import (
     DEFAULT_SLAVE,
     DOMAIN,
     MODELS,
+    PV_ESC_BOOST,
+    PV_ESC_ELEC,
+    PV_ESC_NONE,
     READ_START,
     SET_TEMP_MAX,
     SET_TEMP_MIN,
@@ -78,6 +81,13 @@ _ENERGY_ENTITY = selector.EntitySelector(
 )
 _PV_SENSOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor", device_class="power")
+)
+_ESCALATION = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[PV_ESC_NONE, PV_ESC_BOOST, PV_ESC_ELEC],
+        translation_key="pv_escalation",
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
 )
 _SCALE = selector.NumberSelector(
     selector.NumberSelectorConfig(min=0.001, max=1000, step=0.001, mode=selector.NumberSelectorMode.BOX)
@@ -143,8 +153,8 @@ def _pv_schema(o: dict[str, Any]) -> vol.Schema:
                 vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP,
                 vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
                 vol.Optional(CONF_PV_MIN_OFF, default=o.get(CONF_PV_MIN_OFF, DEFAULT_PV_MIN_OFF)): int,
-                vol.Optional(CONF_PV_BOOST, default=o.get(CONF_PV_BOOST, False)): bool,
-                vol.Optional(CONF_PV_FORCE_ELEC, default=o.get(CONF_PV_FORCE_ELEC, False)): bool,
+                vol.Optional(CONF_PV_ESCALATION,
+                             default=o.get(CONF_PV_ESCALATION, DEFAULT_PV_ESCALATION)): _ESCALATION,
             }
         )
     return vol.Schema(fields)

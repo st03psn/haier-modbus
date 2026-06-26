@@ -18,8 +18,13 @@ from .const import (
     CONF_COP_ELEC_SOURCE,
     CONF_COP_HEAT_ENTITY,
     CONF_COP_HEAT_SOURCE,
+    CONF_PV_BOOST,
+    CONF_PV_ESCALATION,
+    CONF_PV_FORCE_ELEC,
     DOMAIN,
     PLATFORMS,
+    PV_ESC_BOOST,
+    PV_ESC_ELEC,
     SOURCE_EXTERNAL,
     localized_title,
 )
@@ -76,7 +81,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     Der Coordinator pollt weiter und verbindet selbsttätig neu, sobald der
     Konverter antwortet.
     """
-    _migrate_cop_source_options(hass, entry)
+    _migrate_legacy_options(hass, entry)
 
     coordinator = HaierModbusCoordinator(hass, entry)
     await coordinator.async_refresh()
@@ -196,18 +201,22 @@ def _sync_device_register_visibility(hass: HomeAssistant, entry: ConfigEntry) ->
             reg.async_update_entity(ent_id, disabled_by=None)
 
 
-def _migrate_cop_source_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Einmalige Bereinigung der COP-Quellenwahl (ab v1.10.1).
+def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Einmalige Bereinigung veralteter Options-Schlüssel (idempotent).
 
-    Die Quelle ergibt sich jetzt allein aus der gewählten Zähler-Entität
-    (leer = integriertes Modbus-Register, gesetzt = extern); das frühere
-    Quellen-Dropdown entfällt. Hier werden die alten ``cop_*_source``-Optionen
-    entfernt – war die Quelle „Integriert", wird eine evtl. verwaiste
-    Zähler-Entität mitgelöscht, damit sie nicht fälschlich als externe Quelle
-    interpretiert wird. Läuft genau einmal (danach sind die Keys weg, no-op).
+    1. COP-Quelle (ab v1.10.1): ergibt sich jetzt allein aus der gewählten
+       Zähler-Entität (leer = Modbus, gesetzt = extern). Alte ``cop_*_source``
+       entfernen; war die Quelle „Integriert", wird eine evtl. verwaiste
+       Zähler-Entität mitgelöscht, damit sie nicht fälschlich als extern gilt.
+    2. PV-Eskalation (ab v1.10.3): die zwei alten Booleans ``pv_boost`` /
+       ``pv_force_elec`` werden zu einem Select ``pv_escalation`` zusammengeführt.
+       Boost hat Vorrang vor ELEC, falls (widersprüchlich) beide gesetzt waren.
+
+    Läuft genau einmal (danach sind die Alt-Keys weg, no-op).
     """
     o = dict(entry.options)
     changed = False
+
     for src_key, ent_key in (
         (CONF_COP_HEAT_SOURCE, CONF_COP_HEAT_ENTITY),
         (CONF_COP_ELEC_SOURCE, CONF_COP_ELEC_ENTITY),
@@ -217,6 +226,17 @@ def _migrate_cop_source_options(hass: HomeAssistant, entry: ConfigEntry) -> None
                 o.pop(ent_key, None)
             del o[src_key]
             changed = True
+
+    if CONF_PV_BOOST in o or CONF_PV_FORCE_ELEC in o:
+        boost = bool(o.pop(CONF_PV_BOOST, False))
+        force_elec = bool(o.pop(CONF_PV_FORCE_ELEC, False))
+        if boost:
+            o[CONF_PV_ESCALATION] = PV_ESC_BOOST
+        elif force_elec:
+            o[CONF_PV_ESCALATION] = PV_ESC_ELEC
+        # sonst: keine Eskalation -> kein Key nötig (Default "none")
+        changed = True
+
     if changed:
         hass.config_entries.async_update_entry(entry, options=o)
 

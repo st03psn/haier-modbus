@@ -54,13 +54,18 @@ CONF_PV_TEMP_NORMAL: Final = "pv_temp_normal"  # Zieltemp bei normalem Überschu
 CONF_PV_TEMP_BASE: Final = "pv_temp_base"      # Grund-Zieltemp ohne Überschuss
 CONF_PV_DEBOUNCE: Final = "pv_debounce"        # Entprellzeit (Minuten)
 CONF_PV_MIN_OFF: Final = "pv_min_off"          # Anti-Takt: Mindest-Stillstand vor Neustart (min)
-CONF_PV_BOOST: Final = "pv_boost"              # bei hohem Überschuss zusätzlich Boost
-CONF_PV_FORCE_ELEC: Final = "pv_force_elec"    # bei hohem Überschuss Modus ELEC (Heizstab)
+# Eskalation bei hohem Überschuss – gegenseitig ausschließend (ein Dropdown):
+CONF_PV_ESCALATION: Final = "pv_escalation"    # "none" | "boost" | "elec"
+PV_ESC_NONE: Final = "none"
+PV_ESC_BOOST: Final = "boost"                  # Boost: WP + Heizstab gleichzeitig
+PV_ESC_ELEC: Final = "elec"                    # ELEC: nur Heizstab, WP aus
+DEFAULT_PV_ESCALATION: Final = PV_ESC_NONE
+# Legacy (nur noch für die einmalige Options-Migration in __init__.py):
+CONF_PV_BOOST: Final = "pv_boost"              # alt: bool, "zusätzlich Boost"
+CONF_PV_FORCE_ELEC: Final = "pv_force_elec"    # alt: bool, "Modus ELEC"
 
 DEFAULT_PV_HYSTERESIS: Final = 250
 DEFAULT_PV_MIN_OFF: Final = 30
-DEFAULT_PV_BOOST: Final = False
-DEFAULT_PV_FORCE_ELEC: Final = False
 
 # --- Notfall-Nachheizung (ECO -> AUTO bei kritisch niedriger Temperatur) ----
 CONF_EMERGENCY_ENABLED: Final = "emergency_enabled"

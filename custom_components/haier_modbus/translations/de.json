@@ -42,16 +42,14 @@
           "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
-          "pv_boost": "Bei hohem Überschuss zusätzlich Boost",
-          "pv_force_elec": "Bei hohem Überschuss Heizstab (Modus ELEC)"
+          "pv_escalation": "Eskalation bei hohem Überschuss"
         },
         "data_description": {
           "pv_bwwp_sensor": "Wird zum PV-Überschuss addiert und ergibt den verfügbaren Solarstrom – unabhängig davon, ob die WP gerade läuft, was Pendeln verhindert. Empfohlen; ohne ihn fällt die Regelung auf den rohen Überschuss zurück (Pendel-Gefahr) und ist nur eingeschränkt sinnvoll.",
           "pv_high": "Hochschalten auf die Hochstufe, sobald der verfügbare Solarstrom diesen Wert erreicht; zurück bei diesem Wert minus Hysterese.",
           "pv_normal": "Hochschalten auf die Normalstufe, sobald der verfügbare Solarstrom diesen Wert erreicht (≈ max. WP-Aufnahme + etwas Reserve); zurück auf Grund bei diesem Wert minus Hysterese.",
           "pv_min_off": "Anti-Takt: Ein neuer Zyklus startet erst, wenn der Verdichter so lange aus war. Läuft die WP bereits, wird die Stufe nur verlängert (Piggyback).",
-          "pv_boost": "Ab der hohen Schwelle zusätzlich Boost (Wärmepumpe + Heizstab gleichzeitig) einschalten, um den Sollwert schneller zu erreichen. Greift nur, während die WP läuft.",
-          "pv_force_elec": "Ab der hohen Schwelle in den ELEC-Modus schalten – dann heizt NUR der Heizstab, die Wärmepumpe ist AUS (ineffizient, nur zum reinen Verheizen von Überschuss). Für Effizienz lieber Boost."
+          "pv_escalation": "Was bei hohem verfügbarem Solarstrom zusätzlich passiert (nur während die WP läuft). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss."
         }
       }
     },
@@ -91,8 +89,7 @@
           "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
-          "pv_boost": "Bei hohem Überschuss zusätzlich Boost",
-          "pv_force_elec": "Bei hohem Überschuss Heizstab (Modus ELEC, WP aus)",
+          "pv_escalation": "Eskalation bei hohem Überschuss",
           "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO bei kritischer Temperatur)",
           "emergency_critical": "Kritische Temperatur (°C) – darunter ECO→AUTO",
           "emergency_recover": "Erholt-Temperatur (°C) – darüber zurück zu ECO"
@@ -102,8 +99,7 @@
           "pv_high": "Hochschalten auf die Hochstufe, sobald der verfügbare Solarstrom diesen Wert erreicht; zurück bei diesem Wert minus Hysterese.",
           "pv_normal": "Hochschalten auf die Normalstufe, sobald der verfügbare Solarstrom diesen Wert erreicht (≈ max. WP-Aufnahme + etwas Reserve); zurück auf Grund bei diesem Wert minus Hysterese.",
           "pv_min_off": "Anti-Takt: Ein neuer Zyklus startet erst, wenn der Verdichter so lange aus war. Läuft die WP bereits, wird die Stufe nur verlängert (Piggyback).",
-          "pv_boost": "Ab der hohen Schwelle zusätzlich Boost (WP + Heizstab gleichzeitig). Nur während die WP läuft.",
-          "pv_force_elec": "Ab der hohen Schwelle ELEC-Modus: NUR Heizstab, WP AUS (ineffizient – nur zum Verheizen von Überschuss). Sonst Boost nutzen.",
+          "pv_escalation": "Was bei hohem verfügbarem Solarstrom zusätzlich passiert (nur während die WP läuft). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss.",
           "emergency_enabled": "Schaltet bei kritisch niedriger Wassertemperatur vorübergehend ECO→AUTO, damit sofort geheizt wird (auch außerhalb des ECO-Zeitfensters); bei Erholung zurück zu ECO.",
           "emergency_critical": "Unter dieser Wassertemperatur wird von ECO auf AUTO geschaltet.",
           "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet."
@@ -115,6 +111,13 @@
     }
   },
   "selector": {
+    "pv_escalation": {
+      "options": {
+        "none": "Keine (nur höhere Zieltemperatur)",
+        "boost": "Boost (WP + Heizstab)",
+        "elec": "Nur Heizstab (ELEC, WP aus)"
+      }
+    },
     "model": {
       "options": {
         "hp160m7_f9": "HP160M7-F9",

@@ -28,11 +28,10 @@ import homeassistant.util.dt as dt_util
 
 from .const import (
     BIT_BOOST,
-    CONF_PV_BOOST,
     CONF_PV_BWWP_SENSOR,
     CONF_PV_DEBOUNCE,
     CONF_PV_ENABLED,
-    CONF_PV_FORCE_ELEC,
+    CONF_PV_ESCALATION,
     CONF_PV_HIGH,
     CONF_PV_HYSTERESIS,
     CONF_PV_MIN_OFF,
@@ -51,6 +50,9 @@ from .const import (
     DEFAULT_PV_TEMP_NORMAL,
     DOMAIN,
     MODE_ELEC,
+    PV_ESC_BOOST,
+    PV_ESC_ELEC,
+    PV_ESC_NONE,
     REG_FUNCTION,
     REG_MODE,
     REG_SET_TEMP,
@@ -216,29 +218,36 @@ class PvController:
         await self._apply_escalation(coordinator, o, data, tier == "high" and running, avail)
 
     async def _apply_escalation(self, coordinator, o, data, high: bool, avail: float) -> None:
-        # Boost
-        if o.get(CONF_PV_BOOST, False):
-            func = data.get(REG_FUNCTION)
-            if func is not None:
-                on = bool(func & BIT_BOOST)
-                if high and not on:
-                    await coordinator.write_value(REG_FUNCTION, func | BIT_BOOST)
-                    self._boost_applied = True
-                    _LOGGER.debug("PV: Boost an (verfügbar %.0f W)", avail)
-                elif not high and on and self._boost_applied:
-                    await coordinator.write_value(REG_FUNCTION, func & ~BIT_BOOST)
-                    self._boost_applied = False
-                    _LOGGER.debug("PV: Boost aus")
+        """Eskalation bei hohem Überschuss – genau EINE Option (Boost ODER ELEC ODER
+        keine), daher kein Widerspruch möglich. Aufräumen (Boost-Bit löschen / Modus
+        zurücksetzen) geschieht, sobald die jeweilige Option nicht (mehr) aktiv ist –
+        auch beim Umschalten zwischen den Optionen.
+        """
+        choice = o.get(CONF_PV_ESCALATION, PV_ESC_NONE)
+        want_boost = high and choice == PV_ESC_BOOST
+        want_elec = high and choice == PV_ESC_ELEC
 
-        # Heizstab via Modus ELEC
-        if o.get(CONF_PV_FORCE_ELEC):
-            mode = data.get(REG_MODE)
-            if mode is not None:
-                if high and mode != MODE_ELEC:
-                    self._prev_mode = mode
-                    await coordinator.write_value(REG_MODE, MODE_ELEC)
-                    _LOGGER.debug("PV: Modus -> ELEC (Heizstab, verfügbar %.0f W)", avail)
-                elif not high and mode == MODE_ELEC and self._prev_mode is not None:
-                    await coordinator.write_value(REG_MODE, self._prev_mode)
-                    _LOGGER.debug("PV: Modus zurück -> %s", self._prev_mode)
-                    self._prev_mode = None
+        # Boost-Bit (Reg 2)
+        func = data.get(REG_FUNCTION)
+        if func is not None:
+            on = bool(func & BIT_BOOST)
+            if want_boost and not on:
+                await coordinator.write_value(REG_FUNCTION, func | BIT_BOOST)
+                self._boost_applied = True
+                _LOGGER.debug("PV: Boost an (verfügbar %.0f W)", avail)
+            elif not want_boost and on and self._boost_applied:
+                await coordinator.write_value(REG_FUNCTION, func & ~BIT_BOOST)
+                self._boost_applied = False
+                _LOGGER.debug("PV: Boost aus")
+
+        # Heizstab via Modus ELEC (Reg 1)
+        mode = data.get(REG_MODE)
+        if mode is not None:
+            if want_elec and mode != MODE_ELEC:
+                self._prev_mode = mode
+                await coordinator.write_value(REG_MODE, MODE_ELEC)
+                _LOGGER.debug("PV: Modus -> ELEC (Heizstab, verfügbar %.0f W)", avail)
+            elif not want_elec and mode == MODE_ELEC and self._prev_mode is not None:
+                await coordinator.write_value(REG_MODE, self._prev_mode)
+                _LOGGER.debug("PV: Modus zurück -> %s", self._prev_mode)
+                self._prev_mode = None
