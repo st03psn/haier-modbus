@@ -39,17 +39,24 @@ SOURCE_EXTERNAL: Final = "external"
 DEFAULT_ENERGY_SCALE: Final = 1.0
 
 # --- PV-Überschuss-Steuerung (optional, in der Integration) -----------------
+# Regelt nach *verfügbarem* Solarstrom = PV-Überschuss + aktuelle WP-Aufnahme.
+# Diese Summe ist unabhängig davon, ob die WP gerade läuft -> kein Pendeln.
 CONF_PV_ENABLED: Final = "pv_enabled"
 CONF_PV_SENSOR: Final = "pv_sensor"            # Sensor PV-Überschuss in W
-CONF_PV_HIGH: Final = "pv_high"                # Schwelle hoher Überschuss (W)
-CONF_PV_NORMAL: Final = "pv_normal"            # Schwelle normaler Überschuss (W)
+CONF_PV_BWWP_SENSOR: Final = "pv_bwwp_sensor"  # Sensor aktuelle WP-Leistungsaufnahme (W)
+CONF_PV_HIGH: Final = "pv_high"                # Schwelle hoch, auf verfügbar (W)
+CONF_PV_NORMAL: Final = "pv_normal"            # Schwelle normal, auf verfügbar (W)
+CONF_PV_HYSTERESIS: Final = "pv_hysteresis"    # Rückschalt-Hysterese (W)
 CONF_PV_TEMP_HIGH: Final = "pv_temp_high"      # Zieltemp bei hohem Überschuss
 CONF_PV_TEMP_NORMAL: Final = "pv_temp_normal"  # Zieltemp bei normalem Überschuss
 CONF_PV_TEMP_BASE: Final = "pv_temp_base"      # Grund-Zieltemp ohne Überschuss
 CONF_PV_DEBOUNCE: Final = "pv_debounce"        # Entprellzeit (Minuten)
+CONF_PV_MIN_OFF: Final = "pv_min_off"          # Anti-Takt: Mindest-Stillstand vor Neustart (min)
 CONF_PV_BOOST: Final = "pv_boost"              # bei hohem Überschuss zusätzlich Boost
 CONF_PV_FORCE_ELEC: Final = "pv_force_elec"    # bei hohem Überschuss Modus ELEC (Heizstab)
 
+DEFAULT_PV_HYSTERESIS: Final = 250
+DEFAULT_PV_MIN_OFF: Final = 30
 DEFAULT_PV_BOOST: Final = False
 DEFAULT_PV_FORCE_ELEC: Final = False
 
@@ -60,11 +67,11 @@ CONF_EMERGENCY_RECOVER: Final = "emergency_recover"     # °C: darüber zurück 
 DEFAULT_EMERGENCY_CRITICAL: Final = 38
 DEFAULT_EMERGENCY_RECOVER: Final = 48
 
-# Schwellen mit Reserve über den realen Aufnahmen abgestimmt, damit Überschuss-
-# Schwankungen nicht sofort Netzbezug auslösen:
-#  - Heizstab ~1500 W -> hohe Schwelle deutlich darüber (Boost = WP+Stab ~2000 W)
-#  - Wärmepumpe allein ~535 W -> normale Schwelle knapp darüber
-DEFAULT_PV_HIGH: Final = 1800
+# Schwellen auf den *verfügbaren* Solarstrom (PV-Überschuss + WP-Aufnahme):
+#  - normal ~600 W = max. WP-Aufnahme (~550 W) + kleine Reserve -> deckt den Lauf
+#  - hoch 1500 W = klar darüber (Reserve für Boost = WP + Heizstab)
+#  - Hysterese 250 W: zurück erst bei normal-250 (350) bzw. hoch-250 (1250)
+DEFAULT_PV_HIGH: Final = 1500
 DEFAULT_PV_NORMAL: Final = 600
 DEFAULT_PV_TEMP_HIGH: Final = 70
 DEFAULT_PV_TEMP_NORMAL: Final = 65

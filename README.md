@@ -56,7 +56,7 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
   wählbaren Quellen (Modbus-intern oder externer Zähler wie Shelly).
 - **Diagnose:** **Modbus-Status** (`OK` / `Konverter nicht erreichbar` /
   `Gerät antwortet nicht`) und Binärsensor **Verbindung**.
-- **PV-Überschuss-Steuerung** eingebaut (optional) + Blueprint.
+- **PV-Überschuss-Steuerung** eingebaut (optional): verfügbar-Modell + Hysterese + Anti-Takt.
 - **Editierbares Dashboard** (Storage-Modus) wird automatisch angelegt.
 - **Ein Block-Read** (Register 1–90) je Intervall (Standard 5 s).
 
@@ -105,27 +105,20 @@ dekodiert das automatisch und zeigt **Anzeige-Code + Klartext** als Attribute.
 Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 
 ## PV-Überschuss-Steuerung
-Zwei Wege – je nach Anspruch:
+Im Setup (Schritt 3) oder unter „Konfigurieren" aktivieren: **PV-Überschuss-Sensor**
+und **BWWP-Leistungssensor** wählen. Die Integration regelt die Solltemperatur
+dreistufig nach **verfügbarem Solarstrom** (`PV-Überschuss + aktuelle WP-Aufnahme`).
+Diese Summe springt nicht beim Ein-/Ausschalten der WP → **kein Pendeln**. Dazu:
 
-**A) Integriert (einfach).** Im Setup (Schritt 3) oder unter „Konfigurieren"
-aktivieren: PV-Überschuss-Sensor (W) wählen. Die Integration setzt die
-Solltemperatur dreistufig (hoch/normal/Grund) mit Entprellung – **hebt nur an,
-während die WP läuft** (Absenken jederzeit). Optional bei hohem Überschuss
-zusätzlich **Boost** und/oder **Heizstab (ELEC)**. Feste Schwellen mit Reserve
-über den realen Aufnahmen (Heizstab ~1500 W, WP ~550 W).
+- **Hysterese** – Hoch- und Rückschalten getrennt (Rückschalt-Schwelle = Einschalt-Schwelle − Hysterese).
+- **Anti-Takt-Schutz** – ein neuer Verdichter-Zyklus startet erst nach einem
+  Mindest-Stillstand; läuft die WP bereits, wird die Stufe verlängert statt neu
+  gestartet (Piggyback).
+- Optional bei hohem Überschuss zusätzlich **Boost** und/oder **Heizstab (ELEC)**.
 
-**B) Blueprint (dynamisch, empfohlen für reine Überschuss-Nutzung).** Der
-mitgelieferte [Blueprint](blueprints/automation/haier_modbus/pv_surplus.yaml)
-regelt nach *verfügbarem* Solarstrom (`PV-Überschuss + aktuelle WP-Aufnahme`).
-Diese Summe springt nicht beim Ein-/Ausschalten der WP → **kein Pendeln**. Dazu
-**Hysterese** (Hoch- und Rückschalten getrennt) und **Anti-Takt-Schutz** (ein
-neuer Zyklus startet erst nach Mindest-Stillstand; läuft die WP bereits, wird die
-Stufe verlängert statt neu gestartet). Funktionsweise, Schwellen & Tuning:
-[`docs/pv-surplus-blueprint.md`](docs/pv-surplus-blueprint.md).
-
-> Hinweis: A und B sind **separate** Regler – nicht beide gleichzeitig auf dieselbe
-> Solltemperatur ansetzen. Variante B ist aktuell die ausgereiftere (verfügbar-Modell,
-> Hysterese, Anti-Takt); die integrierte Variante A nutzt feste Schwellen.
+Alle Schwellen, Zieltemperaturen, Hysterese und Zeiten sind im „Konfigurieren"-Dialog
+**jederzeit editierbar**; der Haken **„PV-Überschuss-Steuerung aktiv"** schaltet die
+Steuerung ein/aus. Ohne PV-Sensor bleibt die Funktion inaktiv.
 
 ## Dashboard
 Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWWP"
@@ -199,14 +192,15 @@ exposes **code + description** attributes. Full table:
 [`docs/fault-codes.md`](docs/fault-codes.md).
 
 ### PV surplus
-Two paths. **(A) Built-in (simple):** enable in the setup wizard / *Configure*,
-pick a PV-surplus sensor; the integration sets the setpoint in three tiers with
-debounce and **only raises while the heat pump runs**. Optional Boost / ELEC
-heater escalation on high surplus. **(B) Blueprint (dynamic, recommended):** the
-bundled [blueprint](blueprints/automation/haier_modbus/pv_surplus.yaml) regulates
-on *available solar* (`PV surplus + current HP draw`) — switch-invariant, so no
-oscillation — with **hysteresis** and **anti-short-cycle** protection (minimum
-off-time + piggyback). See [`docs/pv-surplus-blueprint.md`](docs/pv-surplus-blueprint.md).
+Enable in the setup wizard / *Configure*, pick a **PV-surplus sensor** and a
+**heat-pump power sensor**. The integration regulates the setpoint in three tiers
+based on **available solar** (`PV surplus + current HP draw`) — switch-invariant,
+so no oscillation — with **hysteresis** (separate up/down thresholds) and
+**anti-short-cycle** protection (a new cycle starts only after a minimum off-time;
+if the pump already runs, the tier is extended — piggyback). Optional Boost / ELEC
+heater escalation on high surplus. All thresholds, target temps, hysteresis and
+timings are **editable any time** in the Configure dialog; the **enable checkbox**
+turns the control on/off.
 
 ### Installation (HACS)
 HACS → custom repository (category *Integration*) → download → restart → add the
