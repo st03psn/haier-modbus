@@ -91,8 +91,8 @@
           "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
           "pv_escalation": "Eskalation bei hohem Überschuss",
           "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO bei kritischer Temperatur)",
-          "emergency_critical": "Kritische Temperatur (°C) – darunter ECO→AUTO",
-          "emergency_recover": "Erholt-Temperatur (°C) – darüber zurück zu ECO"
+          "emergency_critical": "Kritische Wassertemperatur (°C)",
+          "emergency_recover": "Erholt-Wassertemperatur (°C)"
         },
         "data_description": {
           "pv_bwwp_sensor": "Wird zum PV-Überschuss addiert und ergibt den verfügbaren Solarstrom – unabhängig vom WP-Schaltzustand, was Pendeln verhindert. Empfohlen; ohne ihn fällt die Regelung auf den rohen Überschuss zurück (Pendel-Gefahr) und ist nur eingeschränkt sinnvoll.",

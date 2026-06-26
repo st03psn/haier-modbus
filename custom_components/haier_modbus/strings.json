@@ -91,8 +91,8 @@
           "pv_min_off": "Minimum off-time before restart (min)",
           "pv_escalation": "Escalation at high surplus",
           "emergency_enabled": "Emergency reheat (ECO→AUTO at critical temperature)",
-          "emergency_critical": "Critical temperature (°C) – below it ECO→AUTO",
-          "emergency_recover": "Recovered temperature (°C) – above it back to ECO"
+          "emergency_critical": "Critical water temperature (°C)",
+          "emergency_recover": "Recovered water temperature (°C)"
         },
         "data_description": {
           "pv_bwwp_sensor": "Added to the PV surplus to get available solar — invariant to the heat pump switching on/off, preventing oscillation. Recommended; without it the control falls back to the raw surplus (oscillation risk) and is of limited use.",
