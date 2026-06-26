@@ -2,21 +2,37 @@ blueprint:
   name: Haier BWWP – PV-Überschuss / PV surplus
   description: >
     Steuert die Solltemperatur der Haier-Brauchwasserwärmepumpe dreistufig nach
-    PV-Überschuss. Hoher Überschuss → hohe Zieltemperatur, normaler Überschuss
-    (dynamisch: BWWP-Eigenverbrauch + Puffer, mind. Mindestschwelle) → mittlere
-    Zieltemperatur, kein Überschuss → Grundtemperatur.
+    dem *verfügbaren* Solarstrom (= PV-Überschuss + aktuelle BWWP-Aufnahme).
+    Diese Größe ist unabhängig davon, ob die WP gerade läuft, und verhindert so
+    das Pendeln an der Wurzel.
 
-    Controls the Haier domestic-hot-water heat pump's target temperature in
-    three tiers based on PV surplus. High surplus → high target, normal surplus
-    (dynamic: BWWP self-consumption + buffer, at least min_normal_threshold) →
-    medium target, no surplus → base target.
+    Hochschalten erfolgt, sobald der verfügbare Solarstrom die erwartete
+    Leistungsaufnahme (+ Puffer) deckt; zurückgeschaltet wird erst, wenn er um
+    die Netz-Toleranz darunter fällt (Hysterese). Die WP startet/stoppt selbst
+    anhand der Solltemperatur – diese Automation setzt nur das Ziel.
+
+    Controls the Haier DHW heat pump's target temperature in three tiers based
+    on *available* solar power (= PV surplus + current heat-pump draw). That
+    figure is independent of whether the pump is running, killing oscillation at
+    the root. Up-shift when available solar covers the expected draw (+ buffer);
+    down-shift only once it drops below by the grid-tolerance (hysteresis).
   domain: automation
   author: st03psn
   source_url: https://github.com/st03psn/haier-modbus/blob/main/blueprints/automation/haier_modbus/pv_surplus.yaml
   input:
     pv_surplus_sensor:
       name: PV-Überschuss-Sensor (W)
-      description: Sensor mit dem aktuellen PV-Überschuss in Watt.
+      description: Sensor mit dem aktuellen PV-Überschuss / der Netzeinspeisung in Watt.
+      selector:
+        entity:
+          domain: sensor
+          device_class: power
+    bwwp_power_sensor:
+      name: BWWP-Leistungssensor (W)
+      description: >
+        Aktuelle Leistungsaufnahme der BWWP (z. B. Shelly). Wird zum
+        PV-Überschuss addiert, um den *verfügbaren* Solarstrom zu bestimmen –
+        diese Summe springt nicht, wenn die WP ein-/ausschaltet.
       selector:
         entity:
           domain: sensor
@@ -34,55 +50,61 @@ blueprint:
         entity:
           domain: sensor
           device_class: temperature
-    bwwp_power_sensor:
-      name: BWWP-Leistungssensor (W)
+    max_draw:
+      name: Max. Leistungsaufnahme der WP (W)
       description: >
-        Aktueller Stromverbrauch der BWWP (z. B. Shelly-Sensor). Dient zur
-        dynamischen Berechnung der Normalschwelle (Eigenverbrauch + Puffer).
-        Muss im gleichen Haus-Netz wie der PV-Sensor gemessen werden.
+        Maximale Verdichter-Aufnahme ohne Heizstab. Referenz für das
+        Hoch-/Rückschalten auf die Normalstufe.
+      default: 550
       selector:
-        entity:
-          domain: sensor
-          device_class: power
-    high_threshold:
-      name: Schwelle hoher Überschuss (W)
+        number: { min: 100, max: 3000, step: 10, unit_of_measurement: W, mode: box }
+    buffer_on:
+      name: Puffer zum Hochschalten (W)
+      description: >
+        Solar-Reserve über der erwarteten Aufnahme, bevor auf die Normalstufe
+        hochgeschaltet wird. Hochschalten ab: verfügbar ≥ max_draw + Puffer.
+      default: 50
+      selector:
+        number: { min: 0, max: 1000, step: 10, unit_of_measurement: W, mode: box }
+    grid_tolerance:
+      name: Tolerierter Netzbezug zum Rückschalten (W)
+      description: >
+        Wie weit der verfügbare Solarstrom unter die Aufnahme fallen darf, bevor
+        auf Grundtemperatur zurückgeschaltet wird. Rückschalten ab:
+        verfügbar < max_draw − Toleranz. Differenz zum Hochschalten = Hysterese.
+      default: 200
+      selector:
+        number: { min: 0, max: 2000, step: 10, unit_of_measurement: W, mode: box }
+    high_avail:
+      name: Schwelle Hochtemperatur (verfügbar, W)
+      description: Ab diesem verfügbaren Solarstrom wird auf die Hochstufe (z. B. 70 °C) gesetzt.
       default: 1500
       selector:
         number: { min: 0, max: 10000, step: 50, unit_of_measurement: W, mode: box }
-    min_normal_threshold:
-      name: Mindest-Normalschwelle (W)
-      description: >
-        Untergrenze für die dynamische Normal-Schwelle. Die tatsächliche
-        Schwelle ist max(BWWP-Verbrauch, dieser Wert) + Normalpuffer.
-      default: 300
+    high_hysteresis:
+      name: Rückschalt-Hysterese Hochtemperatur (W)
+      description: Hoch→Normal, sobald verfügbar < high_avail − diese Hysterese.
+      default: 400
       selector:
         number: { min: 0, max: 5000, step: 50, unit_of_measurement: W, mode: box }
-    normal_buffer:
-      name: Normal-Puffer (W)
-      description: >
-        Aufschlag auf die dynamische Schwelle (Eigenverbrauch + Puffer).
-        Sorgt dafür, dass der Überschuss stabil über dem BWWP-Bedarf liegt.
-      default: 50
-      selector:
-        number: { min: 0, max: 500, step: 10, unit_of_measurement: W, mode: box }
     temp_high:
-      name: Zieltemperatur bei hohem Überschuss (°C)
+      name: Zieltemperatur Hochstufe (°C)
       default: 70
       selector:
         number: { min: 35, max: 75, step: 1, unit_of_measurement: "°C", mode: slider }
     temp_normal:
-      name: Zieltemperatur bei normalem Überschuss (°C)
+      name: Zieltemperatur Normalstufe (°C)
       default: 65
       selector:
         number: { min: 35, max: 75, step: 1, unit_of_measurement: "°C", mode: slider }
     temp_base:
-      name: Grund-Zieltemperatur ohne Überschuss (°C)
+      name: Grund-Zieltemperatur (°C)
       default: 50
       selector:
         number: { min: 35, max: 75, step: 1, unit_of_measurement: "°C", mode: slider }
     debounce:
       name: Entprellzeit (Minuten)
-      description: Wie lange eine Schwelle überschritten sein muss, bevor reagiert wird.
+      description: Wie lange eine Schwelle gehalten sein muss, bevor reagiert wird.
       default: 5
       selector:
         number: { min: 0, max: 60, step: 1, unit_of_measurement: min, mode: box }
@@ -94,65 +116,78 @@ blueprint:
 mode: single
 max_exceeded: silent
 
+# Entity-IDs und Zahlen für die Template-Trigger. trigger_variables ist der
+# einzige Ort, an dem !input zuverlässig in Trigger-Templates einsetzbar ist.
+trigger_variables:
+  t_pv: !input pv_surplus_sensor
+  t_bwwp: !input bwwp_power_sensor
+  t_max_draw: !input max_draw
+  t_buffer_on: !input buffer_on
+  t_grid_tol: !input grid_tolerance
+  t_high_avail: !input high_avail
+  t_high_hyst: !input high_hysteresis
+
 variables:
+  v_pv: !input pv_surplus_sensor
+  v_bwwp: !input bwwp_power_sensor
   v_target_number: !input target_number
   v_water_sensor: !input water_temp_sensor
-  v_bwwp_power: !input bwwp_power_sensor
-  v_min_normal: !input min_normal_threshold
-  v_normal_buf: !input normal_buffer
+  v_max_draw: !input max_draw
+  v_buffer_on: !input buffer_on
+  v_high_avail: !input high_avail
   v_temp_high: !input temp_high
   v_temp_normal: !input temp_normal
   v_temp_base: !input temp_base
   v_notify: !input notify_target
-  current_target: "{{ states(v_target_number) | float(0) }}"
+  verfuegbar: "{{ (states(v_pv) | float(0)) + (states(v_bwwp) | float(0)) }}"
   water: "{{ states(v_water_sensor) | float(0) }}"
-  # Gewünschte Stufe aus Trigger-ID ableiten (wird in Aktionen genutzt)
-  desired: >
-    {% set tid = trigger.id | default('') %}
-    {% if tid == 'hoch' %}{{ v_temp_high }}
-    {% elif tid == 'an' %}{{ v_temp_normal }}
-    {% elif tid == 'sinkt' %}{{ v_temp_normal }}
+  on65: "{{ v_max_draw + v_buffer_on }}"
+  on70: "{{ v_high_avail }}"
+  # Gewünschte Stufe bei Neustart (Kaltbewertung, ohne Hysterese)
+  desired_start: >
+    {% if verfuegbar >= (on70 | float) %}{{ v_temp_high }}
+    {% elif verfuegbar >= (on65 | float) %}{{ v_temp_normal }}
     {% else %}{{ v_temp_base }}{% endif %}
 
 trigger:
-  # Stufe 3: hoher Überschuss → temp_high
-  - platform: numeric_state
-    entity_id: !input pv_surplus_sensor
-    above: !input high_threshold
-    for: { minutes: !input debounce }
-    id: hoch
-  # Stufe 2: normaler Überschuss (dynamisch) → temp_normal
+  # Hochstufe: verfügbar ≥ high_avail
   - platform: template
     value_template: >
-      {% set bwwp = states(!input bwwp_power_sensor) | float(0) %}
-      {% set min_n = !input min_normal_threshold %}
-      {% set buf = !input normal_buffer %}
-      {% set schwelle = [bwwp, min_n] | max + buf %}
-      {{ states(!input pv_surplus_sensor) | float(0) > schwelle }}
+      {{ (states(t_pv) | float(0)) + (states(t_bwwp) | float(0))
+         >= (t_high_avail | float) }}
+    for: { minutes: !input debounce }
+    id: hoch
+  # Normalstufe hoch: verfügbar ≥ max_draw + Puffer
+  - platform: template
+    value_template: >
+      {{ (states(t_pv) | float(0)) + (states(t_bwwp) | float(0))
+         >= (t_max_draw | float) + (t_buffer_on | float) }}
     for: { minutes: !input debounce }
     id: an
-  # Sinkt von Stufe 3 → Stufe 2
-  - platform: numeric_state
-    entity_id: !input pv_surplus_sensor
-    below: !input high_threshold
+  # Hoch→Normal: verfügbar < high_avail − Hysterese
+  - platform: template
+    value_template: >
+      {{ (states(t_pv) | float(0)) + (states(t_bwwp) | float(0))
+         < (t_high_avail | float) - (t_high_hyst | float) }}
     for: { minutes: !input debounce }
     id: sinkt
-  # Kein Überschuss → temp_base
-  - platform: numeric_state
-    entity_id: !input pv_surplus_sensor
-    below: 1
+  # Normal→Grund: verfügbar < max_draw − Netz-Toleranz
+  - platform: template
+    value_template: >
+      {{ (states(t_pv) | float(0)) + (states(t_bwwp) | float(0))
+         < (t_max_draw | float) - (t_grid_tol | float) }}
     for: { minutes: !input debounce }
-    id: aus
-  # HA-Neustart: Grundzustand herstellen
+    id: ab
+  # HA-Neustart: passende Stufe herstellen
   - platform: homeassistant
     event: start
-    id: aus
+    id: start
 
 condition: []
 
 action:
   - choose:
-      # ── Stufe 3: Hoher Überschuss ──────────────────────────────────────
+      # ── Hochstufe (z. B. 70 °C) ────────────────────────────────────────
       - conditions:
           - condition: trigger
             id: hoch
@@ -161,16 +196,12 @@ action:
               - condition: state
                 entity_id: !input water_temp_sensor
                 state: ["unavailable", "unknown"]
-          # Speicher noch nicht nahe an temp_high
           - condition: numeric_state
             entity_id: !input water_temp_sensor
             below: "{{ v_temp_high - 2 }}"
-          # Solltemperatur noch nicht auf dieser Stufe
-          - condition: not
-            conditions:
-              - condition: numeric_state
-                entity_id: !input target_number
-                above: "{{ v_temp_high - 1 }}"
+          - condition: numeric_state
+            entity_id: !input target_number
+            below: "{{ v_temp_high }}"
         sequence:
           - action: number.set_value
             target:
@@ -182,12 +213,12 @@ action:
                 sequence:
                   - action: "{{ v_notify }}"
                     data:
-                      title: "BWWP Zieltemperatur {{ v_temp_high | int }}°C"
+                      title: "BWWP Ziel {{ v_temp_high | int }}°C"
                       message: >
-                        Hoher PV-Überschuss – Speicher {{ water | int }}°C,
-                        Ziel auf {{ v_temp_high | int }}°C gesetzt.
+                        Viel Solar ({{ verfuegbar | int }} W verfügbar) –
+                        Speicher {{ water | int }}°C, Ziel {{ v_temp_high | int }}°C.
 
-      # ── Stufe 2: Normaler Überschuss ───────────────────────────────────
+      # ── Normalstufe hoch (z. B. 65 °C) ─────────────────────────────────
       - conditions:
           - condition: trigger
             id: an
@@ -196,17 +227,12 @@ action:
               - condition: state
                 entity_id: !input water_temp_sensor
                 state: ["unavailable", "unknown"]
-          # Speicher noch nicht nahe an temp_normal
           - condition: numeric_state
             entity_id: !input water_temp_sensor
             below: "{{ v_temp_normal - 2 }}"
-          # Solltemperatur noch nicht auf dieser Stufe (läuft die WP bereits
-          # auf 65 °C zu, ist diese Bedingung false → kein erneutes Setzen)
-          - condition: not
-            conditions:
-              - condition: numeric_state
-                entity_id: !input target_number
-                above: "{{ v_temp_normal - 1 }}"
+          - condition: numeric_state
+            entity_id: !input target_number
+            below: "{{ v_temp_normal }}"
         sequence:
           - action: number.set_value
             target:
@@ -218,16 +244,15 @@ action:
                 sequence:
                   - action: "{{ v_notify }}"
                     data:
-                      title: "BWWP Zieltemperatur {{ v_temp_normal | int }}°C"
+                      title: "BWWP Ziel {{ v_temp_normal | int }}°C"
                       message: >
-                        Normaler PV-Überschuss – Speicher {{ water | int }}°C,
-                        Ziel auf {{ v_temp_normal | int }}°C gesetzt.
+                        Solarüberschuss ({{ verfuegbar | int }} W verfügbar) –
+                        Speicher {{ water | int }}°C, Ziel {{ v_temp_normal | int }}°C.
 
-      # ── Sinkt: Überschuss fällt von Stufe 3 auf 2 ─────────────────────
+      # ── Hoch→Normal (Solar sinkt) ──────────────────────────────────────
       - conditions:
           - condition: trigger
             id: sinkt
-          # Nur aktiv, wenn wir aktuell auf Stufe 3 sind
           - condition: numeric_state
             entity_id: !input target_number
             above: "{{ v_temp_high - 1 }}"
@@ -242,15 +267,15 @@ action:
                 sequence:
                   - action: "{{ v_notify }}"
                     data:
-                      title: "BWWP Zieltemperatur {{ v_temp_normal | int }}°C"
+                      title: "BWWP Ziel {{ v_temp_normal | int }}°C"
                       message: >
-                        PV-Überschuss gesunken – zurück auf {{ v_temp_normal | int }}°C.
+                        Solar gesunken ({{ verfuegbar | int }} W) –
+                        zurück auf {{ v_temp_normal | int }}°C.
 
-      # ── Aus / Neustart: Grundtemperatur ────────────────────────────────
+      # ── Normal→Grund (kein nutzbarer Überschuss mehr) ──────────────────
       - conditions:
           - condition: trigger
-            id: aus
-          # Nur zurücksetzen, wenn höher als Grundtemperatur
+            id: ab
           - condition: numeric_state
             entity_id: !input target_number
             above: "{{ v_temp_base }}"
@@ -265,6 +290,20 @@ action:
                 sequence:
                   - action: "{{ v_notify }}"
                     data:
-                      title: "BWWP Zieltemperatur {{ v_temp_base | int }}°C"
+                      title: "BWWP Ziel {{ v_temp_base | int }}°C"
                       message: >
-                        Kein PV-Überschuss – Grundtemperatur {{ v_temp_base | int }}°C.
+                        Kein nutzbarer Überschuss ({{ verfuegbar | int }} W) –
+                        Grundtemperatur {{ v_temp_base | int }}°C.
+
+      # ── Neustart: passende Stufe setzen ────────────────────────────────
+      - conditions:
+          - condition: trigger
+            id: start
+          - condition: template
+            value_template: "{{ (desired_start | float) != (states(v_target_number) | float(0)) }}"
+        sequence:
+          - action: number.set_value
+            target:
+              entity_id: !input target_number
+            data:
+              value: "{{ desired_start | float }}"
