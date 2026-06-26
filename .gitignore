@@ -7,3 +7,6 @@ venv/
 *.log
 .DS_Store
 _sources/
+
+# Dev-/Autoren-Werkzeuge (Icon-Generator, Handbuch-Scan) – nicht für Endnutzer
+brand/*.py

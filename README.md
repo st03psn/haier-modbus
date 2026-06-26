@@ -105,13 +105,27 @@ dekodiert das automatisch und zeigt **Anzeige-Code + Klartext** als Attribute.
 Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 
 ## PV-Überschuss-Steuerung
-Im Setup (Schritt 3) oder unter „Konfigurieren" aktivieren: PV-Überschuss-Sensor (W)
-wählen, die Integration setzt die Solltemperatur dreistufig (hoch/normal/Grund) mit
-Entprellung – und **hebt nur an, während die WP läuft** (Absenken jederzeit).
-Optional bei hohem Überschuss zusätzlich **Boost** und/oder **Heizstab (ELEC)**.
-Standard-Schwellen mit Reserve über den realen Aufnahmen (Heizstab ~1500 W,
-WP ~535 W). Alternativ als
-[Blueprint](blueprints/automation/haier_modbus/pv_surplus.yaml).
+Zwei Wege – je nach Anspruch:
+
+**A) Integriert (einfach).** Im Setup (Schritt 3) oder unter „Konfigurieren"
+aktivieren: PV-Überschuss-Sensor (W) wählen. Die Integration setzt die
+Solltemperatur dreistufig (hoch/normal/Grund) mit Entprellung – **hebt nur an,
+während die WP läuft** (Absenken jederzeit). Optional bei hohem Überschuss
+zusätzlich **Boost** und/oder **Heizstab (ELEC)**. Feste Schwellen mit Reserve
+über den realen Aufnahmen (Heizstab ~1500 W, WP ~550 W).
+
+**B) Blueprint (dynamisch, empfohlen für reine Überschuss-Nutzung).** Der
+mitgelieferte [Blueprint](blueprints/automation/haier_modbus/pv_surplus.yaml)
+regelt nach *verfügbarem* Solarstrom (`PV-Überschuss + aktuelle WP-Aufnahme`).
+Diese Summe springt nicht beim Ein-/Ausschalten der WP → **kein Pendeln**. Dazu
+**Hysterese** (Hoch- und Rückschalten getrennt) und **Anti-Takt-Schutz** (ein
+neuer Zyklus startet erst nach Mindest-Stillstand; läuft die WP bereits, wird die
+Stufe verlängert statt neu gestartet). Funktionsweise, Schwellen & Tuning:
+[`docs/pv-surplus-blueprint.md`](docs/pv-surplus-blueprint.md).
+
+> Hinweis: A und B sind **separate** Regler – nicht beide gleichzeitig auf dieselbe
+> Solltemperatur ansetzen. Variante B ist aktuell die ausgereiftere (verfügbar-Modell,
+> Hysterese, Anti-Takt); die integrierte Variante A nutzt feste Schwellen.
 
 ## Dashboard
 Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWWP"
@@ -183,6 +197,16 @@ Register 18 returns a number mapped group-wise to the display codes
 (`1–15 E.., 16–31 L.., 32–47 F.., 48–63 P.., 64 PP`). The fault sensor decodes it and
 exposes **code + description** attributes. Full table:
 [`docs/fault-codes.md`](docs/fault-codes.md).
+
+### PV surplus
+Two paths. **(A) Built-in (simple):** enable in the setup wizard / *Configure*,
+pick a PV-surplus sensor; the integration sets the setpoint in three tiers with
+debounce and **only raises while the heat pump runs**. Optional Boost / ELEC
+heater escalation on high surplus. **(B) Blueprint (dynamic, recommended):** the
+bundled [blueprint](blueprints/automation/haier_modbus/pv_surplus.yaml) regulates
+on *available solar* (`PV surplus + current HP draw`) — switch-invariant, so no
+oscillation — with **hysteresis** and **anti-short-cycle** protection (minimum
+off-time + piggyback). See [`docs/pv-surplus-blueprint.md`](docs/pv-surplus-blueprint.md).
 
 ### Installation (HACS)
 HACS → custom repository (category *Integration*) → download → restart → add the

@@ -4,6 +4,8 @@ Dieses Dokument beschreibt den Entitäts-Vertrag zwischen der `haier_modbus`-Int
 und der mitgelieferten PV-Überschuss-Automation
 (`blueprints/automation/haier_modbus/pv_surplus.yaml`).
 
+> Funktionsweise, Schwellen & Tuning des Blueprints: [`pv-surplus-blueprint.md`](pv-surplus-blueprint.md).
+
 **Ziel:** Releases sollen diese Entities nicht still umbenennen oder beschneiden —
 genau das hat die Vorgänger-Automationen getötet (frühere Schemata: `haier_brauchwasserwarmepumpe_*`, `hk29_bwwp_*`).
 
