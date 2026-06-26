@@ -44,15 +44,6 @@ blueprint:
         entity:
           domain: sensor
           device_class: power
-    wp_status_binary:
-      name: WP-Status (binary_sensor)
-      description: >
-        Binärsensor, der angibt, ob die Wärmepumpe gerade läuft
-        (on = läuft, off = steht). Wird genutzt, um im Normal-Tier nur dann
-        hochzusetzen, wenn die WP noch nicht läuft.
-      selector:
-        entity:
-          domain: binary_sensor
     high_threshold:
       name: Schwelle hoher Überschuss (W)
       default: 1500
@@ -107,7 +98,6 @@ variables:
   v_target_number: !input target_number
   v_water_sensor: !input water_temp_sensor
   v_bwwp_power: !input bwwp_power_sensor
-  v_wp_status: !input wp_status_binary
   v_min_normal: !input min_normal_threshold
   v_normal_buf: !input normal_buffer
   v_temp_high: !input temp_high
@@ -210,11 +200,8 @@ action:
           - condition: numeric_state
             entity_id: !input water_temp_sensor
             below: "{{ v_temp_normal - 2 }}"
-          # WP läuft noch nicht (kein Doppelstart)
-          - condition: state
-            entity_id: !input wp_status_binary
-            state: "off"
-          # Solltemperatur noch nicht auf dieser Stufe
+          # Solltemperatur noch nicht auf dieser Stufe (läuft die WP bereits
+          # auf 65 °C zu, ist diese Bedingung false → kein erneutes Setzen)
           - condition: not
             conditions:
               - condition: numeric_state
