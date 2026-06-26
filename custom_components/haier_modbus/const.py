@@ -80,7 +80,7 @@ DEFAULT_EMERGENCY_RECOVER: Final = 48
 #  - Hysterese 250 W: zurück erst bei normal-250 (350) bzw. hoch-250 (1250)
 DEFAULT_PV_HIGH: Final = 1500
 DEFAULT_PV_NORMAL: Final = 600
-DEFAULT_PV_TEMP_HIGH: Final = 70
+DEFAULT_PV_TEMP_HIGH: Final = 75    # Geräte-Max (Reg 6, 35..75); Hochstufe = Überschuss verheizen, i. d. R. mit Boost
 DEFAULT_PV_TEMP_NORMAL: Final = 65
 DEFAULT_PV_TEMP_BASE: Final = 50
 DEFAULT_PV_DEBOUNCE: Final = 5
