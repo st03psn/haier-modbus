@@ -18,13 +18,11 @@
       },
       "cop": {
         "title": "Haier HWHP – COP & energy",
-        "description": "COP = produced heat / electricity used. Sources are configurable. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total. Everything can be changed later via \"Configure\".",
+        "description": "COP = produced heat / electricity used. Leave a meter empty to use the device's integrated Modbus register; pick an entity to use an external meter. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total. Changeable later via \"Configure\".",
         "data": {
           "cop_enabled": "Enable COP calculation",
-          "cop_elec_source": "Electricity source for COP",
-          "cop_elec_entity": "External electricity meter (kWh)",
-          "cop_heat_source": "Heat source for COP",
-          "cop_heat_entity": "External heat meter (kWh)",
+          "cop_elec_entity": "External electricity meter (kWh) — empty = Modbus register",
+          "cop_heat_entity": "External heat meter (kWh) — empty = Modbus register",
           "energy_scale": "kWh register scaling (x)",
           "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)"
         }
@@ -78,10 +76,8 @@
           "scan_interval": "Polling interval (seconds)",
           "ambient_offset": "Ambient temperature offset (°C)",
           "cop_enabled": "Enable COP calculation",
-          "cop_elec_source": "Electricity source for COP",
-          "cop_elec_entity": "External electricity meter (kWh)",
-          "cop_heat_source": "Heat source for COP",
-          "cop_heat_entity": "External heat meter (kWh)",
+          "cop_elec_entity": "External electricity meter (kWh) — empty = Modbus register",
+          "cop_heat_entity": "External heat meter (kWh) — empty = Modbus register",
           "energy_scale": "kWh register scaling (x)",
           "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)",
           "pv_enabled": "Enable PV surplus control",
@@ -119,12 +115,6 @@
     }
   },
   "selector": {
-    "energy_source": {
-      "options": {
-        "modbus": "Integrated (Modbus register)",
-        "external": "External sensor"
-      }
-    },
     "model": {
       "options": {
         "hp160m7_f9": "HP160M7-F9",

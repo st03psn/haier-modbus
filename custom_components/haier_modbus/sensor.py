@@ -17,9 +17,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     CONF_AMBIENT_OFFSET,
-    CONF_COP_ELEC_SOURCE,
+    CONF_COP_ELEC_ENTITY,
     CONF_COP_ENABLED,
-    CONF_COP_HEAT_SOURCE,
+    CONF_COP_HEAT_ENTITY,
     CONF_ENERGY_SCALE,
     DEFAULT_ENERGY_SCALE,
     DOMAIN,
@@ -355,8 +355,8 @@ class HaierCopSensor(HaierModbusEntity, SensorEntity):
         o = self._entry.options
         e = self.coordinator.energy
         attrs = {
-            "heat_source": o.get(CONF_COP_HEAT_SOURCE, "modbus"),
-            "electricity_source": o.get(CONF_COP_ELEC_SOURCE, "modbus"),
+            "heat_source": "external" if o.get(CONF_COP_HEAT_ENTITY) else "modbus",
+            "electricity_source": "external" if o.get(CONF_COP_ELEC_ENTITY) else "modbus",
             "heat_kwh": e.value(f"{self._period}_heat"),
             "electricity_kwh": e.value(f"{self._period}_elec"),
         }

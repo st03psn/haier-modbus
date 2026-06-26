@@ -23,10 +23,12 @@ DEFAULT_SCAN_INTERVAL: Final = 5  # Sekunden
 
 # --- Options-Flow Keys (COP / Energiequellen, alles über die UI) -----------
 CONF_COP_ENABLED: Final = "cop_enabled"
-CONF_COP_ELEC_SOURCE: Final = "cop_elec_source"   # "modbus" | "external"
-CONF_COP_ELEC_ENTITY: Final = "cop_elec_entity"   # externer Stromzähler (kWh)
-CONF_COP_HEAT_SOURCE: Final = "cop_heat_source"   # "modbus" | "external"
-CONF_COP_HEAT_ENTITY: Final = "cop_heat_entity"   # externer Wärmemengenzähler (kWh)
+# Quelle ergibt sich aus der Entität: leer = Modbus-Register, gesetzt = extern.
+CONF_COP_ELEC_ENTITY: Final = "cop_elec_entity"   # externer Stromzähler (kWh); leer = Modbus
+CONF_COP_HEAT_ENTITY: Final = "cop_heat_entity"   # externer Wärmemengenzähler (kWh); leer = Modbus
+# Legacy (nur noch für die einmalige Options-Migration in __init__.py):
+CONF_COP_ELEC_SOURCE: Final = "cop_elec_source"   # alt: "modbus" | "external"
+CONF_COP_HEAT_SOURCE: Final = "cop_heat_source"   # alt: "modbus" | "external"
 CONF_ENERGY_SCALE: Final = "energy_scale"         # kWh-Register-Skalierung (1.0 / 0.1 / ...)
 CONF_COP_REF_DATE: Final = "cop_ref_date"         # Bezugsdatum (Wärmezähler-Reset) für COP seit Datum
 CONF_AMBIENT_OFFSET: Final = "ambient_offset"     # Korrektur-Offset für die Umgebungstemperatur (°C)

@@ -14,7 +14,9 @@ from homeassistant.helpers.issue_registry import (
 )
 
 from .const import (
+    CONF_COP_ELEC_ENTITY,
     CONF_COP_ELEC_SOURCE,
+    CONF_COP_HEAT_ENTITY,
     CONF_COP_HEAT_SOURCE,
     DOMAIN,
     PLATFORMS,
@@ -74,6 +76,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     Der Coordinator pollt weiter und verbindet selbsttätig neu, sobald der
     Konverter antwortet.
     """
+    _migrate_cop_source_options(hass, entry)
+
     coordinator = HaierModbusCoordinator(hass, entry)
     await coordinator.async_refresh()
 
@@ -171,8 +175,8 @@ def _sync_device_register_visibility(hass: HomeAssistant, entry: ConfigEntry) ->
     Integration deaktivierte Entitäten werden umgeschaltet – manuelle
     Nutzer-Entscheidungen (disabled_by=user) bleiben unangetastet.
     """
-    elec_external = entry.options.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL
-    heat_external = entry.options.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL
+    elec_external = bool(entry.options.get(CONF_COP_ELEC_ENTITY))
+    heat_external = bool(entry.options.get(CONF_COP_HEAT_ENTITY))
     hide_by_key = {
         "hp_elec_year": elec_external,
         "heater_elec_year": elec_external,
@@ -190,6 +194,31 @@ def _sync_device_register_visibility(hass: HomeAssistant, entry: ConfigEntry) ->
             reg.async_update_entity(ent_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION)
         elif not hide and ent.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
             reg.async_update_entity(ent_id, disabled_by=None)
+
+
+def _migrate_cop_source_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Einmalige Bereinigung der COP-Quellenwahl (ab v1.10.1).
+
+    Die Quelle ergibt sich jetzt allein aus der gewählten Zähler-Entität
+    (leer = integriertes Modbus-Register, gesetzt = extern); das frühere
+    Quellen-Dropdown entfällt. Hier werden die alten ``cop_*_source``-Optionen
+    entfernt – war die Quelle „Integriert", wird eine evtl. verwaiste
+    Zähler-Entität mitgelöscht, damit sie nicht fälschlich als externe Quelle
+    interpretiert wird. Läuft genau einmal (danach sind die Keys weg, no-op).
+    """
+    o = dict(entry.options)
+    changed = False
+    for src_key, ent_key in (
+        (CONF_COP_HEAT_SOURCE, CONF_COP_HEAT_ENTITY),
+        (CONF_COP_ELEC_SOURCE, CONF_COP_ELEC_ENTITY),
+    ):
+        if src_key in o:
+            if o.get(src_key) != SOURCE_EXTERNAL:
+                o.pop(ent_key, None)
+            del o[src_key]
+            changed = True
+    if changed:
+        hass.config_entries.async_update_entry(entry, options=o)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:

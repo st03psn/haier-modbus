@@ -18,13 +18,11 @@
       },
       "cop": {
         "title": "Haier BWWP – COP & Energie",
-        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Quellen frei wählbar. Tipp: Bei externem Stromzähler einen jährlich zurücksetzenden Zähler (utility_meter, cycle: yearly) wählen, damit das Fenster zur Jahres-Wärmemenge passt. Alles später jederzeit unter „Konfigurieren“ änderbar.",
+        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Zähler leer lassen = integriertes Modbus-Register; Entität wählen = externer Zähler. Tipp: Bei externem Stromzähler einen jährlich zurücksetzenden Zähler (utility_meter, cycle: yearly) wählen, damit das Fenster zur Jahres-Wärmemenge passt. Später jederzeit unter „Konfigurieren“ änderbar.",
         "data": {
           "cop_enabled": "COP-Berechnung aktiv",
-          "cop_elec_source": "Stromquelle für COP",
-          "cop_elec_entity": "Externer Stromzähler (kWh)",
-          "cop_heat_source": "Wärmequelle für COP",
-          "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
+          "cop_elec_entity": "Externer Stromzähler (kWh) — leer = Modbus-Register",
+          "cop_heat_entity": "Externer Wärmemengenzähler (kWh) — leer = Modbus-Register",
           "energy_scale": "Skalierung der kWh-Register (×)",
           "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)"
         }
@@ -78,10 +76,8 @@
           "scan_interval": "Abfrageintervall (Sekunden)",
           "ambient_offset": "Offset Umgebungstemperatur (°C)",
           "cop_enabled": "COP-Berechnung aktiv",
-          "cop_elec_source": "Stromquelle für COP",
-          "cop_elec_entity": "Externer Stromzähler (kWh)",
-          "cop_heat_source": "Wärmequelle für COP",
-          "cop_heat_entity": "Externer Wärmemengenzähler (kWh)",
+          "cop_elec_entity": "Externer Stromzähler (kWh) — leer = Modbus-Register",
+          "cop_heat_entity": "Externer Wärmemengenzähler (kWh) — leer = Modbus-Register",
           "energy_scale": "Skalierung der kWh-Register (×)",
           "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)",
           "pv_enabled": "PV-Überschuss-Steuerung aktiv",
@@ -119,12 +115,6 @@
     }
   },
   "selector": {
-    "energy_source": {
-      "options": {
-        "modbus": "Integriert (Modbus-Register)",
-        "external": "Externer Sensor"
-      }
-    },
     "model": {
       "options": {
         "hp160m7_f9": "HP160M7-F9",

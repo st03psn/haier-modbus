@@ -24,10 +24,8 @@ from pymodbus.client import AsyncModbusTcpClient
 from .const import (
     CONF_AMBIENT_OFFSET,
     CONF_COP_ELEC_ENTITY,
-    CONF_COP_ELEC_SOURCE,
     CONF_COP_ENABLED,
     CONF_COP_HEAT_ENTITY,
-    CONF_COP_HEAT_SOURCE,
     CONF_COP_REF_DATE,
     CONF_EMERGENCY_CRITICAL,
     CONF_EMERGENCY_ENABLED,
@@ -72,8 +70,6 @@ from .const import (
     READ_START,
     SET_TEMP_MAX,
     SET_TEMP_MIN,
-    SOURCE_EXTERNAL,
-    SOURCE_MODBUS,
     localized_title,
 )
 
@@ -82,13 +78,6 @@ _ENERGY_ENTITY = selector.EntitySelector(
 )
 _PV_SENSOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor", device_class="power")
-)
-_SOURCE = selector.SelectSelector(
-    selector.SelectSelectorConfig(
-        options=[SOURCE_MODBUS, SOURCE_EXTERNAL],
-        translation_key="energy_source",
-        mode=selector.SelectSelectorMode.DROPDOWN,
-    )
 )
 _SCALE = selector.NumberSelector(
     selector.NumberSelectorConfig(min=0.001, max=1000, step=0.001, mode=selector.NumberSelectorMode.BOX)
@@ -115,13 +104,15 @@ _OFFSET = selector.NumberSelector(
 
 
 def _cop_schema(o: dict[str, Any]) -> vol.Schema:
-    """COP-/Energiequellen-Schema – im Wizard und im Options-Flow identisch."""
+    """COP-/Energiequellen-Schema – im Wizard und im Options-Flow identisch.
+
+    Die Quelle ergibt sich aus der gewählten Entität: leer = integriertes
+    Modbus-Register, gesetzt = externer Zähler. Kein separates Quellen-Dropdown.
+    """
     return vol.Schema(
         {
             vol.Optional(CONF_COP_ENABLED, default=o.get(CONF_COP_ENABLED, True)): bool,
-            vol.Optional(CONF_COP_ELEC_SOURCE, default=o.get(CONF_COP_ELEC_SOURCE, SOURCE_MODBUS)): _SOURCE,
             vol.Optional(CONF_COP_ELEC_ENTITY): _ENERGY_ENTITY,
-            vol.Optional(CONF_COP_HEAT_SOURCE, default=o.get(CONF_COP_HEAT_SOURCE, SOURCE_MODBUS)): _SOURCE,
             vol.Optional(CONF_COP_HEAT_ENTITY): _ENERGY_ENTITY,
             vol.Optional(CONF_ENERGY_SCALE, default=o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)): _SCALE,
             vol.Optional(CONF_COP_REF_DATE): selector.DateSelector(),

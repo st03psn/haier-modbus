@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 import homeassistant.util.dt as dt_util
 
 from .const import (
@@ -48,6 +49,7 @@ from .const import (
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
+    DOMAIN,
     MODE_ELEC,
     REG_FUNCTION,
     REG_MODE,
@@ -62,6 +64,9 @@ from .energy import state_float
 
 _LOGGER = logging.getLogger(__name__)
 
+# HA-Logbuch-Event (entkoppelt vom logbook-Component, stabiler String).
+_EVENT_LOGBOOK_ENTRY = "logbook_entry"
+
 
 class PvController:
     """Regelt Solltemperatur (+ optional Boost/Heizstab) nach verfügbarem Solarstrom."""
@@ -74,10 +79,32 @@ class PvController:
         self._prev_mode: int | None = None     # Modus vor erzwungenem ELEC
         self._off_since = None                 # Zeitpunkt, seit dem der Verdichter aus ist
         self._was_running: bool | None = None  # Verdichter im Vorzyklus?
+        self._last_logged: int | None = None   # zuletzt ins Logbuch gemeldete Zielstufe
+        self._setpoint_eid: str | None = None  # entity_id der Solltemperatur (Logbuch-Verlinkung)
 
     def _reset(self) -> None:
         self._candidate = None
         self._since = None
+
+    def _announce(self, coordinator, target: int, avail: float, up: bool) -> None:
+        """Stufenwechsel ins HA-Logbuch schreiben – nur bei echtem Wechsel (Dedup),
+        also wenige Einträge/Tag, kein Logstorm."""
+        if target == self._last_logged:
+            return
+        self._last_logged = target
+        if self._setpoint_eid is None:
+            self._setpoint_eid = er.async_get(self.hass).async_get_entity_id(
+                "number", DOMAIN, f"{coordinator.entry.entry_id}_set_temp"
+            )
+        verb = "angehoben" if up else "abgesenkt"
+        payload = {
+            "name": "BWWP PV-Überschuss",
+            "message": f"Ziel {verb} auf {target} °C (verfügbar {avail:.0f} W)",
+            "domain": DOMAIN,
+        }
+        if self._setpoint_eid:
+            payload["entity_id"] = self._setpoint_eid
+        self.hass.bus.async_fire(_EVENT_LOGBOOK_ENTRY, payload)
 
     def _temps(self, o: dict) -> tuple[float, float, float]:
         return (
@@ -174,6 +201,7 @@ class PvController:
                 await coordinator.write_value(REG_SET_TEMP, int(desired))
                 _LOGGER.debug("PV: Soll %d -> %d (runter, verfügbar %.0f W)",
                               int(current), int(desired), avail)
+                self._announce(coordinator, int(desired), avail, up=False)
             else:
                 water = data.get(REG_WATER_TEMP)
                 if (water is not None and float(water) < desired
@@ -182,6 +210,7 @@ class PvController:
                     _LOGGER.debug("PV: Soll %d -> %d (hoch, verfügbar %.0f W, %s)",
                                   int(current), int(desired), avail,
                                   "WP läuft" if running else "Stillstand ok")
+                    self._announce(coordinator, int(desired), avail, up=True)
 
         # Eskalation bei hohem Überschuss – nur im Betrieb (idempotent).
         await self._apply_escalation(coordinator, o, data, tier == "high" and running, avail)

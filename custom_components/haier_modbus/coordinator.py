@@ -17,9 +17,7 @@ import homeassistant.util.dt as dt_util
 
 from .const import (
     CONF_COP_ELEC_ENTITY,
-    CONF_COP_ELEC_SOURCE,
     CONF_COP_HEAT_ENTITY,
-    CONF_COP_HEAT_SOURCE,
     CONF_COP_REF_DATE,
     CONF_ENERGY_SCALE,
     CONF_HOST,
@@ -42,7 +40,6 @@ from .const import (
     REG_HP_ELEC_YEAR,
     REG_SET_TEMP,
     REG_STATUS,
-    SOURCE_EXTERNAL,
     STATUS_BOILER,
     STATUS_SOLAR,
 )
@@ -276,7 +273,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         m_start = max(month_start, ref_start) if ref_start else month_start
         y_start = max(year_start, ref_start) if ref_start else year_start
 
-        if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
+        if o.get(CONF_COP_HEAT_ENTITY):
             ent = o.get(CONF_COP_HEAT_ENTITY)
             mh = await consumption_since(self.hass, [ent], m_start, now)
             yh = await consumption_since(self.hass, [ent], y_start, now)
@@ -284,7 +281,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             mh = (data.get(REG_HEAT_MONTHS + m) or 0) * scale
             yh = (data.get(REG_HEAT_YEAR) or 0) * scale
 
-        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
+        if o.get(CONF_COP_ELEC_ENTITY):
             ent = o.get(CONF_COP_ELEC_ENTITY)
             me = await consumption_since(self.hass, [ent], m_start, now)
             ye = await consumption_since(self.hass, [ent], y_start, now)
@@ -307,7 +304,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
 
         # Gesamt-Werte = „seit Bezugsdatum" (vergleichbar Wärme/Strom).
         total_heat = yh
-        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL and ref_start is not None:
+        if o.get(CONF_COP_ELEC_ENTITY) and ref_start is not None:
             total_elec = await consumption_since(
                 self.hass, [o.get(CONF_COP_ELEC_ENTITY)], ref_start, now
             )
@@ -348,13 +345,13 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         o = self.entry.options
         scale = o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)
 
-        if o.get(CONF_COP_HEAT_SOURCE) == SOURCE_EXTERNAL:
+        if o.get(CONF_COP_HEAT_ENTITY):
             heat = state_float(self.hass, o.get(CONF_COP_HEAT_ENTITY))
         else:
             raw = data.get(REG_HEAT_YEAR)
             heat = raw * scale if raw is not None else None
 
-        if o.get(CONF_COP_ELEC_SOURCE) == SOURCE_EXTERNAL:
+        if o.get(CONF_COP_ELEC_ENTITY):
             elec = state_float(self.hass, o.get(CONF_COP_ELEC_ENTITY))
         else:
             hp = data.get(REG_HP_ELEC_YEAR)
