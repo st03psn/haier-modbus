@@ -88,7 +88,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             self.host, port=self.port, timeout=3, retries=1
         )
         self.energy = EnergyAccumulator(hass, entry.entry_id)
-        self._pv = PvController(hass)
+        self.pv = PvController(hass)
         self._emergency = EmergencyController(hass)
         self._last_save = None
         self._seed_done = False
@@ -210,7 +210,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             self._auto_enable_sources(data)
             await self._maybe_seed(data)
             await self._accumulate_energy(data)
-            await self._pv.async_evaluate(self, data)
+            await self.pv.async_evaluate(self, data)
             await self._emergency.async_evaluate(self, data)
             return data
         except UpdateFailed:

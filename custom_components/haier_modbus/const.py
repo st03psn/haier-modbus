@@ -41,14 +41,22 @@ SOURCE_EXTERNAL: Final = "external"
 DEFAULT_ENERGY_SCALE: Final = 1.0
 
 # --- PV-Überschuss-Steuerung (optional, in der Integration) -----------------
-# Regelt nach *verfügbarem* Solarstrom = PV-Überschuss + aktuelle WP-Aufnahme.
-# Diese Summe ist unabhängig davon, ob die WP gerade läuft -> kein Pendeln.
-CONF_PV_ENABLED: Final = "pv_enabled"
-CONF_PV_SENSOR: Final = "pv_sensor"            # Sensor PV-Überschuss in W
-CONF_PV_BWWP_SENSOR: Final = "pv_bwwp_sensor"  # Sensor aktuelle WP-Leistungsaufnahme (W)
-CONF_PV_HIGH: Final = "pv_high"                # Schwelle hoch, auf verfügbar (W)
-CONF_PV_NORMAL: Final = "pv_normal"            # Schwelle normal, auf verfügbar (W)
-CONF_PV_HYSTERESIS: Final = "pv_hysteresis"    # Rückschalt-Hysterese (W)
+# Betriebsmodus (Dropdown, ersetzt den alten Bool-Haken "PV-Überschuss aktiv"):
+#  - off          : pv.py inert; nur die rohen Stell-Entitäten + 38°-Guard.
+#  - coordinator  : die Integration regelt selbst nach Roh-Überschuss + Morgen-Start.
+#  - executor     : externes HEMS regelt; die Integration stellt nur die Programme
+#                   bereit (select.haier_hwhp_pv_program), pv.py regelt NICHT.
+CONF_PV_MODE: Final = "pv_mode"
+PV_MODE_OFF: Final = "off"
+PV_MODE_COORDINATOR: Final = "coordinator"
+PV_MODE_EXECUTOR: Final = "executor"
+DEFAULT_PV_MODE: Final = PV_MODE_OFF
+
+CONF_PV_SENSOR: Final = "pv_sensor"            # Sensor PV-Überschuss in W (roh, ≥0)
+CONF_PV_HIGH: Final = "pv_high"                # Hoch-Schwelle Roh-Überschuss (W) -> Heizstab-Schicht
+CONF_PV_HOLD: Final = "pv_hold"                # Halte-/Piggyback-Puffer: darüber WP-Zyklus halten (W)
+CONF_PV_MORNING_ENABLED: Final = "pv_morning_enabled"      # fixer Morgen-Start aktiv (bool)
+CONF_PV_MORNING_TIME: Final = "pv_morning_time"            # Uhrzeit Morgen-Start ("HH:MM")
 CONF_PV_TEMP_HIGH: Final = "pv_temp_high"      # Zieltemp bei hohem Überschuss
 CONF_PV_TEMP_NORMAL: Final = "pv_temp_normal"  # Zieltemp bei normalem Überschuss
 CONF_PV_TEMP_BASE: Final = "pv_temp_base"      # Grund-Zieltemp ohne Überschuss
@@ -60,11 +68,23 @@ PV_ESC_NONE: Final = "none"
 PV_ESC_BOOST: Final = "boost"                  # Boost: WP + Heizstab gleichzeitig
 PV_ESC_ELEC: Final = "elec"                    # ELEC: nur Heizstab, WP aus
 DEFAULT_PV_ESCALATION: Final = PV_ESC_NONE
+
+# Executor: Regelprogramme, die ein HEMS (oder der Nutzer) setzt; die Integration
+# übersetzt das Programm idempotent in die Mechanik (Sollwert/Modus/Boost).
+CONF_PV_PROGRAM: Final = "pv_program"
+PV_PROGRAM_OFF: Final = "aus"                  # Integration fasst den Sollwert nicht an
+PV_PROGRAM_GRUND: Final = "grund"              # Sollwert = Grundtemp (50), Modus ECO
+PV_PROGRAM_UEBERSCHUSS: Final = "ueberschuss"  # Sollwert = Normaltemp (65), Modus AUTO
+PV_PROGRAM_BOOST: Final = "boost"              # Sollwert = Hochtemp (75) + Boost (WP+Heizstab)
+
 # Legacy (nur noch für die einmalige Options-Migration in __init__.py):
+CONF_PV_ENABLED: Final = "pv_enabled"          # alt: bool, "PV-Überschuss-Steuerung aktiv"
 CONF_PV_BOOST: Final = "pv_boost"              # alt: bool, "zusätzlich Boost"
 CONF_PV_FORCE_ELEC: Final = "pv_force_elec"    # alt: bool, "Modus ELEC"
 
-DEFAULT_PV_HYSTERESIS: Final = 250
+DEFAULT_PV_HOLD: Final = 50
+DEFAULT_PV_MORNING_ENABLED: Final = True
+DEFAULT_PV_MORNING_TIME: Final = "10:00"
 DEFAULT_PV_MIN_OFF: Final = 30
 
 # --- Notfall-Nachheizung (ECO -> AUTO bei kritisch niedriger Temperatur) ----
@@ -74,12 +94,11 @@ CONF_EMERGENCY_RECOVER: Final = "emergency_recover"     # °C: darüber zurück 
 DEFAULT_EMERGENCY_CRITICAL: Final = 38
 DEFAULT_EMERGENCY_RECOVER: Final = 48
 
-# Schwellen auf den *verfügbaren* Solarstrom (PV-Überschuss + WP-Aufnahme):
-#  - normal ~600 W = max. WP-Aufnahme (~550 W) + kleine Reserve -> deckt den Lauf
-#  - hoch 1500 W = klar darüber (Reserve für Boost = WP + Heizstab)
-#  - Hysterese 250 W: zurück erst bei normal-250 (350) bzw. hoch-250 (1250)
-DEFAULT_PV_HIGH: Final = 1500
-DEFAULT_PV_NORMAL: Final = 600
+# Schwellen auf den *rohen* PV-Überschuss (sensor.pv_uberschuss_watt, kappt bei 0):
+#  - Halte/Piggyback 50 W = kleiner Puffer; solange noch Überschuss da ist, WP-Zyklus
+#    halten/auf Normal verlängern (die WP läuft eh schon, kostet keine Extra-Leistung)
+#  - Hoch 1550 W = Heizstab-Schwelle (Heizstab ~1500 W + Puffer); mehr wird nie gezogen
+DEFAULT_PV_HIGH: Final = 1550
 DEFAULT_PV_TEMP_HIGH: Final = 75    # Geräte-Max (Reg 6, 35..75); Hochstufe = Überschuss verheizen, i. d. R. mit Boost
 DEFAULT_PV_TEMP_NORMAL: Final = 65
 DEFAULT_PV_TEMP_BASE: Final = 50

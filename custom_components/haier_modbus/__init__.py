@@ -19,12 +19,16 @@ from .const import (
     CONF_COP_HEAT_ENTITY,
     CONF_COP_HEAT_SOURCE,
     CONF_PV_BOOST,
+    CONF_PV_ENABLED,
     CONF_PV_ESCALATION,
     CONF_PV_FORCE_ELEC,
+    CONF_PV_MODE,
     DOMAIN,
     PLATFORMS,
     PV_ESC_BOOST,
     PV_ESC_ELEC,
+    PV_MODE_COORDINATOR,
+    PV_MODE_OFF,
     SOURCE_EXTERNAL,
     localized_title,
 )
@@ -211,6 +215,12 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     2. PV-Eskalation (ab v1.10.3): die zwei alten Booleans ``pv_boost`` /
        ``pv_force_elec`` werden zu einem Select ``pv_escalation`` zusammengeführt.
        Boost hat Vorrang vor ELEC, falls (widersprüchlich) beide gesetzt waren.
+    3. PV-Modus (ab v1.11.0): der Bool-Haken ``pv_enabled`` wird zum Dropdown
+       ``pv_mode`` (an -> ``coordinator``, aus/fehlt -> ``off``). Die alten
+       „verfügbar"-Schlüssel (``pv_bwwp_sensor`` / ``pv_normal`` / ``pv_hysteresis``)
+       und die Wiederanlauf-Schlüssel (``pv_reraise_threshold`` /
+       ``pv_reraise_enabled``) entfallen – die neuen Defaults (Roh-Überschuss-
+       Modell, Zwei-Schicht-Regelung) greifen stattdessen.
 
     Läuft genau einmal (danach sind die Alt-Keys weg, no-op).
     """
@@ -236,6 +246,17 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
             o[CONF_PV_ESCALATION] = PV_ESC_ELEC
         # sonst: keine Eskalation -> kein Key nötig (Default "none")
         changed = True
+
+    # 3. PV-Modus: Bool-Haken -> Dropdown; alte verfügbar-/Wiederanlauf-Schlüssel entfernen.
+    if CONF_PV_ENABLED in o:
+        enabled = bool(o.pop(CONF_PV_ENABLED))
+        o.setdefault(CONF_PV_MODE, PV_MODE_COORDINATOR if enabled else PV_MODE_OFF)
+        changed = True
+    for legacy in ("pv_bwwp_sensor", "pv_normal", "pv_hysteresis",
+                   "pv_reraise_threshold", "pv_reraise_enabled"):
+        if legacy in o:
+            del o[legacy]
+            changed = True
 
     if changed:
         hass.config_entries.async_update_entry(entry, options=o)

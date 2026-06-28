@@ -56,7 +56,7 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
   wählbaren Quellen (Modbus-intern oder externer Zähler wie Shelly).
 - **Diagnose:** **Modbus-Status** (`OK` / `Konverter nicht erreichbar` /
   `Gerät antwortet nicht`) und Binärsensor **Verbindung**.
-- **PV-Überschuss-Steuerung** eingebaut (optional): verfügbar-Modell + Hysterese + Anti-Takt.
+- **PV-Überschuss-Steuerung** eingebaut (optional): Modi Aus / Coordinator / Executor (HEMS-Client).
 - **Editierbares Dashboard** (Storage-Modus) wird automatisch angelegt.
 - **Ein Block-Read** (Register 1–90) je Intervall (Standard 5 s).
 
@@ -104,31 +104,82 @@ Register 18 liefert eine Zahl, die gruppenweise auf die Anzeige-Codes abbildet
 dekodiert das automatisch und zeigt **Anzeige-Code + Klartext** als Attribute.
 Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 
-## PV-Überschuss-Steuerung
+## PV-Überschuss — Betriebsmodi
 
 > **Voraussetzung – externe Leistungsmessung (W):** Die Modbus-Schnittstelle liefert
-> nur kumulative **kWh**-Register, **keine Momentanleistung**. Die PV-Überschuss-Steuerung
-> braucht daher externe **Watt**-Sensoren: den **PV-Überschuss-Sensor** (Pflicht) und –
-> für das pendelfreie „verfügbar"-Modell – den **BWWP-Leistungssensor** (z. B. ein Shelly
-> an der Wärmepumpe). Ohne BWWP-Sensor regelt die Funktion nur auf den rohen Überschuss
-> (Pendel-Gefahr) und ist dann nur eingeschränkt sinnvoll. Ohne diese externen Sensoren
-> ergibt das Feature **keinen Sinn** – die Modbus-Integration allein kennt die nötigen
-> Watt-Werte nicht.
+> nur kumulative **kWh**-Register, **keine Momentanleistung**. Der Coordinator-Modus
+> braucht daher einen externen **Watt**-Sensor: den **PV-Überschuss-Sensor**
+> (`sensor.pv_uberschuss_watt`, roh, kappt bei 0). Ohne ihn bleibt der Coordinator inaktiv.
 
-Im Setup (Schritt 3) oder unter „Konfigurieren" aktivieren: **PV-Überschuss-Sensor**
-und **BWWP-Leistungssensor** wählen. Die Integration regelt die Solltemperatur
-dreistufig nach **verfügbarem Solarstrom** (`PV-Überschuss + aktuelle WP-Aufnahme`).
-Diese Summe springt nicht beim Ein-/Ausschalten der WP → **kein Pendeln**. Dazu:
+Statt eines Bool-Hakens gibt es ein **Dropdown „PV-Modus"** (Setup-Schritt 3 oder
+„Konfigurieren"). Es regelt immer nur **ein** Gehirn — kein Doppelregler:
 
-- **Hysterese** – Hoch- und Rückschalten getrennt (Rückschalt-Schwelle = Einschalt-Schwelle − Hysterese).
-- **Anti-Takt-Schutz** – ein neuer Verdichter-Zyklus startet erst nach einem
-  Mindest-Stillstand; läuft die WP bereits, wird die Stufe verlängert statt neu
-  gestartet (Piggyback).
-- Optional bei hohem Überschuss zusätzlich **Boost** und/oder **Heizstab (ELEC)**.
+| Modus | Wer entscheidet | Was die Integration tut |
+|---|---|---|
+| **Aus** | niemand (nur Geräte-ECO/manuell) | nichts; nur die rohen Entitäten + 38-°C-Guard |
+| **Coordinator** | die Integration | regelt selbst nach Überschuss + Morgen-Start |
+| **Executor** | externes HEMS (z. B. evcc) | regelt nicht selbst; stellt das Programm-Select bereit, das HEMS triggert es |
 
-Alle Schwellen, Zieltemperaturen, Hysterese und Zeiten sind im „Konfigurieren"-Dialog
-**jederzeit editierbar**; der Haken **„PV-Überschuss-Steuerung aktiv"** schaltet die
-Steuerung ein/aus. Ohne PV-Sensor bleibt die Funktion inaktiv.
+Die **Stell-Entitäten** (`number.haier_hwhp_set_temp`, `select.haier_hwhp_mode`,
+Boost-Switch) bleiben in jedem Modus beschreibbar. Der **38-°C-Guard** ist ein eigener,
+separater Haken und bleibt als lokales WW-Sicherheitsnetz aktiv.
+
+### Coordinator (Integration regelt selbst)
+Nach **rohem** Überschuss, in **zwei unabhängigen Schichten** — bewusst so gebaut, dass
+die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts):
+
+**Schicht 1 — WP-Zyklus (Grund ↔ Normal):**
+- **Morgen-Start (fix):** einmal/Tag zur konfigurierten Uhrzeit (Default 10:00 =
+  ECO-Fensterstart) ein Kick auf Normal, wenn das Wasser noch unter der Grundtemperatur
+  liegt — der **einzige Kaltstart** des Tages.
+- **Anheben auf Normal nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
+  (Default 50 W) → kein Tages-Kaltstart, kein Takten.
+- **Absenken** auf Grund, wenn der Überschuss für die **Entprellzeit** (5 min) unter die
+  Halte-Schwelle fällt **und** der Heizstab aus ist.
+
+**Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt nie die WP):** ab der **Hoch-Schwelle**
+(Default 1550 W = Heizstab ~1500 W + Puffer) auf die Hochtemperatur plus:
+- **Boost** (WP + Heizstab) **nur bei laufender** WP,
+- **Heizstab (ELEC)** **nur bei stehender** WP (ELEC würde die WP sonst stoppen) — dumpt
+  sofort, z. B. um nach dem Tageszyklus Überschuss zu verheizen; danach zurück auf ECO +
+  Grundtemperatur.
+
+Fällt der Überschuss weg, geht **nur der Heizstab** weg (Sollwert Hoch→Normal/Grund); die
+WP läuft unverändert weiter. Solange der Heizstab an ist, hält Schicht 1 die Normalstufe.
+
+Den aktuellen Zustand zeigt der Diagnose-Sensor **„PV-Regelung Status"**
+(`sensor.haier_hwhp_pv_status`: Aus / Grund / Normal / Hoch + Boost / Hoch + ELEC, mit
+Überschuss/Sollwert/WP/Heizstab als Attributen); das mitgelieferte Dashboard hat dafür
+eine eigene **PV-Sektion** (Status-Kachel + Logbuch-Verlauf).
+
+Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar.
+
+### Executor (HEMS-Client, z. B. evcc)
+Die Integration regelt **nicht**, sondern stellt eine Auswahl-Entität
+`select.haier_hwhp_pv_program` bereit, die ein HEMS (oder der Nutzer) setzt:
+
+| Programm | Wirkung |
+|---|---|
+| `aus` | Sollwert wird nicht angefasst (manuell/Gerät) |
+| `grund` | Sollwert = Grundtemp (50), Modus ECO |
+| `ueberschuss` | Sollwert = Normaltemp (65), Modus AUTO (überwindet den ECO-Deadband sofort) |
+| `boost` | Sollwert = Hochtemp (75) + Boost (WP + Heizstab) |
+
+Das HEMS kann zum Steuern **entweder** die Hoch-Ebene (Programm-Select, empfohlen —
+die Integration kapselt Sollwert/Modus/Boost) **oder** die Tief-Ebene
+(`number.haier_hwhp_set_temp` direkt) nutzen — nicht mischen. Als Status liest es z. B.
+`sensor.haier_hwhp_water_temp`, `binary_sensor.haier_hwhp_status_wp`, die Aufnahme
+(Shelly) und `sensor.haier_hwhp_set_temp`.
+
+**Effizienz-Strategie (Empfehlung fürs HEMS):** möglichst **ein tiefer Zyklus/Tag** bei
+gutem Überschuss (bankt Solarwärme, überbrückt 1–2 Tage → wenige, lange Zyklen statt
+vieler kurzer, besser für COP + Lebensdauer); **Kurztakten vermeiden** (Programmwechsel
+entprellen, Mindest-Stillstand einhalten); **AUTO nur, wenn nötig** (sonst ECO);
+**Boost/Heizstab nur bei wirklich hohem Überschuss**; **38-°C-Guard an lassen**.
+
+evcc kennt die WP nicht nativ → Brücke über HA: *evcc-Entscheidung → MQTT/HA →
+Programm-Select/Sollwert*, **nicht** gleichzeitig direkt per Modbus schreiben (kein
+zweiter Bus-Master). Beispiel-Automation siehe [`docs/pv-rework-plan.md`](docs/pv-rework-plan.md), Kap. 11.
 
 ## Dashboard
 Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWWP"
@@ -202,24 +253,46 @@ Register 18 returns a number mapped group-wise to the display codes
 exposes **code + description** attributes. Full table:
 [`docs/fault-codes.md`](docs/fault-codes.md).
 
-### PV surplus
+### PV surplus — operating modes
 > **Prerequisite – external power (W) metering:** the Modbus interface only exposes
-> cumulative **kWh** registers, **not instantaneous power**. PV-surplus control therefore
-> needs external **watt** sensors: the **PV-surplus sensor** (required) and — for the
-> oscillation-free "available solar" model — the **heat-pump power sensor** (e.g. a Shelly
-> on the heat pump). Without the heat-pump sensor it falls back to the raw surplus
-> (oscillation risk). Without these external sensors the feature makes **little sense** —
-> the Modbus integration alone does not know the required watt values.
+> cumulative **kWh** registers, **not instantaneous power**. The Coordinator mode therefore
+> needs an external **watt** sensor: the **PV-surplus sensor** (`sensor.pv_uberschuss_watt`,
+> raw, clips at 0). Without it the Coordinator stays inactive.
 
-Enable in the setup wizard / *Configure*, pick a **PV-surplus sensor** and a
-**heat-pump power sensor**. The integration regulates the setpoint in three tiers
-based on **available solar** (`PV surplus + current HP draw`) — switch-invariant,
-so no oscillation — with **hysteresis** (separate up/down thresholds) and
-**anti-short-cycle** protection (a new cycle starts only after a minimum off-time;
-if the pump already runs, the tier is extended — piggyback). Optional Boost / ELEC
-heater escalation on high surplus. All thresholds, target temps, hysteresis and
-timings are **editable any time** in the Configure dialog; the **enable checkbox**
-turns the control on/off.
+Instead of a checkbox there is a **"PV mode" dropdown** (setup step 3 / *Configure*).
+Only **one** brain ever regulates — no double controller:
+
+| Mode | Who decides | What the integration does |
+|---|---|---|
+| **Off** | nobody (device ECO/manual) | nothing; only the raw entities + 38 °C guard |
+| **Coordinator** | the integration | regulates from surplus + a fixed morning start |
+| **Executor** | external HEMS (e.g. evcc) | does not regulate; provides the program select, the HEMS triggers it |
+
+The **control entities** (`number.haier_hwhp_set_temp`, `select.haier_hwhp_mode`, boost
+switch) stay writable in every mode. The **38 °C guard** is a separate option and stays
+active as a local hot-water safety net.
+
+**Coordinator** controls the setpoint in three tiers (50/65/75) from the **raw** surplus,
+made oscillation-free by a once-a-day **morning start** (kick to 65 if water is still
+below base), **hold/lower** with debounce (stay at 65 above the hold threshold, drop to
+50 once surplus stays below it), an optional **daytime re-raise** (back to 65 above the
+re-raise threshold, with anti-short-cycle), and **75 + escalation** (Boost / ELEC heater)
+at very high surplus — which also fires **when the heat pump is off**: Boost starts
+pump+heater (anti-short-cycle protected), ELEC dumps into the heater immediately (no
+compressor cycle), e.g. to burn surplus after the daily cycle. All thresholds, target
+temps and timings are editable in the Configure dialog.
+
+**Executor** does not regulate; it exposes `select.haier_hwhp_pv_program`
+(`aus`/`grund`/`ueberschuss`/`boost`) that an external HEMS (or you) sets — the
+integration translates the program into setpoint/mode/boost. A HEMS controls **either**
+the high level (program select, recommended) **or** the low level
+(`number.haier_hwhp_set_temp` directly), not both. For efficiency: aim for **one deep
+cycle per day** at good surplus (fewer, longer cycles → better COP & lifetime), **avoid
+short-cycling** (debounce program changes, keep a minimum off-time), use **AUTO only when
+needed**, **Boost/heater only at really high surplus**, and **keep the 38 °C guard on**.
+evcc doesn't know the heat pump natively → bridge via HA (*evcc decision → MQTT/HA →
+program select/setpoint*), never write Modbus directly in parallel (avoid a second bus
+master). Example automation: [`docs/pv-rework-plan.md`](docs/pv-rework-plan.md), §11.
 
 ### Installation (HACS)
 HACS → custom repository (category *Integration*) → download → restart → add the
