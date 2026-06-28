@@ -85,7 +85,7 @@ CONF_PV_BOOST: Final = "pv_boost"              # alt: bool, "zusätzlich Boost"
 CONF_PV_FORCE_ELEC: Final = "pv_force_elec"    # alt: bool, "Modus ELEC"
 
 DEFAULT_PV_HOLD: Final = 50
-DEFAULT_PV_RERAISE_THRESHOLD: Final = 200
+DEFAULT_PV_RERAISE_THRESHOLD: Final = 500
 DEFAULT_PV_RERAISE_ENABLED: Final = True
 DEFAULT_PV_MORNING_ENABLED: Final = True
 DEFAULT_PV_MORNING_TIME: Final = "10:00"
@@ -100,9 +100,10 @@ DEFAULT_EMERGENCY_RECOVER: Final = 48
 
 # Schwellen auf den *rohen* PV-Überschuss (sensor.pv_uberschuss_watt, kappt bei 0):
 #  - Halte 50 W = solange noch Überschuss da ist, bei 65 bleiben
-#  - Wiederanlauf 200 W = klar über Rauschen; tagsüber erneut auf 65 hoch
-#  - hoch 1200 W = selten; 75 + Eskalation (Boost/Heizstab)
-DEFAULT_PV_HIGH: Final = 1200
+#  - Wiederanlauf 500 W = deckt den Verdichter (~400–520 W gemessen), damit ein
+#    gestarteter Zyklus solar bleibt statt sofort wieder abzusinken (200 W reichten nicht)
+#  - hoch 1500 W = deckt den Heizstab (~1500 W); 75 + Eskalation (Boost: WP+Heizstab ~2000 W)
+DEFAULT_PV_HIGH: Final = 1500
 DEFAULT_PV_TEMP_HIGH: Final = 75    # Geräte-Max (Reg 6, 35..75); Hochstufe = Überschuss verheizen, i. d. R. mit Boost
 DEFAULT_PV_TEMP_NORMAL: Final = 65
 DEFAULT_PV_TEMP_BASE: Final = 50
