@@ -19,6 +19,11 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   - **Hochstufen-Eskalation greift auch bei stehender WP:** Boost startet WP+Heizstab
     (anti-takt-geschützt), reiner Heizstab (ELEC) dumpt Überschuss sofort ohne
     Mindest-Stillstand (kein Verdichterzyklus) — z. B. nach dem Tageszyklus.
+  - **Hochstufe pendelt nicht mehr:** Sie bleibt aktiv, solange Überschuss ≥ Halte-
+    Schwelle (statt ≥ Hoch-Schwelle). Sonst hätte die selbst-verbrauchende Hochstufe
+    (Heizstab/Boost) ihren eigenen Überschuss „aufgefressen" und im 5-min-Takt gependelt.
+  - Default-Schwellen an gemessene Geräteleistung angepasst: Wiederanlauf 200 → **500 W**
+    (Verdichter ~400–520 W), Hoch 1200 → **1500 W** (Heizstab ~1500 W).
   - Entfernt: „verfügbar"-Modell mit BWWP-Leistungssensor + Hysterese (`pv_bwwp_sensor`,
     `pv_normal`, `pv_hysteresis`). **Migration:** alter Haken „an" → Coordinator, sonst Aus.
   - `CONF_PV_HIGH`-Default 1500 → **1200 W** (jetzt Roh-Überschuss).

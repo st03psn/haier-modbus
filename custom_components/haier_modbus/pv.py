@@ -146,8 +146,14 @@ class PvController:
         """Gewünschte Stufe aus Roh-Überschuss + aktueller Stufe (Hysterese über cur).
 
         - aus base hoch erst ab Wiederanlauf-Schwelle (kein Rauschen-Flattern),
-        - in normal/high mit Halte-Schwelle gehalten (kein 50-W-Zittern),
-        - high jederzeit ab Hoch-Schwelle.
+        - in normal/high gehalten, solange Überschuss >= Halte-Schwelle.
+
+        WICHTIG (Hochstufe): Sie bleibt aktiv, solange Überschuss >= Halte – NICHT
+        nur solange >= Hoch-Schwelle. Sonst würde die selbst-verbrauchende Hochstufe
+        (Heizstab ~1500 W / Boost) ihren eigenen Überschuss „auffressen", den
+        (bei 0 gekappten) Messwert unter die Hoch-Schwelle drücken und im 5-min-Takt
+        pendeln. Drinbleiben bis der reale Überschuss wirklich weg ist (< Halte) und
+        dann direkt auf Grund (kein 75->65-Zwischenschritt).
         """
         high = float(o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH))
         reraise = float(o.get(CONF_PV_RERAISE_THRESHOLD, DEFAULT_PV_RERAISE_THRESHOLD))
@@ -156,10 +162,8 @@ class PvController:
             return "high" if surplus >= high else ("normal" if surplus >= reraise else "base")
         if cur == "normal":
             return "high" if surplus >= high else ("normal" if surplus >= hold else "base")
-        # cur == "high"
-        if surplus < hold:
-            return "base"
-        return "high" if surplus >= high else "normal"
+        # cur == "high": Hysterese – drinbleiben, solange noch Überschuss da ist.
+        return "high" if surplus >= hold else "base"
 
     def _start_allowed(self, o: dict, running: bool, now) -> bool:
         """Anti-Takt: läuft die WP -> Piggyback; sonst nur nach Mindest-Stillstand."""
