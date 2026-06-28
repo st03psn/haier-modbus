@@ -1,22 +1,26 @@
 """Optionale PV-Überschuss-Steuerung (Coordinator-Modus) innerhalb der Integration.
 
-Regelt die Solltemperatur (Reg 6) dreistufig (50/65/75) nach **rohem** PV-Überschuss
-(``sensor.pv_uberschuss_watt``, kappt bei 0 -> kein signierter Netzwert). Weil der
-Überschuss einbricht, sobald die WP läuft, wird NICHT auf einen "verfügbar"-Wert
-geregelt, sondern bewusst pendelfrei gemacht durch:
+Zwei **unabhängige Schichten**, geregelt nach rohem PV-Überschuss
+(``sensor.pv_uberschuss_watt``, kappt bei 0):
 
-- **Morgen-Start (fix):** einmal/Tag zur konfigurierten Uhrzeit einen 65er-Kick, wenn
-  das Wasser noch unter der Grundtemperatur liegt – startet die WP im ECO-Fenster.
-- **Halten/Absenken mit Entprellung:** bei Überschuss über der Halte-Schwelle bei 65
-  bleiben; fällt er für die Entprellzeit darunter, zurück auf 50.
-- **Wiederanlauf (Option):** kommt tagsüber wieder genug Überschuss, erneut auf 65 –
-  mit **Anti-Takt** (Piggyback, solange die WP läuft; sonst erst nach Mindest-Stillstand).
-- **75 + Eskalation:** bei sehr hohem Überschuss (Boost/Heizstab) – greift **auch bei
-  stehender WP**: Boost startet WP+Heizstab (anti-takt-geschützt), der reine Heizstab
-  (ELEC) dumpt sofort ohne Mindest-Stillstand (kein Verdichterzyklus).
+**Schicht 1 — WP-Zyklus (Sollwert Grund 50 ↔ Normal 60):**
+- **Morgen-Start (fix, 1×/Tag):** der einzige Kaltstart — zur Uhrzeit, wenn Wasser
+  unter Grund liegt, Sollwert auf Normal -> WP startet im ECO-Fenster.
+- **Anheben Grund->Normal nur bei LAUFENDER WP** (Piggyback) + Überschuss ≥ Halte-Puffer.
+  Kein Tages-Kaltstart -> kein Takten.
+- **Halten** bei Normal solange Überschuss ≥ Halte ODER der Heizstab läuft.
+- **Absenken** Normal->Grund, wenn Überschuss < Halte (entprellt) UND Heizstab aus.
+
+**Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt NIE die WP), ab Hoch-Schwelle:**
+- **Boost** (WP+Heizstab): nur bei **laufender** WP -> Sollwert Hoch (70) + Boost-Bit.
+- **ELEC** (nur Heizstab): nur bei **stehender** WP -> Modus ELEC + Sollwert Hoch (70),
+  Heizstab-Dump nach dem Tageszyklus. Ende -> Modus zurück (ECO) + Sollwert Grund.
+- Fällt der Überschuss unter Hoch: nur der Heizstab geht weg (Sollwert Hoch->Normal bei
+  Boost bzw. ->Grund bei ELEC); die WP läuft unverändert weiter. Solange der Heizstab an
+  ist, hält Schicht 1 die Normalstufe (kein fälschliches Absenken durch den Eigenverbrauch).
 
 Nur im **Coordinator**-Modus aktiv; in **Aus**/**Executor** steigt ``async_evaluate``
-sofort aus (``pv.py`` inert). Schreibzugriffe sind idempotent (nur bei Abweichung).
+sofort aus. Schreibzugriffe sind idempotent (nur bei Abweichung).
 """
 
 from __future__ import annotations
@@ -38,8 +42,6 @@ from .const import (
     CONF_PV_MODE,
     CONF_PV_MORNING_ENABLED,
     CONF_PV_MORNING_TIME,
-    CONF_PV_RERAISE_ENABLED,
-    CONF_PV_RERAISE_THRESHOLD,
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
@@ -50,8 +52,6 @@ from .const import (
     DEFAULT_PV_MIN_OFF,
     DEFAULT_PV_MORNING_ENABLED,
     DEFAULT_PV_MORNING_TIME,
-    DEFAULT_PV_RERAISE_ENABLED,
-    DEFAULT_PV_RERAISE_THRESHOLD,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
@@ -88,27 +88,36 @@ def _parse_time(raw) -> time:
 
 
 class PvController:
-    """Coordinator-Modus: regelt Solltemperatur (+ optional Boost/Heizstab) nach Überschuss."""
+    """Coordinator-Modus: WP-Zyklus (Schicht 1) + Heizstab (Schicht 2) nach Überschuss."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
-        self._candidate: str | None = None     # entprellter Stufen-Kandidat (high/normal/base)
-        self._since = None
-        self._boost_applied = False            # Boost von uns gesetzt?
+        # Schicht 1 (WP-Zyklus): entprellter Ziel-Zustand (Grund/Normal).
+        self._wp_target: float | None = None   # aktueller WP-Zyklus-Sollwert (Grund/Normal)
+        self._wp_cand: float | None = None      # entprellter Kandidat
+        self._wp_since = None
+        # Schicht 2 (Heizstab): entprellter An/Aus-Zustand.
+        self._heater_on = False
+        self._heater_cand: bool | None = None
+        self._heater_since = None
+        self._boost_applied = False            # Boost-Bit von uns gesetzt?
         self._prev_mode: int | None = None     # Modus vor erzwungenem ELEC
-        self._off_since = None                 # Zeitpunkt, seit dem der Verdichter aus ist
-        self._was_running: bool | None = None  # Verdichter im Vorzyklus?
-        self._last_logged: int | None = None   # zuletzt ins Logbuch gemeldete Zielstufe
-        self._setpoint_eid: str | None = None  # entity_id der Solltemperatur (Logbuch-Verlinkung)
-        self._last_kick_day = None             # Datum des letzten Morgen-Starts (einmal/Tag)
+        # Anti-Takt (nur noch für den Morgen-Start relevant).
+        self._off_since = None
+        self._was_running: bool | None = None
+        # Logbuch.
+        self._last_logged: int | None = None
+        self._setpoint_eid: str | None = None
+        self._last_kick_day = None             # Datum des letzten Morgen-Starts (1×/Tag)
 
     def _reset(self) -> None:
-        self._candidate = None
-        self._since = None
+        self._wp_cand = None
+        self._wp_since = None
+        self._heater_cand = None
+        self._heater_since = None
 
     def _announce(self, coordinator, target: int, surplus: float, up: bool) -> None:
-        """Stufenwechsel ins HA-Logbuch schreiben – nur bei echtem Wechsel (Dedup),
-        also wenige Einträge/Tag, kein Logstorm."""
+        """Sollwert-Wechsel ins HA-Logbuch (Dedup auf den Zielwert -> wenige Einträge)."""
         if target == self._last_logged:
             return
         self._last_logged = target
@@ -133,46 +142,30 @@ class PvController:
             float(o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)),
         )
 
-    @staticmethod
-    def _tier_of(current: float, t_high: float, t_normal: float) -> str:
-        """Aktuelle Stufe aus dem Sollwert ableiten (high/normal/base)."""
-        if current >= t_high - 0.5:
-            return "high"
-        if current >= t_normal - 0.5:
-            return "normal"
-        return "base"
-
-    def _desired(self, o: dict, surplus: float, cur: str) -> str:
-        """Gewünschte Stufe aus Roh-Überschuss + aktueller Stufe (Hysterese über cur).
-
-        - aus base hoch erst ab Wiederanlauf-Schwelle (kein Rauschen-Flattern),
-        - in normal/high gehalten, solange Überschuss >= Halte-Schwelle.
-
-        WICHTIG (Hochstufe): Sie bleibt aktiv, solange Überschuss >= Halte – NICHT
-        nur solange >= Hoch-Schwelle. Sonst würde die selbst-verbrauchende Hochstufe
-        (Heizstab ~1500 W / Boost) ihren eigenen Überschuss „auffressen", den
-        (bei 0 gekappten) Messwert unter die Hoch-Schwelle drücken und im 5-min-Takt
-        pendeln. Drinbleiben bis der reale Überschuss wirklich weg ist (< Halte) und
-        dann direkt auf Grund (kein 75->65-Zwischenschritt).
-        """
-        high = float(o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH))
-        reraise = float(o.get(CONF_PV_RERAISE_THRESHOLD, DEFAULT_PV_RERAISE_THRESHOLD))
-        hold = float(o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD))
-        if cur == "base":
-            return "high" if surplus >= high else ("normal" if surplus >= reraise else "base")
-        if cur == "normal":
-            return "high" if surplus >= high else ("normal" if surplus >= hold else "base")
-        # cur == "high": Hysterese – drinbleiben, solange noch Überschuss da ist.
-        return "high" if surplus >= hold else "base"
-
     def _start_allowed(self, o: dict, running: bool, now) -> bool:
-        """Anti-Takt: läuft die WP -> Piggyback; sonst nur nach Mindest-Stillstand."""
+        """Anti-Takt für den Morgen-Start: läuft die WP -> ok; sonst nach Mindest-Stillstand."""
         if running:
             return True
-        if self._off_since is None:        # war schon vor Beobachtungsbeginn aus
+        if self._off_since is None:
             return True
         min_off_s = o.get(CONF_PV_MIN_OFF, DEFAULT_PV_MIN_OFF) * 60
         return (now - self._off_since).total_seconds() >= min_off_s
+
+    @staticmethod
+    def _debounced(cand_attr, since_attr, want, now, debounce_s, controller, applied):
+        """Generischer Entpreller: gibt den neuen angewandten Wert zurück.
+
+        Ändert sich ``want``, startet der Timer neu; erst wenn ``want`` die
+        Entprellzeit stabil bleibt, wird er übernommen, sonst bleibt ``applied``.
+        """
+        if getattr(controller, cand_attr) != want:
+            setattr(controller, cand_attr, want)
+            setattr(controller, since_attr, now)
+            return applied
+        since = getattr(controller, since_attr)
+        if since is not None and (now - since).total_seconds() >= debounce_s:
+            return want
+        return applied
 
     async def async_evaluate(self, coordinator, data: dict[int, int]) -> None:
         o = coordinator.entry.options
@@ -186,7 +179,7 @@ class PvController:
 
         now = dt_util.now()
         running = bool((data.get(REG_STATUS) or 0) & STATUS_HEATPUMP)
-        # Stillstand-Zeitstempel pflegen (für Anti-Takt): nur beim Übergang an->aus setzen.
+        # Stillstand-Zeitstempel pflegen (für Anti-Takt im Morgen-Start).
         if running:
             self._off_since = None
         elif self._was_running:
@@ -199,67 +192,70 @@ class PvController:
         current = float(current)
         water = float(data.get(REG_WATER_TEMP) or 0)
         t_high, t_normal, t_base = self._temps(o)
+        hold = float(o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD))
+        hoch = float(o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH))
+        choice = o.get(CONF_PV_ESCALATION, PV_ESC_NONE)
+        debounce_s = o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE) * 60
 
-        # 1) Morgen-Start (fix, einmal/Tag): WW im ECO-Fenster anstoßen.
+        # WP-Zyklus-Ziel aus dem Ist ableiten, falls noch nicht bekannt.
+        if self._wp_target is None:
+            self._wp_target = t_normal if current >= t_normal - 0.5 else t_base
+
+        # 1) Morgen-Start (der einzige Kaltstart/Tag).
         morning = _parse_time(o.get(CONF_PV_MORNING_TIME, DEFAULT_PV_MORNING_TIME))
         if (o.get(CONF_PV_MORNING_ENABLED, DEFAULT_PV_MORNING_ENABLED)
                 and now.time() >= morning and self._last_kick_day != now.date()):
             self._last_kick_day = now.date()
             if water < t_base and current < t_normal and self._start_allowed(o, running, now):
+                self._wp_target = t_normal
                 target = int(min(max(int(t_normal), SET_TEMP_MIN), SET_TEMP_MAX))
                 await coordinator.write_value(REG_SET_TEMP, target)
                 _LOGGER.debug("PV: Morgen-Start Soll -> %d (Überschuss %.0f W)", target, surplus)
                 self._announce(coordinator, target, surplus, up=True)
                 return
 
-        # 2) Stufenlogik aus Roh-Überschuss (Hysterese über cur) + Entprellung.
-        cur = self._tier_of(current, t_high, t_normal)
-        desired = self._desired(o, surplus, cur)
-        if self._candidate != desired:
-            self._candidate = desired
-            self._since = now
-            return
-        debounce_s = o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE) * 60
-        if self._since is None or (now - self._since).total_seconds() < debounce_s:
-            return
+        # 2) Schicht 2 – Heizstab (entprellt). Boost nur wenn WP läuft, ELEC nur wenn WP aus.
+        if choice == PV_ESC_BOOST:
+            heater_want = running and surplus >= hoch
+        elif choice == PV_ESC_ELEC:
+            heater_want = (not running) and surplus >= hoch
+        else:
+            heater_want = False
+        self._heater_on = self._debounced(
+            "_heater_cand", "_heater_since", heater_want, now, debounce_s, self, self._heater_on
+        )
 
-        target_temp = {"high": t_high, "normal": t_normal, "base": t_base}[desired]
-        target = int(min(max(int(target_temp), SET_TEMP_MIN), SET_TEMP_MAX))
+        # 3) Schicht 1 – WP-Zyklus-Ziel (Grund/Normal, entprellt).
+        if self._wp_target <= t_base + 0.5:        # aktuell Grund
+            # Anheben nur bei laufender WP (Piggyback, kein Kaltstart).
+            wp_want = t_normal if (running and surplus >= hold) else t_base
+        else:                                       # aktuell Normal
+            # Halten solange Überschuss ≥ Halte ODER der Heizstab läuft; sonst absenken.
+            wp_want = t_normal if (surplus >= hold or self._heater_on) else t_base
+        self._wp_target = self._debounced(
+            "_wp_cand", "_wp_since", wp_want, now, debounce_s, self, self._wp_target
+        )
+
+        # 4) Effektiver Sollwert: Heizstab hebt auf Hoch; sonst der WP-Zyklus-Sollwert.
+        effective = t_high if self._heater_on else self._wp_target
+        target = int(min(max(int(effective), SET_TEMP_MIN), SET_TEMP_MAX))
         if int(current) != target:
-            if target < int(current):
-                # Runter immer (kein Anti-Takt nötig).
-                await coordinator.write_value(REG_SET_TEMP, target)
-                _LOGGER.debug("PV: Soll %d -> %d (runter, Überschuss %.0f W)",
-                              int(current), target, surplus)
-                self._announce(coordinator, target, surplus, up=False)
-            else:
-                # Hoch nur bei High oder erlaubtem Wiederanlauf, Speicher unter Ziel
-                # und Anti-Takt ok. Ausnahme: Heizstab-Dump (Hochstufe + ELEC) ist
-                # kein Verdichterzyklus -> kein Anti-Takt, darf sofort hoch.
-                up_ok = (desired == "high"
-                         or o.get(CONF_PV_RERAISE_ENABLED, DEFAULT_PV_RERAISE_ENABLED))
-                elec_dump = (desired == "high"
-                             and o.get(CONF_PV_ESCALATION, PV_ESC_NONE) == PV_ESC_ELEC)
-                if water < target and up_ok and (elec_dump or self._start_allowed(o, running, now)):
-                    await coordinator.write_value(REG_SET_TEMP, target)
-                    _LOGGER.debug("PV: Soll %d -> %d (hoch, Überschuss %.0f W, %s)",
-                                  int(current), target, surplus,
-                                  "WP läuft" if running else ("Heizstab-Dump" if elec_dump else "Stillstand ok"))
-                    self._announce(coordinator, target, surplus, up=True)
+            up = target > int(current)
+            await coordinator.write_value(REG_SET_TEMP, target)
+            _LOGGER.debug("PV: Soll %d -> %d (%s, Überschuss %.0f W, Heizstab %s)",
+                          int(current), target, "hoch" if up else "runter", surplus,
+                          "an" if self._heater_on else "aus")
+            self._announce(coordinator, target, surplus, up=up)
 
-        # Eskalation bei hohem Überschuss – greift in der Hochstufe AUCH bei stehender
-        # WP (Boost startet WP+Heizstab, ELEC dumpt in den Heizstab); idempotent.
-        await self._apply_escalation(coordinator, o, data, desired == "high", surplus)
+        # 5) Heizstab-Hardware idempotent setzen/aufräumen.
+        await self._apply_heater(coordinator, data, choice, surplus)
 
-    async def _apply_escalation(self, coordinator, o, data, high: bool, surplus: float) -> None:
-        """Eskalation bei hohem Überschuss – genau EINE Option (Boost ODER ELEC ODER
-        keine), daher kein Widerspruch möglich. Aufräumen (Boost-Bit löschen / Modus
-        zurücksetzen) geschieht, sobald die jeweilige Option nicht (mehr) aktiv ist –
-        auch beim Umschalten zwischen den Optionen.
+    async def _apply_heater(self, coordinator, data, choice, surplus: float) -> None:
+        """Boost-Bit (Reg 2) bzw. Modus ELEC (Reg 1) idempotent nach ``self._heater_on``
+        setzen – inkl. Aufräumen, wenn die Eskalations-Option gewechselt hat.
         """
-        choice = o.get(CONF_PV_ESCALATION, PV_ESC_NONE)
-        want_boost = high and choice == PV_ESC_BOOST
-        want_elec = high and choice == PV_ESC_ELEC
+        want_boost = self._heater_on and choice == PV_ESC_BOOST
+        want_elec = self._heater_on and choice == PV_ESC_ELEC
 
         # Boost-Bit (Reg 2)
         func = data.get(REG_FUNCTION)

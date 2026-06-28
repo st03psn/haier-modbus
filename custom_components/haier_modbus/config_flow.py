@@ -42,8 +42,6 @@ from .const import (
     CONF_PV_MODE,
     CONF_PV_MORNING_ENABLED,
     CONF_PV_MORNING_TIME,
-    CONF_PV_RERAISE_ENABLED,
-    CONF_PV_RERAISE_THRESHOLD,
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
@@ -64,8 +62,6 @@ from .const import (
     DEFAULT_PV_MODE,
     DEFAULT_PV_MORNING_ENABLED,
     DEFAULT_PV_MORNING_TIME,
-    DEFAULT_PV_RERAISE_ENABLED,
-    DEFAULT_PV_RERAISE_THRESHOLD,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
@@ -186,10 +182,6 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
         fields.update(
             {
                 vol.Optional(CONF_PV_HOLD, default=o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD)): _WATT,
-                vol.Optional(CONF_PV_RERAISE_THRESHOLD,
-                             default=o.get(CONF_PV_RERAISE_THRESHOLD, DEFAULT_PV_RERAISE_THRESHOLD)): _WATT,
-                vol.Optional(CONF_PV_RERAISE_ENABLED,
-                             default=o.get(CONF_PV_RERAISE_ENABLED, DEFAULT_PV_RERAISE_ENABLED)): bool,
                 vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
                 vol.Optional(CONF_PV_MORNING_ENABLED,
                              default=o.get(CONF_PV_MORNING_ENABLED, DEFAULT_PV_MORNING_ENABLED)): bool,

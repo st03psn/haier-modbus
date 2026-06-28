@@ -16,14 +16,16 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   - **Executor:** neue Entität `select.haier_hwhp_pv_program`
     (Aus/Grund/Überschuss/Boost) — ein externes HEMS (z. B. evcc) triggert die Programme;
     `pv.py` regelt nicht.
-  - **Hochstufen-Eskalation greift auch bei stehender WP:** Boost startet WP+Heizstab
-    (anti-takt-geschützt), reiner Heizstab (ELEC) dumpt Überschuss sofort ohne
-    Mindest-Stillstand (kein Verdichterzyklus) — z. B. nach dem Tageszyklus.
-  - **Hochstufe pendelt nicht mehr:** Sie bleibt aktiv, solange Überschuss ≥ Halte-
-    Schwelle (statt ≥ Hoch-Schwelle). Sonst hätte die selbst-verbrauchende Hochstufe
-    (Heizstab/Boost) ihren eigenen Überschuss „aufgefressen" und im 5-min-Takt gependelt.
-  - Default-Schwellen an gemessene Geräteleistung angepasst: Wiederanlauf 200 → **500 W**
-    (Verdichter ~400–520 W), Hoch 1200 → **1500 W** (Heizstab ~1500 W).
+  - **Zweischichtige Regelung (gegen Takten):**
+    - *WP-Zyklus* (Sollwert 50↔60): Morgen-Start als **einziger Kaltstart**/Tag; tagsüber
+      Anhebung auf Normal **nur bei laufender WP** (Piggyback) → keine kurzen Nachmittags-
+      Kaltstarts mehr.
+    - *Heizstab* (ad-hoc ab Hoch-Schwelle, **stoppt nie die WP**): **Boost** nur bei
+      laufender WP, **ELEC** nur bei stehender WP (Dump nach dem Tageszyklus, danach zurück
+      auf ECO + Grund-Sollwert). Geht der Überschuss weg, fällt nur der Heizstab weg
+      (Sollwert Hoch→Normal/Grund); die WP läuft unverändert weiter.
+    - „Wiederanlauf-Schwelle"/„Tages-Wiederanlauf" entfallen (durch Piggyback ersetzt);
+      Hoch-Schwelle-Default **1550 W** (Heizstab ~1500 W + Puffer).
   - Entfernt: „verfügbar"-Modell mit BWWP-Leistungssensor + Hysterese (`pv_bwwp_sensor`,
     `pv_normal`, `pv_hysteresis`). **Migration:** alter Haken „an" → Coordinator, sonst Aus.
   - `CONF_PV_HIGH`-Default 1500 → **1200 W** (jetzt Roh-Überschuss).

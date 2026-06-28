@@ -53,10 +53,8 @@ PV_MODE_EXECUTOR: Final = "executor"
 DEFAULT_PV_MODE: Final = PV_MODE_OFF
 
 CONF_PV_SENSOR: Final = "pv_sensor"            # Sensor PV-Überschuss in W (roh, ≥0)
-CONF_PV_HIGH: Final = "pv_high"                # Hoch-Schwelle Roh-Überschuss (W) -> 75 + Eskalation
-CONF_PV_HOLD: Final = "pv_hold"                # Halte-Schwelle: darüber bei 65 bleiben (W)
-CONF_PV_RERAISE_THRESHOLD: Final = "pv_reraise_threshold"  # Wiederanlauf-Schwelle (W) -> erneut 65
-CONF_PV_RERAISE_ENABLED: Final = "pv_reraise_enabled"      # Tages-Wiederanlauf erlauben (bool)
+CONF_PV_HIGH: Final = "pv_high"                # Hoch-Schwelle Roh-Überschuss (W) -> Heizstab-Schicht
+CONF_PV_HOLD: Final = "pv_hold"                # Halte-/Piggyback-Puffer: darüber WP-Zyklus halten (W)
 CONF_PV_MORNING_ENABLED: Final = "pv_morning_enabled"      # fixer Morgen-Start aktiv (bool)
 CONF_PV_MORNING_TIME: Final = "pv_morning_time"            # Uhrzeit Morgen-Start ("HH:MM")
 CONF_PV_TEMP_HIGH: Final = "pv_temp_high"      # Zieltemp bei hohem Überschuss
@@ -85,8 +83,6 @@ CONF_PV_BOOST: Final = "pv_boost"              # alt: bool, "zusätzlich Boost"
 CONF_PV_FORCE_ELEC: Final = "pv_force_elec"    # alt: bool, "Modus ELEC"
 
 DEFAULT_PV_HOLD: Final = 50
-DEFAULT_PV_RERAISE_THRESHOLD: Final = 500
-DEFAULT_PV_RERAISE_ENABLED: Final = True
 DEFAULT_PV_MORNING_ENABLED: Final = True
 DEFAULT_PV_MORNING_TIME: Final = "10:00"
 DEFAULT_PV_MIN_OFF: Final = 30
@@ -99,11 +95,10 @@ DEFAULT_EMERGENCY_CRITICAL: Final = 38
 DEFAULT_EMERGENCY_RECOVER: Final = 48
 
 # Schwellen auf den *rohen* PV-Überschuss (sensor.pv_uberschuss_watt, kappt bei 0):
-#  - Halte 50 W = solange noch Überschuss da ist, bei 65 bleiben
-#  - Wiederanlauf 500 W = deckt den Verdichter (~400–520 W gemessen), damit ein
-#    gestarteter Zyklus solar bleibt statt sofort wieder abzusinken (200 W reichten nicht)
-#  - hoch 1500 W = deckt den Heizstab (~1500 W); 75 + Eskalation (Boost: WP+Heizstab ~2000 W)
-DEFAULT_PV_HIGH: Final = 1500
+#  - Halte/Piggyback 50 W = kleiner Puffer; solange noch Überschuss da ist, WP-Zyklus
+#    halten/auf Normal verlängern (die WP läuft eh schon, kostet keine Extra-Leistung)
+#  - Hoch 1550 W = Heizstab-Schwelle (Heizstab ~1500 W + Puffer); mehr wird nie gezogen
+DEFAULT_PV_HIGH: Final = 1550
 DEFAULT_PV_TEMP_HIGH: Final = 75    # Geräte-Max (Reg 6, 35..75); Hochstufe = Überschuss verheizen, i. d. R. mit Boost
 DEFAULT_PV_TEMP_NORMAL: Final = 65
 DEFAULT_PV_TEMP_BASE: Final = 50

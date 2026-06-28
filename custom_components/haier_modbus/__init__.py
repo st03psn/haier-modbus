@@ -250,7 +250,8 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
         enabled = bool(o.pop(CONF_PV_ENABLED))
         o.setdefault(CONF_PV_MODE, PV_MODE_COORDINATOR if enabled else PV_MODE_OFF)
         changed = True
-    for legacy in ("pv_bwwp_sensor", "pv_normal", "pv_hysteresis"):
+    for legacy in ("pv_bwwp_sensor", "pv_normal", "pv_hysteresis",
+                   "pv_reraise_threshold", "pv_reraise_enabled"):
         if legacy in o:
             del o[legacy]
             changed = True
