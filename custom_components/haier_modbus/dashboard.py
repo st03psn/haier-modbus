@@ -152,6 +152,25 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         ]),
     ])
 
+    # PV-Live-Status (nur wenn ein PV-Sensor konfiguriert ist): aktuelle
+    # Regel-Stufe als Kachel + aktueller Überschuss, darunter der Tagesverlauf
+    # der Sollwert-Wechsel als Logbuch (die Einträge, die pv.py schreibt).
+    _set_temp_eid = eid("number", "set_temp")
+    _pv_status_eid = eid("sensor", "pv_status")
+    pv_logbook = {
+        "type": "logbook",
+        "title": "PV-Verlauf",
+        "hours_to_show": 24,
+        "entities": [e for e in (_set_temp_eid, _pv_status_eid) if e],
+    } if (pv_sensor and (_set_temp_eid or _pv_status_eid)) else None
+    pv_status_section = section("PV-Überschuss", [
+        grid([
+            tile("sensor", "pv_status", "PV-Regelung", vertical=True),
+            pv_tile,
+        ]),
+        pv_logbook,
+    ]) if pv_sensor else None
+
     # "Erfasst seit …"-Hinweis (dynamisches Datum aus dem 'seit'-Attribut).
     _heat_eid = eid("sensor", "heat_total")
     seit_md = {
@@ -172,7 +191,6 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "heat_year", "Wärmemenge (akt. Jahr)"),
         tile("sensor", "hp_elec_year", "WP-Strom (Jahr)"),
         tile("sensor", "heater_elec_year", "Heizstab (Jahr)"),
-        pv_tile,
     ]), seit_md])
 
     def statgraph(title: str, period: str, specs: list) -> dict | None:
@@ -244,6 +262,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         steuerung,
         temps,
         status,
+        pv_status_section,
         energie,
         section(None, [chart_month]),
         section(None, [chart_day]),
@@ -273,11 +292,17 @@ def _remove_legacy_yaml_dashboard(hass: HomeAssistant) -> None:
     Bestehende Installationen hatten ein nicht editierbares YAML-Dashboard; das
     wird hier entfernt, damit nicht zwei Einträge nebeneinander stehen. Die
     YAML-Datei bleibt liegen (schadet nicht), wird aber nicht mehr registriert.
+
+    Nur entfernen, wenn das Panel wirklich (noch) registriert ist – sonst loggt
+    ``frontend.async_remove_panel`` bei jedem Start ein „Removing unknown panel
+    haier-bwwp" als WARNING (das Panel ist längst weg). Das aktuelle Dashboard
+    (``haier-hwhp``, Storage) bleibt davon unberührt.
     """
-    try:
-        frontend.async_remove_panel(hass, DASHBOARD_LEGACY_URL_PATH)
-    except Exception:  # noqa: BLE001
-        pass
+    if DASHBOARD_LEGACY_URL_PATH in hass.data.get("frontend_panels", {}):
+        try:
+            frontend.async_remove_panel(hass, DASHBOARD_LEGACY_URL_PATH)
+        except Exception:  # noqa: BLE001
+            pass
     lovelace = hass.data.get("lovelace")
     dashboards = getattr(lovelace, "dashboards", None)
     if isinstance(dashboards, dict):

@@ -34,7 +34,7 @@
           "pv_mode": "PV mode"
         },
         "data_description": {
-          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus (morning start, hold/lower, daytime re-raise, high tier). Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs."
+          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus — fixed morning start, raise to the normal target only while the heat pump already runs (piggyback), plus an ad-hoc electric-heater tier above the high threshold. Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs."
         }
       },
       "pv_details": {
@@ -45,10 +45,8 @@
           "pv_temp_high": "Target temperature at high surplus (°C)",
           "pv_temp_normal": "Normal target temperature (°C)",
           "pv_temp_base": "Base target temperature (°C)",
-          "pv_hold": "Hold threshold – surplus (W)",
-          "pv_reraise_threshold": "Re-raise threshold – surplus (W)",
-          "pv_reraise_enabled": "Allow daytime re-raise",
-          "pv_high": "High threshold – surplus (W)",
+          "pv_hold": "Hold / piggyback buffer – surplus (W)",
+          "pv_high": "Electric-heater threshold – surplus (W)",
           "pv_morning_enabled": "Fixed morning start",
           "pv_morning_time": "Morning start time",
           "pv_debounce": "Debounce time (minutes)",
@@ -57,12 +55,11 @@
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
-          "pv_hold": "Stay at the normal target (65 °C) while surplus is above this; drop to base after the debounce time once it stays below.",
-          "pv_reraise_threshold": "When enabled, raise back to the normal target during the day once surplus exceeds this again (anti-short-cycle still applies).",
-          "pv_high": "Raise to the high target (75 °C) and run the escalation once surplus exceeds this (rare; also when the heat pump is off).",
-          "pv_morning_time": "Once per day at this time, if the water is below the base target, kick the setpoint to the normal target (65 °C) so the heat pump starts within the device ECO window.",
-          "pv_min_off": "Anti-short-cycle: a new cycle starts only after the compressor has been off this long. If it is already running, the tier is just extended (piggyback).",
-          "pv_escalation": "What to add once surplus passes the high threshold (also when the heat pump is off — e.g. dump surplus into the heater after the daily cycle). None: just the higher target. Boost: heat pump + electric heater together (efficient). Electric heater only (ELEC): heater on, heat pump OFF — inefficient, only to dump surplus."
+          "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the normal target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to base after the debounce time once surplus stays below this and the heater is off.",
+          "pv_high": "Electric-heater threshold (≈ 1550 W = heater ~1500 W + buffer). Above it the heater is added as an ad-hoc top-up at the high target: Boost while the heat pump runs, ELEC only while it is off. The heater never stops the pump — when surplus drops, only the heater goes away while the cycle keeps running.",
+          "pv_morning_time": "Once per day at this time, if the water is below the base target, kick the setpoint to the normal target so the heat pump starts within the device ECO window.",
+          "pv_min_off": "Anti-short-cycle for the morning start: a fresh cold start waits until the compressor has been off at least this long. Daytime raises happen only while the pump already runs (piggyback) and are unaffected.",
+          "pv_escalation": "What to add once surplus passes the high threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher setpoint. Boost: heat pump + electric heater together, only while the pump runs (efficient). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — inefficient, only to dump surplus, e.g. after the daily cycle. Back to ECO + base target once surplus is gone."
         }
       }
     },
@@ -97,7 +94,7 @@
           "emergency_recover": "Recovered water temperature (°C)"
         },
         "data_description": {
-          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus (morning start, hold/lower, daytime re-raise, high tier). Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs. The next page shows the fields for the chosen mode (skipped for Off).",
+          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus — fixed morning start, raise to the normal target only while the heat pump already runs (piggyback), plus an ad-hoc electric-heater tier above the high threshold. Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs. The next page shows the fields for the chosen mode (skipped for Off).",
           "emergency_enabled": "When the water gets critically cold, temporarily switches ECO→AUTO to heat immediately (even outside the ECO time window); back to ECO on recovery.",
           "emergency_critical": "Below this water temperature it switches from ECO to AUTO.",
           "emergency_recover": "At/above this water temperature it switches back to ECO."
@@ -111,10 +108,8 @@
           "pv_temp_high": "Target temperature at high surplus (°C)",
           "pv_temp_normal": "Normal target temperature (°C)",
           "pv_temp_base": "Base target temperature (°C)",
-          "pv_hold": "Hold threshold – surplus (W)",
-          "pv_reraise_threshold": "Re-raise threshold – surplus (W)",
-          "pv_reraise_enabled": "Allow daytime re-raise",
-          "pv_high": "High threshold – surplus (W)",
+          "pv_hold": "Hold / piggyback buffer – surplus (W)",
+          "pv_high": "Electric-heater threshold – surplus (W)",
           "pv_morning_enabled": "Fixed morning start",
           "pv_morning_time": "Morning start time",
           "pv_debounce": "Debounce time (minutes)",
@@ -123,12 +118,11 @@
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
-          "pv_hold": "Stay at the normal target (65 °C) while surplus is above this; drop to base after the debounce time once it stays below.",
-          "pv_reraise_threshold": "When enabled, raise back to the normal target during the day once surplus exceeds this again (anti-short-cycle still applies).",
-          "pv_high": "Raise to the high target (75 °C) and run the escalation once surplus exceeds this (rare; also when the heat pump is off).",
-          "pv_morning_time": "Once per day at this time, if the water is below the base target, kick the setpoint to the normal target (65 °C) so the heat pump starts within the device ECO window.",
-          "pv_min_off": "Anti-short-cycle: a new cycle starts only after the compressor has been off this long. If already running, the tier is just extended (piggyback).",
-          "pv_escalation": "What to add once surplus passes the high threshold (also when the heat pump is off — e.g. dump surplus into the heater after the daily cycle). None: just the higher target. Boost: heat pump + electric heater together (efficient). Electric heater only (ELEC): heater on, heat pump OFF — inefficient, only to dump surplus."
+          "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the normal target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to base after the debounce time once surplus stays below this and the heater is off.",
+          "pv_high": "Electric-heater threshold (≈ 1550 W = heater ~1500 W + buffer). Above it the heater is added as an ad-hoc top-up at the high target: Boost while the heat pump runs, ELEC only while it is off. The heater never stops the pump — when surplus drops, only the heater goes away while the cycle keeps running.",
+          "pv_morning_time": "Once per day at this time, if the water is below the base target, kick the setpoint to the normal target so the heat pump starts within the device ECO window.",
+          "pv_min_off": "Anti-short-cycle for the morning start: a fresh cold start waits until the compressor has been off at least this long. Daytime raises happen only while the pump already runs (piggyback) and are unaffected.",
+          "pv_escalation": "What to add once surplus passes the high threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher setpoint. Boost: heat pump + electric heater together, only while the pump runs (efficient). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — inefficient, only to dump surplus, e.g. after the daily cycle. Back to ECO + base target once surplus is gone."
         }
       }
     },
@@ -179,6 +173,16 @@
       "cop_month": { "name": "COP (month)" },
       "cop_year": { "name": "SPF (year)" },
       "cop_prev_year": { "name": "SPF (last year)" },
+      "pv_status": {
+        "name": "PV control status",
+        "state": {
+          "off": "Off",
+          "base": "Base",
+          "normal": "Normal (piggyback)",
+          "high_boost": "High + Boost",
+          "high_elec": "High + ELEC"
+        }
+      },
       "link_status": {
         "name": "Modbus status",
         "state": {

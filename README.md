@@ -125,19 +125,32 @@ Boost-Switch) bleiben in jedem Modus beschreibbar. Der **38-°C-Guard** ist ein 
 separater Haken und bleibt als lokales WW-Sicherheitsnetz aktiv.
 
 ### Coordinator (Integration regelt selbst)
-Dreistufig (50/65/75) nach **rohem** Überschuss, pendelfrei gemacht durch:
+Nach **rohem** Überschuss, in **zwei unabhängigen Schichten** — bewusst so gebaut, dass
+die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts):
 
+**Schicht 1 — WP-Zyklus (Grund ↔ Normal):**
 - **Morgen-Start (fix):** einmal/Tag zur konfigurierten Uhrzeit (Default 10:00 =
-  ECO-Fensterstart) ein 65er-Kick, wenn das Wasser noch unter der Grundtemperatur liegt.
-- **Halten/Absenken:** über der **Halte-Schwelle** (Default 50 W) bei 65 bleiben; fällt
-  der Überschuss für die **Entprellzeit** (5 min) darunter → zurück auf 50.
-- **Wiederanlauf (Option):** kommt tagsüber wieder Überschuss über die
-  **Wiederanlauf-Schwelle** (Default 200 W) → erneut 65, mit **Anti-Takt** (Piggyback,
-  solange die WP läuft; sonst erst nach Mindest-Stillstand, Default 30 min).
-- **75 + Eskalation:** bei sehr hohem Überschuss (**Hoch-Schwelle**, Default 1200 W)
-  zusätzlich **Boost** oder **Heizstab (ELEC)** — greift **auch bei stehender WP**:
-  Boost startet WP+Heizstab (anti-takt-geschützt), reiner Heizstab (ELEC) dumpt sofort
-  (kein Verdichterzyklus), z. B. um nach dem Tageszyklus Überschuss zu verheizen.
+  ECO-Fensterstart) ein Kick auf Normal, wenn das Wasser noch unter der Grundtemperatur
+  liegt — der **einzige Kaltstart** des Tages.
+- **Anheben auf Normal nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
+  (Default 50 W) → kein Tages-Kaltstart, kein Takten.
+- **Absenken** auf Grund, wenn der Überschuss für die **Entprellzeit** (5 min) unter die
+  Halte-Schwelle fällt **und** der Heizstab aus ist.
+
+**Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt nie die WP):** ab der **Hoch-Schwelle**
+(Default 1550 W = Heizstab ~1500 W + Puffer) auf die Hochtemperatur plus:
+- **Boost** (WP + Heizstab) **nur bei laufender** WP,
+- **Heizstab (ELEC)** **nur bei stehender** WP (ELEC würde die WP sonst stoppen) — dumpt
+  sofort, z. B. um nach dem Tageszyklus Überschuss zu verheizen; danach zurück auf ECO +
+  Grundtemperatur.
+
+Fällt der Überschuss weg, geht **nur der Heizstab** weg (Sollwert Hoch→Normal/Grund); die
+WP läuft unverändert weiter. Solange der Heizstab an ist, hält Schicht 1 die Normalstufe.
+
+Den aktuellen Zustand zeigt der Diagnose-Sensor **„PV-Regelung Status"**
+(`sensor.haier_hwhp_pv_status`: Aus / Grund / Normal / Hoch + Boost / Hoch + ELEC, mit
+Überschuss/Sollwert/WP/Heizstab als Attributen); das mitgelieferte Dashboard hat dafür
+eine eigene **PV-Sektion** (Status-Kachel + Logbuch-Verlauf).
 
 Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar.
 

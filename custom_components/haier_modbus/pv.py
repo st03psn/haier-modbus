@@ -109,6 +109,21 @@ class PvController:
         self._last_logged: int | None = None
         self._setpoint_eid: str | None = None
         self._last_kick_day = None             # Datum des letzten Morgen-Starts (1×/Tag)
+        # Live-Status (vom Diagnose-Sensor gelesen): aktueller Regel-Zustand.
+        #   state: off | base | normal | high_boost | high_elec
+        self.status: dict = {
+            "state": "off", "surplus": None, "setpoint": None,
+            "running": None, "heater": False,
+        }
+
+    def _set_status(self, state, surplus, setpoint, running, heater) -> None:
+        self.status = {
+            "state": state,
+            "surplus": None if surplus is None else round(float(surplus)),
+            "setpoint": None if setpoint is None else int(setpoint),
+            "running": running,
+            "heater": heater,
+        }
 
     def _reset(self) -> None:
         self._wp_cand = None
@@ -171,6 +186,7 @@ class PvController:
         o = coordinator.entry.options
         if o.get(CONF_PV_MODE) != PV_MODE_COORDINATOR:
             self._reset()
+            self._set_status("off", None, None, None, False)
             return
 
         surplus = state_float(self.hass, o.get(CONF_PV_SENSOR))
@@ -212,6 +228,7 @@ class PvController:
                 await coordinator.write_value(REG_SET_TEMP, target)
                 _LOGGER.debug("PV: Morgen-Start Soll -> %d (Überschuss %.0f W)", target, surplus)
                 self._announce(coordinator, target, surplus, up=True)
+                self._set_status("normal", surplus, target, running, False)
                 return
 
         # 2) Schicht 2 – Heizstab (entprellt). Boost nur wenn WP läuft, ELEC nur wenn WP aus.
@@ -249,6 +266,17 @@ class PvController:
 
         # 5) Heizstab-Hardware idempotent setzen/aufräumen.
         await self._apply_heater(coordinator, data, choice, surplus)
+
+        # 6) Live-Status für den Diagnose-Sensor ableiten.
+        if self._heater_on and choice == PV_ESC_BOOST:
+            state = "high_boost"
+        elif self._heater_on and choice == PV_ESC_ELEC:
+            state = "high_elec"
+        elif self._wp_target >= t_normal - 0.5:
+            state = "normal"
+        else:
+            state = "base"
+        self._set_status(state, surplus, target, running, self._heater_on)
 
     async def _apply_heater(self, coordinator, data, choice, surplus: float) -> None:
         """Boost-Bit (Reg 2) bzw. Modus ELEC (Reg 1) idempotent nach ``self._heater_on``

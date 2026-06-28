@@ -106,6 +106,7 @@ async def async_setup_entry(
     entities.append(HaierCopSensor(coordinator, entry, "year"))
     entities.append(HaierPrevYearCop(coordinator))
     entities.append(HaierLinkStatus(coordinator))
+    entities.append(HaierPvStatus(coordinator))
     async_add_entities(entities)
 
 
@@ -134,6 +135,43 @@ class HaierLinkStatus(HaierModbusEntity, SensorEntity):
     @property
     def native_value(self):
         return self.coordinator.link_status
+
+
+class HaierPvStatus(HaierModbusEntity, SensorEntity):
+    """Live-Status der PV-Überschuss-Regelung (Coordinator-Modus).
+
+    Zeigt bei jedem Poll, was ``pv.py`` gerade tut — die WP-Zyklus-Stufe und ob
+    der Heizstab als ad-hoc Zusatz läuft. Als Attribute: aktueller Überschuss,
+    effektiver Sollwert, „WP läuft", „Heizstab an". Im Modus Aus/Executor: ``off``.
+    """
+
+    _attr_translation_key = "pv_status"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["off", "base", "normal", "high_boost", "high_elec"]
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:solar-power-variant"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_pv_status"
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self):
+        return self.coordinator.pv.status.get("state")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        s = self.coordinator.pv.status
+        return {
+            "surplus_w": s.get("surplus"),
+            "setpoint_c": s.get("setpoint"),
+            "hp_running": s.get("running"),
+            "heater_on": s.get("heater"),
+        }
 
 
 # Reg-3-Bits -> (Schlüssel, Reihenfolge = Anzeigereihenfolge).

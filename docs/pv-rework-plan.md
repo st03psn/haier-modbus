@@ -5,6 +5,17 @@
 > Betrifft `custom_components/haier_modbus/pv.py`, `config_flow.py`, `const.py`,
 > Übersetzungen, `__init__.py` (Migration), `select.py` (neue Programm-Entität) und Doku.
 > Erarbeitet 2026-06-28.
+>
+> **Hinweis zur finalen Umsetzung (gegenüber diesem Plan weiterentwickelt):** Der
+> Coordinator regelt in v1.11.0 **zwei unabhängige Schichten** statt einer Stufenleiter
+> mit Wiederanlauf. Schicht 1 (WP-Zyklus Grund↔Normal) hebt **nur bei laufender WP** an
+> (Piggyback) — der Morgen-Start ist der einzige Kaltstart/Tag. Schicht 2 (Heizstab ab
+> Hoch-Schwelle) ist ein **ad-hoc Zusatz, der die WP nie stoppt**: Boost nur bei laufender
+> WP, ELEC nur bei stehender WP. **Entfallen:** „Wiederanlauf-Schwelle"/„Tages-Wiederanlauf"
+> (`pv_reraise_*`, durch Piggyback ersetzt). **Geändert:** `DEFAULT_PV_HIGH` = **1550 W**
+> (Heizstab-Schwelle), nicht 1200. **Neu:** Diagnose-Sensor `sensor.haier_hwhp_pv_status`
+> (Live-Status) + PV-Dashboard-Sektion. Maßgeblich sind CHANGELOG/README und der Code in
+> `pv.py`; die Stufen-Pseudocode-Abschnitte unten zeigen den ursprünglichen Planungsstand.
 
 ---
 
