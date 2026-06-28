@@ -5,13 +5,21 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
-## [Unreleased]
-### Geplant
+## [1.11.0] - 2026-06-28
 - **PV-Steuerung mit Betriebsmodi** statt Bool-Haken: **Aus / Coordinator / Executor
-  (HEMS-Client)**. Coordinator = Integration regelt selbst (Roh-Überschuss-Modell +
-  pünktlicher Morgen-Start + optionaler Wiederanlauf). Executor = Integration stellt
-  Programme (Aus/Grund/Überschuss/Boost) bereit, ein externes HEMS (z. B. evcc) triggert
-  sie. Plan: [`docs/pv-rework-plan.md`](docs/pv-rework-plan.md).
+  (HEMS-Client)** (Dropdown „PV-Modus").
+  - **Coordinator:** Integration regelt selbst nach **rohem** PV-Überschuss
+    (`sensor.pv_uberschuss_watt`) — fixer **Morgen-Start** (Default 10:00), **Halten**
+    über der Halte-Schwelle (50 W), **Absenken** nach Entprellung (5 min), optionaler
+    **Wiederanlauf** (200 W, Anti-Takt), **75 + Eskalation** (Boost/ELEC) ab Hoch-Schwelle
+    (1200 W). Halte-/Wiederanlauf-/Morgen-Felder neu konfigurierbar.
+  - **Executor:** neue Entität `select.haier_hwhp_pv_program`
+    (Aus/Grund/Überschuss/Boost) — ein externes HEMS (z. B. evcc) triggert die Programme;
+    `pv.py` regelt nicht.
+  - Entfernt: „verfügbar"-Modell mit BWWP-Leistungssensor + Hysterese (`pv_bwwp_sensor`,
+    `pv_normal`, `pv_hysteresis`). **Migration:** alter Haken „an" → Coordinator, sonst Aus.
+  - `CONF_PV_HIGH`-Default 1500 → **1200 W** (jetzt Roh-Überschuss).
+- Plan/Referenz (inkl. evcc-Beispiel): [`docs/pv-rework-plan.md`](docs/pv-rework-plan.md).
 
 ## [1.10.6] - 2026-06-26
 - Eigenes Integrations-Icon mitgeliefert (`custom_components/haier_modbus/brand/`); HA 2026.3+

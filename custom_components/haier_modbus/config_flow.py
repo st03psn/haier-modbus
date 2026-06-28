@@ -34,14 +34,16 @@ from .const import (
     CONF_HOST,
     CONF_MODEL,
     CONF_PORT,
-    CONF_PV_BWWP_SENSOR,
     CONF_PV_DEBOUNCE,
-    CONF_PV_ENABLED,
     CONF_PV_ESCALATION,
     CONF_PV_HIGH,
-    CONF_PV_HYSTERESIS,
+    CONF_PV_HOLD,
     CONF_PV_MIN_OFF,
-    CONF_PV_NORMAL,
+    CONF_PV_MODE,
+    CONF_PV_MORNING_ENABLED,
+    CONF_PV_MORNING_TIME,
+    CONF_PV_RERAISE_ENABLED,
+    CONF_PV_RERAISE_THRESHOLD,
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
@@ -57,9 +59,13 @@ from .const import (
     DEFAULT_PV_DEBOUNCE,
     DEFAULT_PV_ESCALATION,
     DEFAULT_PV_HIGH,
-    DEFAULT_PV_HYSTERESIS,
+    DEFAULT_PV_HOLD,
     DEFAULT_PV_MIN_OFF,
-    DEFAULT_PV_NORMAL,
+    DEFAULT_PV_MODE,
+    DEFAULT_PV_MORNING_ENABLED,
+    DEFAULT_PV_MORNING_TIME,
+    DEFAULT_PV_RERAISE_ENABLED,
+    DEFAULT_PV_RERAISE_THRESHOLD,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
@@ -70,6 +76,9 @@ from .const import (
     PV_ESC_BOOST,
     PV_ESC_ELEC,
     PV_ESC_NONE,
+    PV_MODE_COORDINATOR,
+    PV_MODE_EXECUTOR,
+    PV_MODE_OFF,
     READ_START,
     SET_TEMP_MAX,
     SET_TEMP_MIN,
@@ -89,6 +98,14 @@ _ESCALATION = selector.SelectSelector(
         mode=selector.SelectSelectorMode.DROPDOWN,
     )
 )
+_PV_MODE = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[PV_MODE_OFF, PV_MODE_COORDINATOR, PV_MODE_EXECUTOR],
+        translation_key="pv_mode",
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+_TIME = selector.TimeSelector()
 _SCALE = selector.NumberSelector(
     selector.NumberSelectorConfig(min=0.001, max=1000, step=0.001, mode=selector.NumberSelectorMode.BOX)
 )
@@ -131,26 +148,48 @@ def _cop_schema(o: dict[str, Any]) -> vol.Schema:
 
 
 def _pv_schema(o: dict[str, Any]) -> vol.Schema:
-    """PV-Überschuss-Steuerung – im Wizard und im Options-Flow identisch.
+    """PV-Betriebsmodus + Felder – im Wizard und im Options-Flow identisch.
 
-    Die Aktivierung samt Schwellen erscheint NUR, wenn bereits ein PV-Sensor
-    konfiguriert ist (HA-Formulare können Felder nicht abhängig ausgrauen –
-    daher werden sie erst eingeblendet, sobald ein Sensor gespeichert wurde).
-    Ohne Sensor wird nur das Sensor-Feld gezeigt.
+    Oberster Schalter ist der **PV-Modus** (Aus/Coordinator/Executor). HA-Formulare
+    können Felder nicht live abhängig vom Dropdown ein-/ausblenden – daher richten
+    sich die zusätzlichen Felder nach dem *gespeicherten* Modus (nach dem Übernehmen
+    erscheinen sie beim erneuten Öffnen):
+      - **Coordinator:** PV-Sensor, Zieltemps und alle Regel-Schwellen.
+      - **Executor:** nur die Zieltemps (Mechanik fürs Programm-Select); geregelt
+        wird über ``select.haier_hwhp_pv_program`` durch das HEMS.
     """
-    fields: dict[Any, Any] = {vol.Optional(CONF_PV_SENSOR): _PV_SENSOR}
-    if o.get(CONF_PV_SENSOR):
+    fields: dict[Any, Any] = {
+        vol.Optional(CONF_PV_MODE, default=o.get(CONF_PV_MODE, DEFAULT_PV_MODE)): _PV_MODE,
+        # Immer sichtbar, damit der Sensor im selben Schritt gesetzt werden kann,
+        # in dem auf Coordinator umgestellt wird (sonst Validierungs-Sackgasse).
+        vol.Optional(CONF_PV_SENSOR): _PV_SENSOR,
+    }
+    mode = o.get(CONF_PV_MODE, DEFAULT_PV_MODE)
+
+    if mode in (PV_MODE_COORDINATOR, PV_MODE_EXECUTOR):
+        # Zieltemps sind die gemeinsame Mechanik beider Modi.
         fields.update(
             {
-                vol.Optional(CONF_PV_ENABLED, default=o.get(CONF_PV_ENABLED, False)): bool,
-                vol.Optional(CONF_PV_BWWP_SENSOR): _PV_SENSOR,
-                vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
-                vol.Optional(CONF_PV_NORMAL, default=o.get(CONF_PV_NORMAL, DEFAULT_PV_NORMAL)): _WATT,
-                vol.Optional(CONF_PV_HYSTERESIS,
-                             default=o.get(CONF_PV_HYSTERESIS, DEFAULT_PV_HYSTERESIS)): _WATT,
                 vol.Optional(CONF_PV_TEMP_HIGH, default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH)): _TEMP,
-                vol.Optional(CONF_PV_TEMP_NORMAL, default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP,
+                vol.Optional(CONF_PV_TEMP_NORMAL,
+                             default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP,
                 vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP,
+            }
+        )
+
+    if mode == PV_MODE_COORDINATOR:
+        fields.update(
+            {
+                vol.Optional(CONF_PV_HOLD, default=o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD)): _WATT,
+                vol.Optional(CONF_PV_RERAISE_THRESHOLD,
+                             default=o.get(CONF_PV_RERAISE_THRESHOLD, DEFAULT_PV_RERAISE_THRESHOLD)): _WATT,
+                vol.Optional(CONF_PV_RERAISE_ENABLED,
+                             default=o.get(CONF_PV_RERAISE_ENABLED, DEFAULT_PV_RERAISE_ENABLED)): bool,
+                vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
+                vol.Optional(CONF_PV_MORNING_ENABLED,
+                             default=o.get(CONF_PV_MORNING_ENABLED, DEFAULT_PV_MORNING_ENABLED)): bool,
+                vol.Optional(CONF_PV_MORNING_TIME,
+                             default=o.get(CONF_PV_MORNING_TIME, DEFAULT_PV_MORNING_TIME)): _TIME,
                 vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
                 vol.Optional(CONF_PV_MIN_OFF, default=o.get(CONF_PV_MIN_OFF, DEFAULT_PV_MIN_OFF)): int,
                 vol.Optional(CONF_PV_ESCALATION,
@@ -258,7 +297,7 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             cleaned = {k: v for k, v in user_input.items() if v not in ("", None)}
-            if cleaned.get(CONF_PV_ENABLED) and not cleaned.get(CONF_PV_SENSOR):
+            if cleaned.get(CONF_PV_MODE) == PV_MODE_COORDINATOR and not cleaned.get(CONF_PV_SENSOR):
                 errors["base"] = "pv_sensor_required"
             else:
                 return self.async_create_entry(title="", data=cleaned)

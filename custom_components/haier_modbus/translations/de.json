@@ -29,27 +29,32 @@
       },
       "pv": {
         "title": "Haier BWWP – PV-Überschuss (optional)",
-        "description": "Optionale Steuerung der Solltemperatur nach *verfügbarem* Solarstrom (PV-Überschuss + aktuelle WP-Aufnahme). Aktivieren, Überschuss-Sensor (W) wählen und den BWWP-Leistungssensor angeben, damit der WP-Eigenverbrauch angerechnet wird. Hysterese und Anti-Takt halten das Takten gesund. Später jederzeit unter „Konfigurieren“ änderbar.",
+        "description": "Optionale PV-Überschuss-Steuerung. Betriebsmodus wählen: Aus (nur die rohen Entitäten + 38-°C-Guard), Coordinator (die Integration regelt den Sollwert selbst nach rohem PV-Überschuss + fixem Morgen-Start) oder Executor (ein externes HEMS regelt über select.haier_hwhp_pv_program). Für Coordinator zusätzlich den Überschuss-Sensor (W) wählen. Die Detailfelder erscheinen, nachdem der Modus übernommen wurde. Später jederzeit unter „Konfigurieren“ änderbar.",
         "data": {
-          "pv_enabled": "PV-Überschuss-Steuerung aktiv",
+          "pv_mode": "PV-Modus",
           "pv_sensor": "PV-Überschuss-Sensor (W)",
-          "pv_bwwp_sensor": "BWWP-Leistungssensor (W)",
-          "pv_high": "Schwelle hoch – verfügbarer Solarstrom (W)",
-          "pv_normal": "Schwelle normal – verfügbarer Solarstrom (W)",
-          "pv_hysteresis": "Rückschalt-Hysterese (W)",
           "pv_temp_high": "Zieltemperatur bei hohem Überschuss (°C)",
-          "pv_temp_normal": "Zieltemperatur bei normalem Überschuss (°C)",
-          "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
+          "pv_temp_normal": "Normal-Zieltemperatur (°C)",
+          "pv_temp_base": "Grund-Zieltemperatur (°C)",
+          "pv_hold": "Halte-Schwelle – Überschuss (W)",
+          "pv_reraise_threshold": "Wiederanlauf-Schwelle – Überschuss (W)",
+          "pv_reraise_enabled": "Tages-Wiederanlauf erlauben",
+          "pv_high": "Hoch-Schwelle – Überschuss (W)",
+          "pv_morning_enabled": "Fixer Morgen-Start",
+          "pv_morning_time": "Uhrzeit Morgen-Start",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
           "pv_escalation": "Eskalation bei hohem Überschuss"
         },
         "data_description": {
-          "pv_bwwp_sensor": "Wird zum PV-Überschuss addiert und ergibt den verfügbaren Solarstrom – unabhängig davon, ob die WP gerade läuft, was Pendeln verhindert. Empfohlen; ohne ihn fällt die Regelung auf den rohen Überschuss zurück (Pendel-Gefahr) und ist nur eingeschränkt sinnvoll.",
-          "pv_high": "Hochschalten auf die Hochstufe, sobald der verfügbare Solarstrom diesen Wert erreicht; zurück bei diesem Wert minus Hysterese.",
-          "pv_normal": "Hochschalten auf die Normalstufe, sobald der verfügbare Solarstrom diesen Wert erreicht (≈ max. WP-Aufnahme + etwas Reserve); zurück auf Grund bei diesem Wert minus Hysterese.",
+          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss (Morgen-Start, Halten/Absenken, Tages-Wiederanlauf, Hochstufe). Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit.",
+          "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
+          "pv_hold": "Bei der Normal-Zieltemperatur (65 °C) bleiben, solange der Überschuss darüber liegt; nach der Entprellzeit auf Grund absenken, sobald er darunter bleibt.",
+          "pv_reraise_threshold": "Wenn erlaubt, tagsüber erneut auf die Normal-Zieltemperatur hoch, sobald der Überschuss diesen Wert wieder überschreitet (Anti-Takt gilt weiter).",
+          "pv_high": "Auf die Hoch-Zieltemperatur (75 °C) hoch und die Eskalation fahren, sobald der Überschuss diesen Wert übersteigt (selten; nur während die WP läuft).",
+          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Grund-Zieltemperatur liegt, den Sollwert auf die Normal-Zieltemperatur (65 °C) anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt: Ein neuer Zyklus startet erst, wenn der Verdichter so lange aus war. Läuft die WP bereits, wird die Stufe nur verlängert (Piggyback).",
-          "pv_escalation": "Was bei hohem verfügbarem Solarstrom zusätzlich passiert (nur während die WP läuft). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss."
+          "pv_escalation": "Was bei hohem Überschuss zusätzlich passiert (nur während die WP läuft). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss."
         }
       }
     },
@@ -78,15 +83,17 @@
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh) — leer = Modbus-Register",
           "energy_scale": "Skalierung der kWh-Register (×)",
           "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)",
-          "pv_enabled": "PV-Überschuss-Steuerung aktiv",
+          "pv_mode": "PV-Modus",
           "pv_sensor": "PV-Überschuss-Sensor (W)",
-          "pv_bwwp_sensor": "BWWP-Leistungssensor (W)",
-          "pv_high": "Schwelle hoch – verfügbarer Solarstrom (W)",
-          "pv_normal": "Schwelle normal – verfügbarer Solarstrom (W)",
-          "pv_hysteresis": "Rückschalt-Hysterese (W)",
           "pv_temp_high": "Zieltemperatur bei hohem Überschuss (°C)",
-          "pv_temp_normal": "Zieltemperatur bei normalem Überschuss (°C)",
-          "pv_temp_base": "Grund-Zieltemperatur ohne Überschuss (°C)",
+          "pv_temp_normal": "Normal-Zieltemperatur (°C)",
+          "pv_temp_base": "Grund-Zieltemperatur (°C)",
+          "pv_hold": "Halte-Schwelle – Überschuss (W)",
+          "pv_reraise_threshold": "Wiederanlauf-Schwelle – Überschuss (W)",
+          "pv_reraise_enabled": "Tages-Wiederanlauf erlauben",
+          "pv_high": "Hoch-Schwelle – Überschuss (W)",
+          "pv_morning_enabled": "Fixer Morgen-Start",
+          "pv_morning_time": "Uhrzeit Morgen-Start",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
           "pv_escalation": "Eskalation bei hohem Überschuss",
@@ -95,11 +102,14 @@
           "emergency_recover": "Erholt-Wassertemperatur (°C)"
         },
         "data_description": {
-          "pv_bwwp_sensor": "Wird zum PV-Überschuss addiert und ergibt den verfügbaren Solarstrom – unabhängig vom WP-Schaltzustand, was Pendeln verhindert. Empfohlen; ohne ihn fällt die Regelung auf den rohen Überschuss zurück (Pendel-Gefahr) und ist nur eingeschränkt sinnvoll.",
-          "pv_high": "Hochschalten auf die Hochstufe, sobald der verfügbare Solarstrom diesen Wert erreicht; zurück bei diesem Wert minus Hysterese.",
-          "pv_normal": "Hochschalten auf die Normalstufe, sobald der verfügbare Solarstrom diesen Wert erreicht (≈ max. WP-Aufnahme + etwas Reserve); zurück auf Grund bei diesem Wert minus Hysterese.",
+          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss (Morgen-Start, Halten/Absenken, Tages-Wiederanlauf, Hochstufe). Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit.",
+          "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
+          "pv_hold": "Bei der Normal-Zieltemperatur (65 °C) bleiben, solange der Überschuss darüber liegt; nach der Entprellzeit auf Grund absenken, sobald er darunter bleibt.",
+          "pv_reraise_threshold": "Wenn erlaubt, tagsüber erneut auf die Normal-Zieltemperatur hoch, sobald der Überschuss diesen Wert wieder überschreitet (Anti-Takt gilt weiter).",
+          "pv_high": "Auf die Hoch-Zieltemperatur (75 °C) hoch und die Eskalation fahren, sobald der Überschuss diesen Wert übersteigt (selten; nur während die WP läuft).",
+          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Grund-Zieltemperatur liegt, den Sollwert auf die Normal-Zieltemperatur (65 °C) anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt: Ein neuer Zyklus startet erst, wenn der Verdichter so lange aus war. Läuft die WP bereits, wird die Stufe nur verlängert (Piggyback).",
-          "pv_escalation": "Was bei hohem verfügbarem Solarstrom zusätzlich passiert (nur während die WP läuft). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss.",
+          "pv_escalation": "Was bei hohem Überschuss zusätzlich passiert (nur während die WP läuft). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss.",
           "emergency_enabled": "Schaltet bei kritisch niedriger Wassertemperatur vorübergehend ECO→AUTO, damit sofort geheizt wird (auch außerhalb des ECO-Zeitfensters); bei Erholung zurück zu ECO.",
           "emergency_critical": "Unter dieser Wassertemperatur wird von ECO auf AUTO geschaltet.",
           "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet."
@@ -111,6 +121,13 @@
     }
   },
   "selector": {
+    "pv_mode": {
+      "options": {
+        "off": "Aus",
+        "coordinator": "Coordinator (Integration regelt)",
+        "executor": "Executor (externes HEMS)"
+      }
+    },
     "pv_escalation": {
       "options": {
         "none": "Keine (nur höhere Zieltemperatur)",
@@ -163,7 +180,16 @@
       "connection": { "name": "Verbindung" }
     },
     "select": {
-      "mode_select": { "name": "Modus wählen" }
+      "mode_select": { "name": "Modus wählen" },
+      "pv_program": {
+        "name": "PV-Programm",
+        "state": {
+          "aus": "Aus",
+          "grund": "Grund (50 °C, ECO)",
+          "ueberschuss": "Überschuss (65 °C, AUTO)",
+          "boost": "Boost (75 °C + Heizstab)"
+        }
+      }
     },
     "switch": {
       "active": { "name": "Betrieb" },

@@ -1,6 +1,7 @@
 # Umsetzungsplan: PV-Steuerung — Betriebsmodi (Aus / Coordinator / Executor) + Überschuss-Modell
 
-> Status: **geplant, noch nicht umgesetzt.** In frischer Sitzung implementieren.
+> Status: **umgesetzt in v1.11.0.** Dieses Dokument bleibt als Referenz (u. a. das
+> evcc-Beispiel in Kap. 11, auf das die README verweist).
 > Betrifft `custom_components/haier_modbus/pv.py`, `config_flow.py`, `const.py`,
 > Übersetzungen, `__init__.py` (Migration), `select.py` (neue Programm-Entität) und Doku.
 > Erarbeitet 2026-06-28.
