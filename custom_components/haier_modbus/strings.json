@@ -28,10 +28,19 @@
         }
       },
       "pv": {
-        "title": "Haier HWHP – PV surplus (optional)",
-        "description": "Optional PV-surplus control. Pick the operating mode: Off (only the raw entities + 38 °C guard), Coordinator (the integration controls the setpoint itself from the raw PV surplus + a fixed morning start), or Executor (an external HEMS controls it via select.haier_hwhp_pv_program). For Coordinator also pick the surplus sensor (W). The detailed fields appear after applying the mode. Changeable later via \"Configure\".",
+        "title": "Haier HWHP – PV mode",
+        "description": "Optional PV-surplus control. Pick the operating mode: Off (only the raw entities + 38 °C guard), Coordinator (the integration controls the setpoint itself from the raw PV surplus + a fixed morning start), or Executor (an external HEMS controls it via select.haier_hwhp_pv_program). The next page shows exactly the fields for the chosen mode. Changeable later via \"Configure\".",
         "data": {
-          "pv_mode": "PV mode",
+          "pv_mode": "PV mode"
+        },
+        "data_description": {
+          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus (morning start, hold/lower, daytime re-raise, high tier). Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs."
+        }
+      },
+      "pv_details": {
+        "title": "Haier HWHP – PV settings",
+        "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
+        "data": {
           "pv_sensor": "PV surplus sensor (W)",
           "pv_temp_high": "Target temperature at high surplus (°C)",
           "pv_temp_normal": "Normal target temperature (°C)",
@@ -47,7 +56,6 @@
           "pv_escalation": "Escalation at high surplus"
         },
         "data_description": {
-          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus (morning start, hold/lower, daytime re-raise, high tier). Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs.",
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
           "pv_hold": "Stay at the normal target (65 °C) while surplus is above this; drop to base after the debounce time once it stays below.",
           "pv_reraise_threshold": "When enabled, raise back to the normal target during the day once surplus exceeds this again (anti-short-cycle still applies).",
@@ -84,6 +92,21 @@
           "energy_scale": "kWh register scaling (x)",
           "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)",
           "pv_mode": "PV mode",
+          "emergency_enabled": "Emergency reheat (ECO→AUTO at critical temperature)",
+          "emergency_critical": "Critical water temperature (°C)",
+          "emergency_recover": "Recovered water temperature (°C)"
+        },
+        "data_description": {
+          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus (morning start, hold/lower, daytime re-raise, high tier). Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs. The next page shows the fields for the chosen mode (skipped for Off).",
+          "emergency_enabled": "When the water gets critically cold, temporarily switches ECO→AUTO to heat immediately (even outside the ECO time window); back to ECO on recovery.",
+          "emergency_critical": "Below this water temperature it switches from ECO to AUTO.",
+          "emergency_recover": "At/above this water temperature it switches back to ECO."
+        }
+      },
+      "pv": {
+        "title": "Haier HWHP – PV settings",
+        "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
+        "data": {
           "pv_sensor": "PV surplus sensor (W)",
           "pv_temp_high": "Target temperature at high surplus (°C)",
           "pv_temp_normal": "Normal target temperature (°C)",
@@ -96,23 +119,16 @@
           "pv_morning_time": "Morning start time",
           "pv_debounce": "Debounce time (minutes)",
           "pv_min_off": "Minimum off-time before restart (min)",
-          "pv_escalation": "Escalation at high surplus",
-          "emergency_enabled": "Emergency reheat (ECO→AUTO at critical temperature)",
-          "emergency_critical": "Critical water temperature (°C)",
-          "emergency_recover": "Recovered water temperature (°C)"
+          "pv_escalation": "Escalation at high surplus"
         },
         "data_description": {
-          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus (morning start, hold/lower, daytime re-raise, high tier). Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs.",
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
           "pv_hold": "Stay at the normal target (65 °C) while surplus is above this; drop to base after the debounce time once it stays below.",
           "pv_reraise_threshold": "When enabled, raise back to the normal target during the day once surplus exceeds this again (anti-short-cycle still applies).",
           "pv_high": "Raise to the high target (75 °C) and run the escalation once surplus exceeds this (rare; only while the heat pump runs).",
           "pv_morning_time": "Once per day at this time, if the water is below the base target, kick the setpoint to the normal target (65 °C) so the heat pump starts within the device ECO window.",
           "pv_min_off": "Anti-short-cycle: a new cycle starts only after the compressor has been off this long. If already running, the tier is just extended (piggyback).",
-          "pv_escalation": "What to add once surplus passes the high threshold (only while the heat pump runs). None: just the higher target. Boost: heat pump + electric heater together (efficient). Electric heater only (ELEC): heater on, heat pump OFF — inefficient, only to dump surplus.",
-          "emergency_enabled": "When the water gets critically cold, temporarily switches ECO→AUTO to heat immediately (even outside the ECO time window); back to ECO on recovery.",
-          "emergency_critical": "Below this water temperature it switches from ECO to AUTO.",
-          "emergency_recover": "At/above this water temperature it switches back to ECO."
+          "pv_escalation": "What to add once surplus passes the high threshold (only while the heat pump runs). None: just the higher target. Boost: heat pump + electric heater together (efficient). Electric heater only (ELEC): heater on, heat pump OFF — inefficient, only to dump surplus."
         }
       }
     },

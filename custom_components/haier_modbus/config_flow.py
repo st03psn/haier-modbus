@@ -147,24 +147,29 @@ def _cop_schema(o: dict[str, Any]) -> vol.Schema:
     )
 
 
-def _pv_schema(o: dict[str, Any]) -> vol.Schema:
-    """PV-Betriebsmodus + Felder – im Wizard und im Options-Flow identisch.
+def _pv_mode_schema(o: dict[str, Any]) -> vol.Schema:
+    """Nur das **PV-Modus**-Dropdown (Aus/Coordinator/Executor).
 
-    Oberster Schalter ist der **PV-Modus** (Aus/Coordinator/Executor). HA-Formulare
-    können Felder nicht live abhängig vom Dropdown ein-/ausblenden – daher richten
-    sich die zusätzlichen Felder nach dem *gespeicherten* Modus (nach dem Übernehmen
-    erscheinen sie beim erneuten Öffnen):
-      - **Coordinator:** PV-Sensor, Zieltemps und alle Regel-Schwellen.
-      - **Executor:** nur die Zieltemps (Mechanik fürs Programm-Select); geregelt
-        wird über ``select.haier_hwhp_pv_program`` durch das HEMS.
+    Erster Schritt eines zweistufigen Dialogs: zuerst der Modus, danach (eigener
+    Schritt ``_pv_detail_schema``) genau die Felder des gewählten Modus – so sind
+    nie irrelevante Felder sichtbar.
     """
-    fields: dict[Any, Any] = {
-        vol.Optional(CONF_PV_MODE, default=o.get(CONF_PV_MODE, DEFAULT_PV_MODE)): _PV_MODE,
-        # Immer sichtbar, damit der Sensor im selben Schritt gesetzt werden kann,
-        # in dem auf Coordinator umgestellt wird (sonst Validierungs-Sackgasse).
-        vol.Optional(CONF_PV_SENSOR): _PV_SENSOR,
-    }
-    mode = o.get(CONF_PV_MODE, DEFAULT_PV_MODE)
+    return vol.Schema(
+        {vol.Optional(CONF_PV_MODE, default=o.get(CONF_PV_MODE, DEFAULT_PV_MODE)): _PV_MODE}
+    )
+
+
+def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
+    """Modus-spezifische PV-Felder (zweiter Schritt).
+
+    - **Coordinator:** PV-Sensor, Zieltemps und alle Regel-Schwellen.
+    - **Executor:** nur die Zieltemps (Mechanik fürs Programm-Select); geregelt
+      wird über ``select.haier_hwhp_pv_program`` durch das HEMS.
+    - **Aus:** keine Felder (der Schritt wird übersprungen).
+    """
+    fields: dict[Any, Any] = {}
+    if mode == PV_MODE_COORDINATOR:
+        fields[vol.Optional(CONF_PV_SENSOR)] = _PV_SENSOR
 
     if mode in (PV_MODE_COORDINATOR, PV_MODE_EXECUTOR):
         # Zieltemps sind die gemeinsame Mechanik beider Modi.
@@ -225,6 +230,7 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
         self._cop: dict[str, Any] = {}
+        self._pv: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -270,15 +276,40 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_pv(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        """Schritt 1: PV-Modus wählen. Bei „Aus“ direkt fertig, sonst Detail-Schritt."""
         if user_input is not None:
-            pv = {k: v for k, v in user_input.items() if v not in ("", None)}
-            options = {**self._cop, **pv}
-            return self.async_create_entry(
-                title=localized_title(self.hass.config.language),
-                data=self._data,
-                options=options,
-            )
-        return self.async_show_form(step_id="pv", data_schema=_pv_schema({}))
+            self._pv = {k: v for k, v in user_input.items() if v not in ("", None)}
+            if self._pv.get(CONF_PV_MODE, DEFAULT_PV_MODE) == PV_MODE_OFF:
+                return self._create_entry()
+            return await self.async_step_pv_details()
+        return self.async_show_form(step_id="pv", data_schema=_pv_mode_schema({}))
+
+    async def async_step_pv_details(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Schritt 2: genau die Felder des in Schritt 1 gewählten Modus."""
+        errors: dict[str, str] = {}
+        mode = self._pv.get(CONF_PV_MODE, DEFAULT_PV_MODE)
+        if user_input is not None:
+            details = {k: v for k, v in user_input.items() if v not in ("", None)}
+            merged = {**self._pv, **details}
+            if mode == PV_MODE_COORDINATOR and not merged.get(CONF_PV_SENSOR):
+                errors["base"] = "pv_sensor_required"
+            else:
+                self._pv = merged
+                return self._create_entry()
+
+        schema = _pv_detail_schema(self._pv, mode)
+        if user_input is not None:
+            schema = self.add_suggested_values_to_schema(schema, user_input)
+        return self.async_show_form(step_id="pv_details", data_schema=schema, errors=errors)
+
+    def _create_entry(self) -> config_entries.ConfigFlowResult:
+        return self.async_create_entry(
+            title=localized_title(self.hass.config.language),
+            data=self._data,
+            options={**self._cop, **self._pv},
+        )
 
     @staticmethod
     @callback
@@ -289,20 +320,23 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class HaierModbusOptionsFlow(config_entries.OptionsFlow):
-    """Optionen: Verbindung (Host/Port/Slave/Modell), Intervall, COP, PV."""
+    """Optionen in zwei Schritten: ``init`` (Verbindung/COP/Notfall + PV-Modus),
+    danach ``pv`` (genau die Felder des gewählten PV-Modus). Bei PV-Modus „Aus“
+    wird der PV-Schritt übersprungen.
+    """
+
+    _pending: dict[str, Any] = {}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        errors: dict[str, str] = {}
         if user_input is not None:
-            cleaned = {k: v for k, v in user_input.items() if v not in ("", None)}
-            if cleaned.get(CONF_PV_MODE) == PV_MODE_COORDINATOR and not cleaned.get(CONF_PV_SENSOR):
-                errors["base"] = "pv_sensor_required"
-            else:
-                return self.async_create_entry(title="", data=cleaned)
+            self._pending = {k: v for k, v in user_input.items() if v not in ("", None)}
+            if self._pending.get(CONF_PV_MODE, DEFAULT_PV_MODE) == PV_MODE_OFF:
+                return self.async_create_entry(title="", data=self._pending)
+            return await self.async_step_pv()
 
-        o = {**self.config_entry.options, **(user_input or {})}
+        o = self.config_entry.options
         d = self.config_entry.data
 
         def cur(key: str, default: Any) -> Any:
@@ -327,7 +361,27 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
 
         schema = vol.Schema(connection)
         schema = schema.extend(_cop_schema(o).schema)
-        schema = schema.extend(_pv_schema(o).schema)
+        schema = schema.extend(_pv_mode_schema(o).schema)
         schema = schema.extend(emergency)
         schema = self.add_suggested_values_to_schema(schema, o)
-        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+        return self.async_show_form(step_id="init", data_schema=schema)
+
+    async def async_step_pv(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Zweiter Schritt: modus-spezifische PV-Felder. Speichert die gesamten
+        Optionen (Seite 1 + Seite 2)."""
+        errors: dict[str, str] = {}
+        mode = self._pending.get(CONF_PV_MODE, DEFAULT_PV_MODE)
+        if user_input is not None:
+            details = {k: v for k, v in user_input.items() if v not in ("", None)}
+            merged = {**self._pending, **details}
+            if mode == PV_MODE_COORDINATOR and not merged.get(CONF_PV_SENSOR):
+                errors["base"] = "pv_sensor_required"
+            else:
+                return self.async_create_entry(title="", data=merged)
+
+        base = {**self.config_entry.options, **self._pending, **(user_input or {})}
+        schema = _pv_detail_schema(base, mode)
+        schema = self.add_suggested_values_to_schema(schema, base)
+        return self.async_show_form(step_id="pv", data_schema=schema, errors=errors)
