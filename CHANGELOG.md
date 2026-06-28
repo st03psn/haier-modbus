@@ -16,6 +16,9 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   - **Executor:** neue Entität `select.haier_hwhp_pv_program`
     (Aus/Grund/Überschuss/Boost) — ein externes HEMS (z. B. evcc) triggert die Programme;
     `pv.py` regelt nicht.
+  - **Hochstufen-Eskalation greift auch bei stehender WP:** Boost startet WP+Heizstab
+    (anti-takt-geschützt), reiner Heizstab (ELEC) dumpt Überschuss sofort ohne
+    Mindest-Stillstand (kein Verdichterzyklus) — z. B. nach dem Tageszyklus.
   - Entfernt: „verfügbar"-Modell mit BWWP-Leistungssensor + Hysterese (`pv_bwwp_sensor`,
     `pv_normal`, `pv_hysteresis`). **Migration:** alter Haken „an" → Coordinator, sonst Aus.
   - `CONF_PV_HIGH`-Default 1500 → **1200 W** (jetzt Roh-Überschuss).

@@ -11,7 +11,9 @@ geregelt, sondern bewusst pendelfrei gemacht durch:
   bleiben; fällt er für die Entprellzeit darunter, zurück auf 50.
 - **Wiederanlauf (Option):** kommt tagsüber wieder genug Überschuss, erneut auf 65 –
   mit **Anti-Takt** (Piggyback, solange die WP läuft; sonst erst nach Mindest-Stillstand).
-- **75 + Eskalation:** nur bei sehr hohem Überschuss und laufender WP (Boost/Heizstab).
+- **75 + Eskalation:** bei sehr hohem Überschuss (Boost/Heizstab) – greift **auch bei
+  stehender WP**: Boost startet WP+Heizstab (anti-takt-geschützt), der reine Heizstab
+  (ELEC) dumpt sofort ohne Mindest-Stillstand (kein Verdichterzyklus).
 
 Nur im **Coordinator**-Modus aktiv; in **Aus**/**Executor** steigt ``async_evaluate``
 sofort aus (``pv.py`` inert). Schreibzugriffe sind idempotent (nur bei Abweichung).
@@ -228,18 +230,22 @@ class PvController:
                 self._announce(coordinator, target, surplus, up=False)
             else:
                 # Hoch nur bei High oder erlaubtem Wiederanlauf, Speicher unter Ziel
-                # und Anti-Takt ok.
+                # und Anti-Takt ok. Ausnahme: Heizstab-Dump (Hochstufe + ELEC) ist
+                # kein Verdichterzyklus -> kein Anti-Takt, darf sofort hoch.
                 up_ok = (desired == "high"
                          or o.get(CONF_PV_RERAISE_ENABLED, DEFAULT_PV_RERAISE_ENABLED))
-                if water < target and up_ok and self._start_allowed(o, running, now):
+                elec_dump = (desired == "high"
+                             and o.get(CONF_PV_ESCALATION, PV_ESC_NONE) == PV_ESC_ELEC)
+                if water < target and up_ok and (elec_dump or self._start_allowed(o, running, now)):
                     await coordinator.write_value(REG_SET_TEMP, target)
                     _LOGGER.debug("PV: Soll %d -> %d (hoch, Überschuss %.0f W, %s)",
                                   int(current), target, surplus,
-                                  "WP läuft" if running else "Stillstand ok")
+                                  "WP läuft" if running else ("Heizstab-Dump" if elec_dump else "Stillstand ok"))
                     self._announce(coordinator, target, surplus, up=True)
 
-        # Eskalation bei hohem Überschuss – nur im Betrieb (idempotent).
-        await self._apply_escalation(coordinator, o, data, desired == "high" and running, surplus)
+        # Eskalation bei hohem Überschuss – greift in der Hochstufe AUCH bei stehender
+        # WP (Boost startet WP+Heizstab, ELEC dumpt in den Heizstab); idempotent.
+        await self._apply_escalation(coordinator, o, data, desired == "high", surplus)
 
     async def _apply_escalation(self, coordinator, o, data, high: bool, surplus: float) -> None:
         """Eskalation bei hohem Überschuss – genau EINE Option (Boost ODER ELEC ODER

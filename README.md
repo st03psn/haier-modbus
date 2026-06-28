@@ -134,8 +134,10 @@ Dreistufig (50/65/75) nach **rohem** Überschuss, pendelfrei gemacht durch:
 - **Wiederanlauf (Option):** kommt tagsüber wieder Überschuss über die
   **Wiederanlauf-Schwelle** (Default 200 W) → erneut 65, mit **Anti-Takt** (Piggyback,
   solange die WP läuft; sonst erst nach Mindest-Stillstand, Default 30 min).
-- **75 + Eskalation:** nur bei sehr hohem Überschuss (**Hoch-Schwelle**, Default 1200 W)
-  und laufender WP zusätzlich **Boost** oder **Heizstab (ELEC)**.
+- **75 + Eskalation:** bei sehr hohem Überschuss (**Hoch-Schwelle**, Default 1200 W)
+  zusätzlich **Boost** oder **Heizstab (ELEC)** — greift **auch bei stehender WP**:
+  Boost startet WP+Heizstab (anti-takt-geschützt), reiner Heizstab (ELEC) dumpt sofort
+  (kein Verdichterzyklus), z. B. um nach dem Tageszyklus Überschuss zu verheizen.
 
 Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar.
 
@@ -262,8 +264,10 @@ made oscillation-free by a once-a-day **morning start** (kick to 65 if water is 
 below base), **hold/lower** with debounce (stay at 65 above the hold threshold, drop to
 50 once surplus stays below it), an optional **daytime re-raise** (back to 65 above the
 re-raise threshold, with anti-short-cycle), and **75 + escalation** (Boost / ELEC heater)
-only at very high surplus while the pump runs. All thresholds, target temps and timings
-are editable in the Configure dialog.
+at very high surplus — which also fires **when the heat pump is off**: Boost starts
+pump+heater (anti-short-cycle protected), ELEC dumps into the heater immediately (no
+compressor cycle), e.g. to burn surplus after the daily cycle. All thresholds, target
+temps and timings are editable in the Configure dialog.
 
 **Executor** does not regulate; it exposes `select.haier_hwhp_pv_program`
 (`aus`/`grund`/`ueberschuss`/`boost`) that an external HEMS (or you) sets — the

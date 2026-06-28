@@ -59,10 +59,10 @@
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
           "pv_hold": "Bei der Normal-Zieltemperatur (65 °C) bleiben, solange der Überschuss darüber liegt; nach der Entprellzeit auf Grund absenken, sobald er darunter bleibt.",
           "pv_reraise_threshold": "Wenn erlaubt, tagsüber erneut auf die Normal-Zieltemperatur hoch, sobald der Überschuss diesen Wert wieder überschreitet (Anti-Takt gilt weiter).",
-          "pv_high": "Auf die Hoch-Zieltemperatur (75 °C) hoch und die Eskalation fahren, sobald der Überschuss diesen Wert übersteigt (selten; nur während die WP läuft).",
+          "pv_high": "Auf die Hoch-Zieltemperatur (75 °C) hoch und die Eskalation fahren, sobald der Überschuss diesen Wert übersteigt (selten; auch bei stehender WP).",
           "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Grund-Zieltemperatur liegt, den Sollwert auf die Normal-Zieltemperatur (65 °C) anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt: Ein neuer Zyklus startet erst, wenn der Verdichter so lange aus war. Läuft die WP bereits, wird die Stufe nur verlängert (Piggyback).",
-          "pv_escalation": "Was bei hohem Überschuss zusätzlich passiert (nur während die WP läuft). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss."
+          "pv_escalation": "Was bei hohem Überschuss zusätzlich passiert (auch bei stehender WP – z. B. Heizstab-Dump nach dem Tageszyklus). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss."
         }
       }
     },
@@ -125,10 +125,10 @@
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
           "pv_hold": "Bei der Normal-Zieltemperatur (65 °C) bleiben, solange der Überschuss darüber liegt; nach der Entprellzeit auf Grund absenken, sobald er darunter bleibt.",
           "pv_reraise_threshold": "Wenn erlaubt, tagsüber erneut auf die Normal-Zieltemperatur hoch, sobald der Überschuss diesen Wert wieder überschreitet (Anti-Takt gilt weiter).",
-          "pv_high": "Auf die Hoch-Zieltemperatur (75 °C) hoch und die Eskalation fahren, sobald der Überschuss diesen Wert übersteigt (selten; nur während die WP läuft).",
+          "pv_high": "Auf die Hoch-Zieltemperatur (75 °C) hoch und die Eskalation fahren, sobald der Überschuss diesen Wert übersteigt (selten; auch bei stehender WP).",
           "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Grund-Zieltemperatur liegt, den Sollwert auf die Normal-Zieltemperatur (65 °C) anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt: Ein neuer Zyklus startet erst, wenn der Verdichter so lange aus war. Läuft die WP bereits, wird die Stufe nur verlängert (Piggyback).",
-          "pv_escalation": "Was bei hohem Überschuss zusätzlich passiert (nur während die WP läuft). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss."
+          "pv_escalation": "Was bei hohem Überschuss zusätzlich passiert (auch bei stehender WP – z. B. Heizstab-Dump nach dem Tageszyklus). Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig (effizient). Nur Heizstab (ELEC): Heizstab an, WP AUS – ineffizient, nur zum Verheizen von Überschuss."
         }
       }
     },

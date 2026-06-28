@@ -59,10 +59,10 @@
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
           "pv_hold": "Stay at the normal target (65 °C) while surplus is above this; drop to base after the debounce time once it stays below.",
           "pv_reraise_threshold": "When enabled, raise back to the normal target during the day once surplus exceeds this again (anti-short-cycle still applies).",
-          "pv_high": "Raise to the high target (75 °C) and run the escalation once surplus exceeds this (rare; only while the heat pump runs).",
+          "pv_high": "Raise to the high target (75 °C) and run the escalation once surplus exceeds this (rare; also when the heat pump is off).",
           "pv_morning_time": "Once per day at this time, if the water is below the base target, kick the setpoint to the normal target (65 °C) so the heat pump starts within the device ECO window.",
           "pv_min_off": "Anti-short-cycle: a new cycle starts only after the compressor has been off this long. If it is already running, the tier is just extended (piggyback).",
-          "pv_escalation": "What to add once surplus passes the high threshold (only while the heat pump runs). None: just the higher target. Boost: heat pump + electric heater together (efficient). Electric heater only (ELEC): heater on, heat pump OFF — inefficient, only to dump surplus."
+          "pv_escalation": "What to add once surplus passes the high threshold (also when the heat pump is off — e.g. dump surplus into the heater after the daily cycle). None: just the higher target. Boost: heat pump + electric heater together (efficient). Electric heater only (ELEC): heater on, heat pump OFF — inefficient, only to dump surplus."
         }
       }
     },
@@ -125,10 +125,10 @@
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
           "pv_hold": "Stay at the normal target (65 °C) while surplus is above this; drop to base after the debounce time once it stays below.",
           "pv_reraise_threshold": "When enabled, raise back to the normal target during the day once surplus exceeds this again (anti-short-cycle still applies).",
-          "pv_high": "Raise to the high target (75 °C) and run the escalation once surplus exceeds this (rare; only while the heat pump runs).",
+          "pv_high": "Raise to the high target (75 °C) and run the escalation once surplus exceeds this (rare; also when the heat pump is off).",
           "pv_morning_time": "Once per day at this time, if the water is below the base target, kick the setpoint to the normal target (65 °C) so the heat pump starts within the device ECO window.",
           "pv_min_off": "Anti-short-cycle: a new cycle starts only after the compressor has been off this long. If already running, the tier is just extended (piggyback).",
-          "pv_escalation": "What to add once surplus passes the high threshold (only while the heat pump runs). None: just the higher target. Boost: heat pump + electric heater together (efficient). Electric heater only (ELEC): heater on, heat pump OFF — inefficient, only to dump surplus."
+          "pv_escalation": "What to add once surplus passes the high threshold (also when the heat pump is off — e.g. dump surplus into the heater after the daily cycle). None: just the higher target. Boost: heat pump + electric heater together (efficient). Electric heater only (ELEC): heater on, heat pump OFF — inefficient, only to dump surplus."
         }
       }
     },
