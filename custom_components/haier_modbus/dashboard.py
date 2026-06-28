@@ -122,12 +122,19 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "hotwater_pct", "Warmwasser"),
     ])])
 
-    # PV-Überschuss-Kachel (roher Sensor) – steht unten bei „Energie & COP".
-    # Die separate PV-Sektion zeigt nur den Regel-Status + Verlauf.
+    # PV-Karten nur sichtbar, wenn die PV-Steuerung aktiv ist: Sichtbarkeits-
+    # Bedingung am Regel-Status-Sensor (steht bei Modus „Aus"/Executor auf „off").
+    # So verschwinden die Kacheln dynamisch, wenn PV deaktiviert wird.
     pv_sensor = entry.options.get(CONF_PV_SENSOR)
+    _pv_status_eid = eid("sensor", "pv_status")
+    _pv_vis = (
+        [{"condition": "state", "entity": _pv_status_eid, "state_not": "off"}]
+        if _pv_status_eid else None
+    )
     pv_tile = (
         {"type": "tile", "entity": pv_sensor, "name": "PV-Überschuss",
-         "icon": "mdi:solar-power"} if pv_sensor else None
+         "icon": "mdi:solar-power", **({"visibility": _pv_vis} if _pv_vis else {})}
+        if pv_sensor else None
     )
     # "Aktuelle Quelle" prominent: großes, dynamisches Icon (vom Sensor) plus
     # dynamische Farbe via card-mod (--tile-color je aktiver Quelle). Die
@@ -156,7 +163,6 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
     # Regel-Stufe als Kachel + aktueller Überschuss, darunter der Tagesverlauf
     # der Sollwert-Wechsel als Logbuch (die Einträge, die pv.py schreibt).
     _set_temp_eid = eid("number", "set_temp")
-    _pv_status_eid = eid("sensor", "pv_status")
     pv_logbook = {
         "type": "logbook",
         "title": "PV-Verlauf",
@@ -167,6 +173,9 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "pv_status", "PV-Regelung", vertical=True),
         pv_logbook,
     ]) if pv_sensor else None
+    if pv_status_section and _pv_vis:
+        # Ganze PV-Sektion (inkl. Überschrift) ausblenden, wenn PV inaktiv.
+        pv_status_section["visibility"] = _pv_vis
 
     # "Erfasst seit …"-Hinweis (dynamisches Datum aus dem 'seit'-Attribut).
     _heat_eid = eid("sensor", "heat_total")
