@@ -26,10 +26,11 @@ sofort aus. Schreibzugriffe sind idempotent (nur bei Abweichung).
 from __future__ import annotations
 
 import logging
-from datetime import time
+from datetime import time, timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.storage import Store
 import homeassistant.util.dt as dt_util
 
 from .const import (
@@ -77,6 +78,15 @@ _LOGGER = logging.getLogger(__name__)
 # HA-Logbuch-Event (entkoppelt vom logbook-Component, stabiler String).
 _EVENT_LOGBOOK_ENTRY = "logbook_entry"
 
+# Der Morgen-Start ist auf **einmal pro Kalendertag** begrenzt. Das „heute schon
+# gefeuert"-Datum wird in einer Statusdatei (HA-Store) persistiert, damit ein
+# HA-Neustart es nicht erneut auslöst (im RAM wäre es nach dem Neustart leer).
+# Zusätzlich ein Zeitfenster ab der Morgen-Uhrzeit als Absicherung: war HA den
+# ganzen Vormittag aus und kommt erst abends hoch, soll kein Abend-Kaltstart als
+# „Morgen-Start" laufen.
+_STORAGE_VERSION = 1
+_MORNING_WINDOW_H = 3
+
 
 def _parse_time(raw) -> time:
     """"HH:MM" / "HH:MM:SS" -> time; bei Unsinn Default 10:00."""
@@ -109,6 +119,8 @@ class PvController:
         self._last_logged: int | None = None
         self._setpoint_eid: str | None = None
         self._last_kick_day = None             # Datum des letzten Morgen-Starts (1×/Tag)
+        self._store: Store | None = None       # Persistenz für _last_kick_day
+        self._loaded = False                   # Store schon einmal geladen?
         # Live-Status (vom Diagnose-Sensor gelesen): aktueller Regel-Zustand.
         #   state: off | base | normal | high_boost | high_elec
         self.status: dict = {
@@ -124,6 +136,31 @@ class PvController:
             "running": running,
             "heater": heater,
         }
+
+    async def _ensure_loaded(self, coordinator) -> None:
+        """Persistierten Morgen-Start-Tag einmalig aus der Statusdatei laden.
+
+        Überlebt HA-Neustarts: hat der gespeicherte Zeitstempel heutiges Datum,
+        gilt der Morgen-Start als „heute schon erledigt" und feuert nicht erneut.
+        """
+        if self._loaded:
+            return
+        self._loaded = True
+        self._store = Store(
+            self.hass, _STORAGE_VERSION, f"{DOMAIN}_pv_{coordinator.entry.entry_id}"
+        )
+        try:
+            data = await self._store.async_load()
+        except Exception:  # noqa: BLE001
+            data = None
+        if data and data.get("last_kick_day"):
+            self._last_kick_day = dt_util.parse_date(data["last_kick_day"])
+
+    async def _mark_kicked(self, day) -> None:
+        """Morgen-Start-Tag setzen und in die Statusdatei schreiben."""
+        self._last_kick_day = day
+        if self._store is not None:
+            await self._store.async_save({"last_kick_day": day.isoformat()})
 
     def _reset(self) -> None:
         self._wp_cand = None
@@ -189,6 +226,8 @@ class PvController:
             self._set_status("off", None, None, None, False)
             return
 
+        await self._ensure_loaded(coordinator)
+
         surplus = state_float(self.hass, o.get(CONF_PV_SENSOR))
         if surplus is None:
             return
@@ -217,11 +256,16 @@ class PvController:
         if self._wp_target is None:
             self._wp_target = t_normal if current >= t_normal - 0.5 else t_base
 
-        # 1) Morgen-Start (der einzige Kaltstart/Tag).
+        # 1) Morgen-Start (der einzige Kaltstart/Tag): max. 1×/Tag (über die
+        #    persistierte ``_last_kick_day`` – überlebt Neustarts) und nur im
+        #    Zeitfenster ab der Morgen-Uhrzeit (kein Abend-Kaltstart nach Neustart).
         morning = _parse_time(o.get(CONF_PV_MORNING_TIME, DEFAULT_PV_MORNING_TIME))
+        morning_dt = now.replace(hour=morning.hour, minute=morning.minute,
+                                 second=0, microsecond=0)
+        in_morning_window = morning_dt <= now < morning_dt + timedelta(hours=_MORNING_WINDOW_H)
         if (o.get(CONF_PV_MORNING_ENABLED, DEFAULT_PV_MORNING_ENABLED)
-                and now.time() >= morning and self._last_kick_day != now.date()):
-            self._last_kick_day = now.date()
+                and in_morning_window and self._last_kick_day != now.date()):
+            await self._mark_kicked(now.date())
             if water < t_base and current < t_normal and self._start_allowed(o, running, now):
                 self._wp_target = t_normal
                 target = int(min(max(int(t_normal), SET_TEMP_MIN), SET_TEMP_MAX))

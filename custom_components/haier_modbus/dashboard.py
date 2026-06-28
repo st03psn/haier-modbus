@@ -122,8 +122,8 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "hotwater_pct", "Warmwasser"),
     ])])
 
-    # PV-Überschuss nur zeigen, wenn ein Sensor konfiguriert ist (steht unten
-    # bei Energie & COP).
+    # PV-Überschuss-Kachel (roher Sensor) – steht unten bei „Energie & COP".
+    # Die separate PV-Sektion zeigt nur den Regel-Status + Verlauf.
     pv_sensor = entry.options.get(CONF_PV_SENSOR)
     pv_tile = (
         {"type": "tile", "entity": pv_sensor, "name": "PV-Überschuss",
@@ -164,10 +164,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         "entities": [e for e in (_set_temp_eid, _pv_status_eid) if e],
     } if (pv_sensor and (_set_temp_eid or _pv_status_eid)) else None
     pv_status_section = section("PV-Überschuss", [
-        grid([
-            tile("sensor", "pv_status", "PV-Regelung", vertical=True),
-            pv_tile,
-        ]),
+        tile("sensor", "pv_status", "PV-Regelung", vertical=True),
         pv_logbook,
     ]) if pv_sensor else None
 
@@ -191,6 +188,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "heat_year", "Wärmemenge (akt. Jahr)"),
         tile("sensor", "hp_elec_year", "WP-Strom (Jahr)"),
         tile("sensor", "heater_elec_year", "Heizstab (Jahr)"),
+        pv_tile,
     ]), seit_md])
 
     def statgraph(title: str, period: str, specs: list) -> dict | None:
