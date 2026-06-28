@@ -142,9 +142,10 @@ Alle Entitäten werden auf **`<domain>.haier_hwhp_<key>`** standardisiert. Ein
 Modbus-Grundtest je Zyklus unterscheidet Konverter- vs. Geräte-Störung; kurze
 Aussetzer halten die letzten Werte bis zu **5 Minuten** (kein Flattern).
 
-## Register & Lizenz
+## Register, Änderungen & Lizenz
 Registerkarte & Herleitung: [`docs/register-map.md`](docs/register-map.md)
-(Quelle: Hersteller-Doku „MODBUS Einstellung"). Lizenz: [MIT](LICENSE).
+(Quelle: Hersteller-Doku „MODBUS Einstellung"). Änderungen je Version:
+[`CHANGELOG.md`](CHANGELOG.md). Lizenz: [MIT](LICENSE).
 
 ---
 
