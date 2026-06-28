@@ -218,7 +218,9 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     3. PV-Modus (ab v1.11.0): der Bool-Haken ``pv_enabled`` wird zum Dropdown
        ``pv_mode`` (an -> ``coordinator``, aus/fehlt -> ``off``). Die alten
        „verfügbar"-Schlüssel (``pv_bwwp_sensor`` / ``pv_normal`` / ``pv_hysteresis``)
-       entfallen – die neuen Defaults (Roh-Überschuss-Modell) greifen stattdessen.
+       und die Wiederanlauf-Schlüssel (``pv_reraise_threshold`` /
+       ``pv_reraise_enabled``) entfallen – die neuen Defaults (Roh-Überschuss-
+       Modell, Zwei-Schicht-Regelung) greifen stattdessen.
 
     Läuft genau einmal (danach sind die Alt-Keys weg, no-op).
     """
@@ -245,7 +247,7 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # sonst: keine Eskalation -> kein Key nötig (Default "none")
         changed = True
 
-    # 3. PV-Modus: Bool-Haken -> Dropdown; alte verfügbar-Schlüssel entfernen.
+    # 3. PV-Modus: Bool-Haken -> Dropdown; alte verfügbar-/Wiederanlauf-Schlüssel entfernen.
     if CONF_PV_ENABLED in o:
         enabled = bool(o.pop(CONF_PV_ENABLED))
         o.setdefault(CONF_PV_MODE, PV_MODE_COORDINATOR if enabled else PV_MODE_OFF)
