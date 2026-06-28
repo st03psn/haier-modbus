@@ -173,9 +173,10 @@ Optionen → Wirkung (idempotenter Write bei Auswahl):
 - **Executor:** `PV_PROGRAM_*` Konstanten (aus/grund/ueberschuss/boost).
 - **Behalten:** `CONF_PV_SENSOR`, `CONF_PV_TEMP_HIGH/NORMAL/BASE`, `CONF_PV_DEBOUNCE`,
   `CONF_PV_MIN_OFF`, `CONF_PV_ESCALATION`+`PV_ESC_*`.
-- **Entfernen (Legacy nur für Migration):** `CONF_PV_BWWP_SENSOR`, `CONF_PV_HYSTERESIS`,
-  `CONF_PV_NORMAL`(verfügbar), `max_draw`/`buffer_on`/`grid_tolerance`/`high_hysteresis`
-  (je nach aktueller Benennung — vorher `grep`).
+- **Entfernen:** `CONF_PV_BWWP_SENSOR`, `CONF_PV_NORMAL` (+`DEFAULT_PV_NORMAL`),
+  `CONF_PV_HYSTERESIS` (+`DEFAULT_PV_HYSTERESIS`). **Exakte Symbol-Landkarte mit Fundstellen
+  in Kap. 8.** (Die früher hier genannten `max_draw`/`buffer_on`/`grid_tolerance`/
+  `high_hysteresis` waren **Blueprint-Inputs** und existieren in der Integration **nicht**.)
 
 ### `pv.py`
 - Kernlogik aus Kap. 2; ganz oben `if o[PV_MODE] != COORDINATOR: reset(); return`.
@@ -241,3 +242,82 @@ nutzerfreundlich beschreibt:
 - `emergency.py` (38-°C-Guard) — separat, bleibt WW-Sicherung außerhalb des ECO-Fensters.
 - Geräte-ECO-Fenster (hart am Gerät; 10:00 ist nur Konfig-Wert für den Morgen-Start).
 - Brand-Icon, COP/Energie, Dashboard.
+
+---
+
+## 8. Exakte Symbol-Landkarte (Stand v1.10.6, Zeilen indikativ)
+
+| Symbol | Aktion | Fundstellen (Datei:Zeile ca.) |
+|---|---|---|
+| `CONF_PV_ENABLED` | **ersetzen** durch `CONF_PV_MODE` | const.py:46 · config_flow.py:39,145,261 · pv.py:33,162 |
+| `CONF_PV_BWWP_SENSOR` | **entfernen** | const.py:48 · config_flow.py:37,146 · pv.py:31,170 |
+| `CONF_PV_NORMAL` / `DEFAULT_PV_NORMAL` | **entfernen** | const.py:50,82 · config_flow.py:44,62,148 · pv.py:38,47,125 |
+| `CONF_PV_HYSTERESIS` / `DEFAULT_PV_HYSTERESIS` | **entfernen** | const.py:51,67 · config_flow.py:42,60,149 · pv.py:36,45,126 |
+| `CONF_PV_HIGH` / `DEFAULT_PV_HIGH` | **behalten**, Bedeutung „verfügbar"→„Roh-Überschuss", Default 1500→**1200** | const.py:49,81 · config_flow.py:41,59,147 · pv.py:35,44,124 |
+| `CONF_PV_TEMP_HIGH/NORMAL/BASE` (+Defaults) | behalten | const.py:52-54,83-85 · config_flow.py · pv.py:113-115 |
+| `CONF_PV_DEBOUNCE`, `CONF_PV_MIN_OFF` (+Defaults) | behalten | const.py:55-56,68,86 · config_flow.py · pv.py:157,195 |
+| `CONF_PV_ESCALATION` + `PV_ESC_*` (+Default) | behalten | const.py:58-62 · config_flow.py:40,70-72,87,156 · pv.py:34,53-55,226-228 |
+| `CONF_PV_BOOST` / `CONF_PV_FORCE_ELEC` | behalten (nur Legacy-Migration) | const.py:64-65 · __init__.py:21,23,230-236 |
+| `CONF_PV_SENSOR` | behalten (auch von `dashboard.py:24,127` für PV-Tile genutzt) | const.py:47 · config_flow.py · pv.py:166 · dashboard.py |
+
+**Neu anlegen:** `CONF_PV_MODE` + `PV_MODE_OFF/COORDINATOR/EXECUTOR` (+`DEFAULT_PV_MODE`),
+`CONF_PV_HOLD`(+Default 50), `CONF_PV_RERAISE_THRESHOLD`(+Default 200),
+`CONF_PV_RERAISE_ENABLED`(Default True), `CONF_PV_MORNING_ENABLED`(Default True),
+`CONF_PV_MORNING_TIME`(+Default "10:00"), `CONF_PV_PROGRAM` + `PV_PROGRAM_OFF/GRUND/UEBERSCHUSS/BOOST`.
+
+> Vor dem Entfernen je Symbol erneut `grep` (Zeilen verschieben sich). Nach jeder Datei
+> `pyflakes` laufen lassen, damit keine ungenutzten Imports übrig bleiben.
+
+## 9. Erster Schritt: Branch
+```
+git checkout -b feature/pv-modes
+```
+Umbau isoliert entwickeln, statisch prüfen, committen; **nach Live-Test** nach `main`
+mergen + taggen (v1.11.0) + Release. (Kein Direkt-Commit auf main.)
+
+## 10. Verifikations-Checkliste (lokal kein HA → live prüfen)
+
+**Statisch (vor Commit):** `py_compile custom_components/haier_modbus/*.py`,
+`pyflakes custom_components/haier_modbus/`, JSON der 3 Übersetzungen valide.
+
+**Nach HACS-Update + HA-Neustart + Browser-Hardrefresh:**
+1. **Dialog:** „PV-Modus"-Dropdown zeigt Aus/Coordinator/Executor. Bei Coordinator
+   erscheinen die Schwellen-Felder; bei Executor die Programm-Select. Keine Rohschlüssel
+   als Labels (sonst Übersetzungs-Cache → Neustart/Hardrefresh).
+2. **Migration:** Bestand mit altem Haken „an" → Modus = Coordinator; „aus"/leer → Aus.
+3. **Coordinator:**
+   - Vor 10:00 Wasser < 50 → um 10:00 springt `number.haier_hwhp_set_temp` auf 65
+     (Logbuch „BWWP PV-Überschuss"); am Sollwert-Verlauf prüfen.
+   - Überschuss > Halte → bleibt 65; Überschuss ≥ 5 min weg → 50 (heizt bis 50, stoppt).
+   - Wiederanlauf an: nach Drop + Überschuss > 200 W (≥ Entprellung, WP ≥30 min aus/läuft) → erneut 65.
+4. **Executor:** Modus = Executor → `select.haier_hwhp_pv_program` setzen:
+   `ueberschuss`→Soll 65 · `grund`→50 · `boost`→75 + Boost-Switch an · `aus`→kein Eingriff.
+5. **38°-Guard:** unabhängig vom PV-Modus — bei Wasser < kritisch springt Modus ECO→AUTO
+   (testweise `emergency_critical` kurz hochsetzen).
+
+## 11. evcc-Anbindung (Executor) — Beispiel
+
+evcc entscheidet, HA führt aus. Robusteste Brücke: evcc liefert seinen Überschuss/Status
+per MQTT, eine **HA-Automation** mappt das auf das Programm-Select (nicht direkt Modbus —
+kein zweiter Bus-Master):
+
+```yaml
+# evcc publiziert z. B. sensor.evcc_pv_surplus (W, Überschuss nach Priorisierung Auto/Batterie)
+automation:
+  - alias: "BWWP-Programm aus evcc-Überschuss"
+    trigger:
+      - trigger: state
+        entity_id: sensor.evcc_pv_surplus
+        for: { minutes: 5 }            # Entprellung gegen Wolken
+    action:
+      - action: select.select_option
+        target: { entity_id: select.haier_hwhp_pv_program }
+        data:
+          option: >
+            {% set s = states('sensor.evcc_pv_surplus') | float(0) %}
+            {% if s >= 1000 %}boost{% elif s >= 200 %}ueberschuss{% else %}grund{% endif %}
+```
+Voraussetzung: **PV-Modus = Executor** (sonst regelt der Coordinator gegen). Alternativ
+kann evcc den Sollwert direkt setzen (`number.set_value` auf `number.haier_hwhp_set_temp`),
+wenn es die Temperaturen selbst bestimmen will. 38°-Guard bleibt als Netz aktiv.
+
