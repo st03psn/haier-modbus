@@ -36,7 +36,7 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   - `CONF_PV_HIGH`-Default 1500 → **1550 W** (jetzt Roh-Überschuss = Heizstab-Schwelle).
 - Behoben: wiederkehrendes „Removing unknown panel haier-bwwp"-WARNING bei jedem Start
   (das alte Legacy-Panel wird nur noch entfernt, wenn es wirklich registriert ist).
-- Plan/Referenz (inkl. evcc-Beispiel): [`docs/pv-rework-plan.md`](docs/pv-rework-plan.md).
+- evcc-/HEMS-Anbindung (Executor) mit Beispiel-Automation: [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.md).
 
 ## [1.10.6] - 2026-06-26
 - Eigenes Integrations-Icon mitgeliefert (`custom_components/haier_modbus/brand/`); HA 2026.3+

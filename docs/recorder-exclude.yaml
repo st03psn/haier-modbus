@@ -5,13 +5,12 @@
 #
 # Einbau: in die configuration.yaml übernehmen (vorhandenen recorder:-Block
 # ggf. zusammenführen), dann Home Assistant neu starten.
-# Die Glob-Muster passen sowohl auf alte (haier_brauchwasserwarmepumpe_*)
-# als auch neue (haier_bwwp_*) Entity-IDs.
+# Alle Entitäten der Integration heißen <domain>.haier_hwhp_<key>.
 
 recorder:
   exclude:
-    entity_globs:
-      - binary_sensor.*_verbindung      # Connectivity – flattert beim Polling
-      - sensor.*_modus_text             # redundant zum Modus-Select
-      - sensor.*_warmwasserstand        # ändert sich oft, geringer Analysewert
-      - sensor.*_zieltemperatur         # spiegelt meist die Solltemperatur
+    entities:
+      - binary_sensor.haier_hwhp_connection  # Connectivity – flattert beim Polling
+      - sensor.haier_hwhp_mode_text          # redundant zum Modus-Select
+      - sensor.haier_hwhp_hotwater_pct       # ändert sich oft, geringer Analysewert
+      - sensor.haier_hwhp_target_temp        # spiegelt meist die Solltemperatur

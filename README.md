@@ -179,7 +179,7 @@ entprellen, Mindest-Stillstand einhalten); **AUTO nur, wenn nötig** (sonst ECO)
 
 evcc kennt die WP nicht nativ → Brücke über HA: *evcc-Entscheidung → MQTT/HA →
 Programm-Select/Sollwert*, **nicht** gleichzeitig direkt per Modbus schreiben (kein
-zweiter Bus-Master). Beispiel-Automation siehe [`docs/pv-rework-plan.md`](docs/pv-rework-plan.md), Kap. 11.
+zweiter Bus-Master). Beispiel-Automation siehe [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.md).
 
 ## Dashboard
 Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWWP"
@@ -192,6 +192,8 @@ Karten (ApexCharts, card-mod) werden bei Bedarf via HACS nachgezogen.
 Alle Entitäten werden auf **`<domain>.haier_hwhp_<key>`** standardisiert. Ein
 Modbus-Grundtest je Zyklus unterscheidet Konverter- vs. Geräte-Störung; kurze
 Aussetzer halten die letzten Werte bis zu **5 Minuten** (kein Flattern).
+Beim kurzen Standard-Abfrageintervall (5 s) wächst die Recorder-Datenbank spürbar —
+Vorlage für sinnvolle Ausschlüsse: [`docs/recorder-exclude.yaml`](docs/recorder-exclude.yaml).
 
 ## Register, Änderungen & Lizenz
 Registerkarte & Herleitung: [`docs/register-map.md`](docs/register-map.md)
@@ -272,15 +274,26 @@ The **control entities** (`number.haier_hwhp_set_temp`, `select.haier_hwhp_mode`
 switch) stay writable in every mode. The **38 °C guard** is a separate option and stays
 active as a local hot-water safety net.
 
-**Coordinator** controls the setpoint in three tiers (50/65/75) from the **raw** surplus,
-made oscillation-free by a once-a-day **morning start** (kick to 65 if water is still
-below base), **hold/lower** with debounce (stay at 65 above the hold threshold, drop to
-50 once surplus stays below it), an optional **daytime re-raise** (back to 65 above the
-re-raise threshold, with anti-short-cycle), and **75 + escalation** (Boost / ELEC heater)
-at very high surplus — which also fires **when the heat pump is off**: Boost starts
-pump+heater (anti-short-cycle protected), ELEC dumps into the heater immediately (no
-compressor cycle), e.g. to burn surplus after the daily cycle. All thresholds, target
-temps and timings are editable in the Configure dialog.
+**Coordinator** regulates from the **raw** surplus in **two independent layers**,
+deliberately built so the heat pump does not **short-cycle**:
+
+- *Layer 1 — heat-pump cycle (base ↔ normal setpoint):* a fixed once-a-day **morning
+  start** (default 10:00) kicks to normal if the water is still below base — the
+  **only cold start** of the day. During the day the setpoint is raised to normal
+  **only while the pump is already running** (piggyback, above the **hold threshold**,
+  default 50 W), and lowered back to base after the debounce time (5 min) once the
+  surplus stays below the hold threshold and the heater is off.
+- *Layer 2 — electric heater (ad-hoc add-on that never stops the pump):* above the
+  **high threshold** (default 1550 W ≈ heater power + margin) the setpoint goes to
+  high plus **Boost** (pump + heater) while the pump runs, or **ELEC** (heater only)
+  while the pump is off — e.g. to dump surplus after the daily cycle; afterwards back
+  to ECO + base setpoint. If the surplus disappears, only the heater drops out; the
+  pump keeps running.
+
+The diagnostic sensor **“PV control status”** (`sensor.haier_hwhp_pv_status`) shows the
+live state (off / base / normal / high + Boost / high + ELEC, with surplus/setpoint/
+pump/heater attributes); the bundled dashboard has a dedicated PV section for it. All
+thresholds, target temps and timings are editable in the Configure dialog.
 
 **Executor** does not regulate; it exposes `select.haier_hwhp_pv_program`
 (`aus`/`grund`/`ueberschuss`/`boost`) that an external HEMS (or you) sets — the
@@ -292,7 +305,7 @@ short-cycling** (debounce program changes, keep a minimum off-time), use **AUTO 
 needed**, **Boost/heater only at really high surplus**, and **keep the 38 °C guard on**.
 evcc doesn't know the heat pump natively → bridge via HA (*evcc decision → MQTT/HA →
 program select/setpoint*), never write Modbus directly in parallel (avoid a second bus
-master). Example automation: [`docs/pv-rework-plan.md`](docs/pv-rework-plan.md), §11.
+master). Example automation: [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.md).
 
 ### Installation (HACS)
 HACS → custom repository (category *Integration*) → download → restart → add the
