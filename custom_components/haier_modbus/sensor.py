@@ -76,7 +76,6 @@ TEMP_SENSORS: tuple[RegSensor, ...] = (
               state_class=SensorStateClass.MEASUREMENT, offset_key=CONF_AMBIENT_OFFSET),
     RegSensor(key="hotwater_pct", register=REG_HOTWATER_PCT,
               unit=PERCENTAGE, state_class=SensorStateClass.MEASUREMENT, icon="mdi:water-percent"),
-    RegSensor(key="fault", register=REG_FAULT, icon="mdi:alert-circle-outline"),
 )
 
 ENERGY_SENSORS: tuple[RegSensor, ...] = (
@@ -97,6 +96,7 @@ async def async_setup_entry(
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[SensorEntity] = [HaierRegSensor(coordinator, d) for d in TEMP_SENSORS]
+    entities.append(HaierFaultText(coordinator))
     entities.append(HaierModeText(coordinator))
     entities.append(HaierCurrentSource(coordinator))
     entities += [HaierEnergySensor(coordinator, entry, d) for d in ENERGY_SENSORS]
@@ -229,15 +229,49 @@ class HaierRegSensor(HaierModbusEntity, SensorEntity):
                 val = round(val + offset, 1)
         return val
 
+
+class HaierFaultText(HaierModbusEntity, SensorEntity):
+    """Fehlercode (Reg 18) als Klartext: „Kein Fehler" bzw. „E1 – <Beschreibung>".
+
+    Anzeige-Code und Rohwert stehen in den Attributen, damit Automationen
+    sprachunabhängig darauf zugreifen können.
+    """
+
+    _attr_translation_key = "fault"
+
+    # Fixe Zustandstexte, zweisprachig – die Codetabelle selbst ist deutsch.
+    _TEXTS = {
+        "de": {"none": "Kein Fehler", "unknown": "Unbekannter Code"},
+        "en": {"none": "No fault", "unknown": "Unknown code"},
+    }
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_fault"
+
+    def _texts(self) -> dict[str, str]:
+        lang = (self.hass.config.language or "en").split("-")[0]
+        return self._TEXTS.get(lang, self._TEXTS["en"])
+
+    @property
+    def icon(self) -> str:
+        code = fault_code(self._regs.get(REG_FAULT))
+        return "mdi:alert-circle" if code else "mdi:check-circle-outline"
+
+    @property
+    def native_value(self) -> str | None:
+        raw = self._regs.get(REG_FAULT)
+        if raw is None:
+            return None
+        code = fault_code(raw)
+        if not code:
+            return self._texts()["none"]
+        return f"{code} – {FAULT_CODES.get(code, self._texts()['unknown'])}"
+
     @property
     def extra_state_attributes(self):
-        # Beim Fehlercode-Sensor zusätzlich Anzeige-Code + Klartext aus Reg 18.
-        if self._desc.key != "fault":
-            return None
-        code = fault_code(self._regs.get(self._desc.register))
-        if not code:
-            return {"code": "—", "description": "Kein Fehler"}
-        return {"code": code, "description": FAULT_CODES.get(code, "Unbekannter Code")}
+        raw = self._regs.get(REG_FAULT)
+        return {"code": fault_code(raw), "raw": raw}
 
 
 class HaierModeText(HaierModbusEntity, SensorEntity):

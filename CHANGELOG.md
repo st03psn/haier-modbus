@@ -5,6 +5,13 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.11.1] - 2026-07-03
+- **Fehlercode als Klartext:** Der Sensor „Fehlercode" zeigt jetzt statt der rohen
+  Registerzahl (z. B. `0`) einen lesbaren Text — `Kein Fehler` bzw. `E3 – Tank-
+  Temperaturfühler: Kurzschluss/Unterbrechung`. Anzeige-Code (`code`) und Rohwert
+  (`raw`) bleiben als Attribute erhalten, damit Automationen sprachunabhängig darauf
+  triggern können. Icon wechselt fehlerfrei→Fehler. Entity-ID unverändert.
+
 ## [1.11.0] - 2026-06-28
 - **PV-Steuerung mit Betriebsmodi** statt Bool-Haken: **Aus / Coordinator / Executor
   (HEMS-Client)** (Dropdown „PV-Modus"). Zweistufiger Dialog: erst der Modus, dann
