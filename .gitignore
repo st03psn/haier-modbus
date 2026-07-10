@@ -10,3 +10,6 @@ _sources/
 
 # Dev-/Autoren-Werkzeuge (Icon-Generator, Handbuch-Scan) – nicht für Endnutzer
 brand/*.py
+
+# Laufzeit-Artefakt: YAML-Fallback-Dashboard, wird zur Laufzeit erzeugt
+custom_components/haier_modbus/dashboard.yaml

@@ -5,9 +5,10 @@ Die Entitäts-IDs werden über die Registry aus den ``unique_id``s aufgelöst
 Installation – auch bei abweichenden/„umbenannten" entity_ids – ohne dass IDs
 geändert werden müssen. Karten zu (noch) fehlenden Entitäten werden ausgelassen.
 
-Registrierung wie üblich für mitgelieferte Dashboards: generiertes YAML unter
-``<config>/haier_bwwp/dashboard.yaml`` ablegen, als Lovelace-YAML-Dashboard +
-Seitenleisten-Panel anmelden. Alles gekapselt – Fehler bleiben folgenlos.
+Registrierung wie üblich für mitgelieferte Dashboards: generiertes YAML im
+Integrationsordner (``custom_components/haier_modbus/dashboard.yaml``) ablegen,
+als Lovelace-YAML-Dashboard + Seitenleisten-Panel anmelden. Alles gekapselt –
+Fehler bleiben folgenlos.
 """
 
 from __future__ import annotations
@@ -31,8 +32,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-_DASH_DIR = "haier_bwwp"
+# Laufzeit-Artefakte (YAML-Fallback) leben IM Integrationsordner, nicht im
+# HA-Config-Root. So bleiben alle integrationsbezogenen Dateien beisammen.
+_INTEGRATION_DIR = Path(__file__).resolve().parent
 _DASH_FILE = "dashboard.yaml"
+_LEGACY_DASH_DIR = "haier_bwwp"  # alter Ort unter <config>/ – wird aufgeräumt
 
 
 def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
@@ -293,6 +297,24 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _cleanup_legacy_dir(config_dir: str) -> None:
+    """Alten ``<config>/haier_bwwp``-Ordner entfernen (best effort).
+
+    Frühere Versionen legten den YAML-Fallback im HA-Config-Root ab. Der wandert
+    jetzt in den Integrationsordner; der verwaiste Ordner wird hier aufgeräumt.
+    """
+    legacy = Path(config_dir) / _LEGACY_DASH_DIR
+    if not legacy.is_dir():
+        return
+    try:
+        old = legacy / _DASH_FILE
+        if old.exists():
+            old.unlink()
+        legacy.rmdir()  # nur löschen, wenn leer – Fremd-Dateien bleiben erhalten
+    except OSError:
+        pass
+
+
 def _remove_legacy_yaml_dashboard(hass: HomeAssistant) -> None:
     """Altes, gesperrtes YAML-Dashboard (``haier-bwwp``) aus der Seitenleiste nehmen.
 
@@ -381,7 +403,7 @@ async def _register_yaml_dashboard(hass: HomeAssistant, config: dict) -> None:
     import yaml
 
     text = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
-    path = Path(hass.config.path(_DASH_DIR)) / _DASH_FILE
+    path = _INTEGRATION_DIR / _DASH_FILE
     await hass.async_add_executor_job(_write, path, text)
 
     lovelace = hass.data.get("lovelace")
@@ -418,6 +440,7 @@ async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> N
     """Editierbares Dashboard bereitstellen (Storage; YAML nur als Fallback)."""
     try:
         _remove_legacy_yaml_dashboard(hass)
+        await hass.async_add_executor_job(_cleanup_legacy_dir, hass.config.path())
         config = _build_config(hass, entry)
         if await _seed_storage_dashboard(hass, config):
             _LOGGER.info(
