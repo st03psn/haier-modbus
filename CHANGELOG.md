@@ -5,6 +5,21 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.12.0] - 2026-07-10
+- **Manueller Temperatur-Eingriff wird respektiert:** Ändert man die Solltemperatur
+  von Hand — am Gerätedisplay oder über HA — überschreibt die PV-Steuerung
+  (Coordinator-Modus) sie nicht mehr sofort zurück. Der Eingriff gilt **bis zum
+  nächsten Morgen-Start**, dann übernimmt die Regelung wieder. Erkannt wird jeder
+  Wert, der von der PV-Steuerung nicht selbst geschrieben wurde (Display **und** HA).
+  Die Heizstab-/Boost-Schicht läuft weiter — nur der Sollwert bleibt in Ruhe. Der
+  Diagnose-Sensor „PV-Regelung Status" zeigt währenddessen `Manueller Eingriff`.
+- **PV-Regelungsstufen umbenannt** in **Normal / Erhöht / Boost** (vorher
+  Grund / Normal / Hoch): betrifft die Anzeigetexte des Diagnose-Sensors
+  „PV-Regelung Status" (`Boost` bzw. `Boost (ELEC)` für die beiden Heizstab-
+  Mechaniken) sowie die Zieltemperatur-Felder im Options-Dialog
+  („Normal-/Erhöht-/Boost-Zieltemperatur"). Interne Zustände/Keys und die
+  Executor-Programme (`select`) bleiben unverändert.
+
 ## [1.11.1] - 2026-07-03
 - **Fehlercode als Klartext:** Der Sensor „Fehlercode" zeigt jetzt statt der rohen
   Registerzahl (z. B. `0`) einen lesbaren Text — `Kein Fehler` bzw. `E3 – Tank-

@@ -3,21 +3,22 @@
 Zwei **unabhängige Schichten**, geregelt nach rohem PV-Überschuss
 (``sensor.pv_uberschuss_watt``, kappt bei 0):
 
-**Schicht 1 — WP-Zyklus (Sollwert Grund 50 ↔ Normal 60):**
+**Schicht 1 — WP-Zyklus (Sollwert Normal 50 ↔ Erhöht 65):**
 - **Morgen-Start (fix, 1×/Tag):** der einzige Kaltstart — zur Uhrzeit, wenn Wasser
-  unter Grund liegt, Sollwert auf Normal -> WP startet im ECO-Fenster.
-- **Anheben Grund->Normal nur bei LAUFENDER WP** (Piggyback) + Überschuss ≥ Halte-Puffer.
+  unter Normal liegt, Sollwert auf Erhöht -> WP startet im ECO-Fenster.
+- **Anheben Normal->Erhöht nur bei LAUFENDER WP** (Piggyback) + Überschuss ≥ Halte-Puffer.
   Kein Tages-Kaltstart -> kein Takten.
-- **Halten** bei Normal solange Überschuss ≥ Halte ODER der Heizstab läuft.
-- **Absenken** Normal->Grund, wenn Überschuss < Halte (entprellt) UND Heizstab aus.
+- **Halten** bei Erhöht solange Überschuss ≥ Halte ODER der Heizstab läuft.
+- **Absenken** Erhöht->Normal, wenn Überschuss < Halte (entprellt) UND Heizstab aus.
 
-**Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt NIE die WP), ab Hoch-Schwelle:**
-- **Boost** (WP+Heizstab): nur bei **laufender** WP -> Sollwert Hoch (70) + Boost-Bit.
-- **ELEC** (nur Heizstab): nur bei **stehender** WP -> Modus ELEC + Sollwert Hoch (70),
-  Heizstab-Dump nach dem Tageszyklus. Ende -> Modus zurück (ECO) + Sollwert Grund.
-- Fällt der Überschuss unter Hoch: nur der Heizstab geht weg (Sollwert Hoch->Normal bei
-  Boost bzw. ->Grund bei ELEC); die WP läuft unverändert weiter. Solange der Heizstab an
-  ist, hält Schicht 1 die Normalstufe (kein fälschliches Absenken durch den Eigenverbrauch).
+**Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt NIE die WP), ab Boost-Schwelle:**
+- **Boost** (WP+Heizstab): nur bei **laufender** WP -> Sollwert Boost (75) + Boost-Bit.
+- **ELEC** (nur Heizstab): nur bei **stehender** WP -> Modus ELEC + Sollwert Boost (75),
+  Heizstab-Dump nach dem Tageszyklus. Ende -> Modus zurück (ECO) + Sollwert Normal.
+- Fällt der Überschuss unter die Boost-Schwelle: nur der Heizstab geht weg (Sollwert
+  Boost->Erhöht bei Boost bzw. ->Normal bei ELEC); die WP läuft unverändert weiter. Solange
+  der Heizstab an ist, hält Schicht 1 die Erhöht-Stufe (kein fälschliches Absenken durch den
+  Eigenverbrauch).
 
 Nur im **Coordinator**-Modus aktiv; in **Aus**/**Executor** steigt ``async_evaluate``
 sofort aus. Schreibzugriffe sind idempotent (nur bei Abweichung).
@@ -102,8 +103,8 @@ class PvController:
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
-        # Schicht 1 (WP-Zyklus): entprellter Ziel-Zustand (Grund/Normal).
-        self._wp_target: float | None = None   # aktueller WP-Zyklus-Sollwert (Grund/Normal)
+        # Schicht 1 (WP-Zyklus): entprellter Ziel-Zustand (Normal/Erhöht).
+        self._wp_target: float | None = None   # aktueller WP-Zyklus-Sollwert (Normal/Erhöht)
         self._wp_cand: float | None = None      # entprellter Kandidat
         self._wp_since = None
         # Schicht 2 (Heizstab): entprellter An/Aus-Zustand.
@@ -118,11 +119,16 @@ class PvController:
         # Logbuch.
         self._last_logged: int | None = None
         self._setpoint_eid: str | None = None
+        # Manueller Eingriff (Display/HA): Sollwert-Schutz bis zum nächsten Morgen-Start.
+        self._last_written: int | None = None  # zuletzt SELBST geschriebener Sollwert
+        self._manual_hold = False              # manueller Eingriff aktiv -> Sollwert nicht überschreiben
+        self._manual_day = None                # Kalendertag, an dem der Override begann (Fallback-Release)
         self._last_kick_day = None             # Datum des letzten Morgen-Starts (1×/Tag)
         self._store: Store | None = None       # Persistenz für _last_kick_day
         self._loaded = False                   # Store schon einmal geladen?
         # Live-Status (vom Diagnose-Sensor gelesen): aktueller Regel-Zustand.
-        #   state: off | base | normal | high_boost | high_elec
+        #   state: off | base | normal | high_boost | high_elec | manual
+        #   (interne Keys – die Anzeigetexte lauten Normal/Erhöht/Boost, s. Übersetzungen)
         self.status: dict = {
             "state": "off", "surplus": None, "setpoint": None,
             "running": None, "heater": False,
@@ -167,6 +173,21 @@ class PvController:
         self._wp_since = None
         self._heater_cand = None
         self._heater_since = None
+        # Manuellen Sollwert-Schutz beim Verlassen des Coordinator-Modus lösen.
+        self._manual_hold = False
+        self._manual_day = None
+        self._last_written = None
+
+    async def _write_setpoint(self, coordinator, target: int) -> None:
+        """Sollwert schreiben und als zuletzt SELBST geschriebenen Wert merken.
+
+        Nur über diesen Pfad geschriebene Werte aktualisieren ``_last_written``;
+        User-Wege (Number-/Water-Heater-Entity) laufen über
+        ``coordinator.async_write_register`` und fassen ihn nicht an – so lässt
+        sich ein fremder (manueller) Eingriff sicher unterscheiden.
+        """
+        await coordinator.write_value(REG_SET_TEMP, target)
+        self._last_written = target
 
     def _announce(self, coordinator, target: int, surplus: float, up: bool) -> None:
         """Sollwert-Wechsel ins HA-Logbuch (Dedup auf den Zielwert -> wenige Einträge)."""
@@ -266,10 +287,15 @@ class PvController:
         if (o.get(CONF_PV_MORNING_ENABLED, DEFAULT_PV_MORNING_ENABLED)
                 and in_morning_window and self._last_kick_day != now.date()):
             await self._mark_kicked(now.date())
+            # Natürlicher täglicher Reset: ein evtl. manueller Sollwert-Schutz
+            # endet mit dem Morgen-Start; die PV-Steuerung übernimmt wieder.
+            self._manual_hold = False
+            self._manual_day = None
+            self._last_written = None
             if water < t_base and current < t_normal and self._start_allowed(o, running, now):
                 self._wp_target = t_normal
                 target = int(min(max(int(t_normal), SET_TEMP_MIN), SET_TEMP_MAX))
-                await coordinator.write_value(REG_SET_TEMP, target)
+                await self._write_setpoint(coordinator, target)
                 _LOGGER.debug("PV: Morgen-Start Soll -> %d (Überschuss %.0f W)", target, surplus)
                 self._announce(coordinator, target, surplus, up=True)
                 self._set_status("normal", surplus, target, running, False)
@@ -286,23 +312,39 @@ class PvController:
             "_heater_cand", "_heater_since", heater_want, now, debounce_s, self, self._heater_on
         )
 
-        # 3) Schicht 1 – WP-Zyklus-Ziel (Grund/Normal, entprellt).
-        if self._wp_target <= t_base + 0.5:        # aktuell Grund
+        # 3) Schicht 1 – WP-Zyklus-Ziel (Normal/Erhöht, entprellt).
+        if self._wp_target <= t_base + 0.5:        # aktuell Normal
             # Anheben nur bei laufender WP (Piggyback, kein Kaltstart).
             wp_want = t_normal if (running and surplus >= hold) else t_base
-        else:                                       # aktuell Normal
+        else:                                       # aktuell Erhöht
             # Halten solange Überschuss ≥ Halte ODER der Heizstab läuft; sonst absenken.
             wp_want = t_normal if (surplus >= hold or self._heater_on) else t_base
         self._wp_target = self._debounced(
             "_wp_cand", "_wp_since", wp_want, now, debounce_s, self, self._wp_target
         )
 
-        # 4) Effektiver Sollwert: Heizstab hebt auf Hoch; sonst der WP-Zyklus-Sollwert.
+        # 4) Effektiver Sollwert: Heizstab hebt auf Boost; sonst der WP-Zyklus-Sollwert.
+        #    Manueller Eingriff (Display/HA) = Ist-Sollwert weicht vom zuletzt
+        #    SELBST geschriebenen Wert ab -> Sollwert bis zum nächsten Morgen-Start
+        #    in Ruhe lassen. Sicherheitsnetz für den Fall „Morgen-Start deaktiviert":
+        #    Schutz auch beim Tageswechsel aufheben.
+        if (self._manual_hold and self._manual_day is not None
+                and now.date() != self._manual_day):
+            self._manual_hold = False
+            self._manual_day = None
+            self._last_written = None
+        if self._last_written is not None and int(current) != int(self._last_written):
+            if not self._manual_hold:
+                self._manual_hold = True
+                self._manual_day = now.date()
+                _LOGGER.debug("PV: manueller Eingriff erkannt (Soll %d) -> Schutz bis Morgen-Start",
+                              int(current))
+
         effective = t_high if self._heater_on else self._wp_target
         target = int(min(max(int(effective), SET_TEMP_MIN), SET_TEMP_MAX))
-        if int(current) != target:
+        if not self._manual_hold and int(current) != target:
             up = target > int(current)
-            await coordinator.write_value(REG_SET_TEMP, target)
+            await self._write_setpoint(coordinator, target)
             _LOGGER.debug("PV: Soll %d -> %d (%s, Überschuss %.0f W, Heizstab %s)",
                           int(current), target, "hoch" if up else "runter", surplus,
                           "an" if self._heater_on else "aus")
@@ -312,6 +354,10 @@ class PvController:
         await self._apply_heater(coordinator, data, choice, surplus)
 
         # 6) Live-Status für den Diagnose-Sensor ableiten.
+        if self._manual_hold:
+            # Manueller Eingriff aktiv: Ist-Sollwert steht, Heizstab-Schicht läuft weiter.
+            self._set_status("manual", surplus, int(current), running, self._heater_on)
+            return
         if self._heater_on and choice == PV_ESC_BOOST:
             state = "high_boost"
         elif self._heater_on and choice == PV_ESC_ELEC:

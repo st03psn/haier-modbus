@@ -128,27 +128,27 @@ separater Haken und bleibt als lokales WW-Sicherheitsnetz aktiv.
 Nach **rohem** Überschuss, in **zwei unabhängigen Schichten** — bewusst so gebaut, dass
 die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts):
 
-**Schicht 1 — WP-Zyklus (Grund ↔ Normal):**
+**Schicht 1 — WP-Zyklus (Normal ↔ Erhöht):**
 - **Morgen-Start (fix):** einmal/Tag zur konfigurierten Uhrzeit (Default 10:00 =
-  ECO-Fensterstart) ein Kick auf Normal, wenn das Wasser noch unter der Grundtemperatur
+  ECO-Fensterstart) ein Kick auf Erhöht, wenn das Wasser noch unter der Normal-Temperatur
   liegt — der **einzige Kaltstart** des Tages.
-- **Anheben auf Normal nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
+- **Anheben auf Erhöht nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
   (Default 50 W) → kein Tages-Kaltstart, kein Takten.
-- **Absenken** auf Grund, wenn der Überschuss für die **Entprellzeit** (5 min) unter die
+- **Absenken** auf Normal, wenn der Überschuss für die **Entprellzeit** (5 min) unter die
   Halte-Schwelle fällt **und** der Heizstab aus ist.
 
-**Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt nie die WP):** ab der **Hoch-Schwelle**
-(Default 1550 W = Heizstab ~1500 W + Puffer) auf die Hochtemperatur plus:
+**Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt nie die WP):** ab der **Boost-Schwelle**
+(Default 1550 W = Heizstab ~1500 W + Puffer) auf die Boost-Temperatur plus:
 - **Boost** (WP + Heizstab) **nur bei laufender** WP,
 - **Heizstab (ELEC)** **nur bei stehender** WP (ELEC würde die WP sonst stoppen) — dumpt
   sofort, z. B. um nach dem Tageszyklus Überschuss zu verheizen; danach zurück auf ECO +
-  Grundtemperatur.
+  Normal-Temperatur.
 
-Fällt der Überschuss weg, geht **nur der Heizstab** weg (Sollwert Hoch→Normal/Grund); die
-WP läuft unverändert weiter. Solange der Heizstab an ist, hält Schicht 1 die Normalstufe.
+Fällt der Überschuss weg, geht **nur der Heizstab** weg (Sollwert Boost→Erhöht/Normal); die
+WP läuft unverändert weiter. Solange der Heizstab an ist, hält Schicht 1 die Erhöht-Stufe.
 
 Den aktuellen Zustand zeigt der Diagnose-Sensor **„PV-Regelung Status"**
-(`sensor.haier_hwhp_pv_status`: Aus / Grund / Normal / Hoch + Boost / Hoch + ELEC, mit
+(`sensor.haier_hwhp_pv_status`: Aus / Normal / Erhöht / Boost / Boost (ELEC), mit
 Überschuss/Sollwert/WP/Heizstab als Attributen); das mitgelieferte Dashboard hat dafür
 eine eigene **PV-Sektion** (Status-Kachel + Logbuch-Verlauf).
 
@@ -161,9 +161,9 @@ Die Integration regelt **nicht**, sondern stellt eine Auswahl-Entität
 | Programm | Wirkung |
 |---|---|
 | `aus` | Sollwert wird nicht angefasst (manuell/Gerät) |
-| `grund` | Sollwert = Grundtemp (50), Modus ECO |
-| `ueberschuss` | Sollwert = Normaltemp (65), Modus AUTO (überwindet den ECO-Deadband sofort) |
-| `boost` | Sollwert = Hochtemp (75) + Boost (WP + Heizstab) |
+| `grund` | Sollwert = 50 °C, Modus ECO |
+| `ueberschuss` | Sollwert = 65 °C, Modus AUTO (überwindet den ECO-Deadband sofort) |
+| `boost` | Sollwert = 75 °C + Boost (WP + Heizstab) |
 
 Das HEMS kann zum Steuern **entweder** die Hoch-Ebene (Programm-Select, empfohlen —
 die Integration kapselt Sollwert/Modus/Boost) **oder** die Tief-Ebene

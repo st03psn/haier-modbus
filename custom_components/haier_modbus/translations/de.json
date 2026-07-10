@@ -34,7 +34,7 @@
           "pv_mode": "PV-Modus"
         },
         "data_description": {
-          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss – fixer Morgen-Start, Anheben auf die Normal-Zieltemperatur nur bei bereits laufender WP (Piggyback), dazu eine ad-hoc Heizstab-Stufe oberhalb der Hoch-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit."
+          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss – fixer Morgen-Start, Anheben auf die Erhöht-Zieltemperatur nur bei bereits laufender WP (Piggyback), dazu eine ad-hoc Heizstab-Stufe oberhalb der Hoch-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit."
         }
       },
       "pv_details": {
@@ -42,9 +42,9 @@
         "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
         "data": {
           "pv_sensor": "PV-Überschuss-Sensor (W)",
-          "pv_temp_high": "Zieltemperatur bei hohem Überschuss (°C)",
-          "pv_temp_normal": "Normal-Zieltemperatur (°C)",
-          "pv_temp_base": "Grund-Zieltemperatur (°C)",
+          "pv_temp_high": "Boost-Zieltemperatur (°C)",
+          "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
+          "pv_temp_base": "Normal-Zieltemperatur (°C)",
           "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
           "pv_high": "Heizstab-Schwelle – Überschuss (W)",
           "pv_morning_enabled": "Fixer Morgen-Start",
@@ -55,11 +55,11 @@
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
-          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Normal-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Grund, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
-          "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Hoch-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
-          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Grund-Zieltemperatur liegt, den Sollwert auf die Normal-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
+          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
+          "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Boost-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
+          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt für den Morgen-Start: Ein frischer Kaltstart wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber passiert nur bei bereits laufender WP (Piggyback) und bleibt davon unberührt.",
-          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Grund-Zieltemperatur."
+          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur."
         }
       }
     },
@@ -94,7 +94,7 @@
           "emergency_recover": "Erholt-Wassertemperatur (°C)"
         },
         "data_description": {
-          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss – fixer Morgen-Start, Anheben auf die Normal-Zieltemperatur nur bei bereits laufender WP (Piggyback), dazu eine ad-hoc Heizstab-Stufe oberhalb der Hoch-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit. Die nächste Seite zeigt die Felder des gewählten Modus (bei Aus übersprungen).",
+          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss – fixer Morgen-Start, Anheben auf die Erhöht-Zieltemperatur nur bei bereits laufender WP (Piggyback), dazu eine ad-hoc Heizstab-Stufe oberhalb der Hoch-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit. Die nächste Seite zeigt die Felder des gewählten Modus (bei Aus übersprungen).",
           "emergency_enabled": "Schaltet bei kritisch niedriger Wassertemperatur vorübergehend ECO→AUTO, damit sofort geheizt wird (auch außerhalb des ECO-Zeitfensters); bei Erholung zurück zu ECO.",
           "emergency_critical": "Unter dieser Wassertemperatur wird von ECO auf AUTO geschaltet.",
           "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet."
@@ -105,9 +105,9 @@
         "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
         "data": {
           "pv_sensor": "PV-Überschuss-Sensor (W)",
-          "pv_temp_high": "Zieltemperatur bei hohem Überschuss (°C)",
-          "pv_temp_normal": "Normal-Zieltemperatur (°C)",
-          "pv_temp_base": "Grund-Zieltemperatur (°C)",
+          "pv_temp_high": "Boost-Zieltemperatur (°C)",
+          "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
+          "pv_temp_base": "Normal-Zieltemperatur (°C)",
           "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
           "pv_high": "Heizstab-Schwelle – Überschuss (W)",
           "pv_morning_enabled": "Fixer Morgen-Start",
@@ -118,11 +118,11 @@
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
-          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Normal-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Grund, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
-          "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Hoch-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
-          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Grund-Zieltemperatur liegt, den Sollwert auf die Normal-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
+          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
+          "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Boost-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
+          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt für den Morgen-Start: Ein frischer Kaltstart wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber passiert nur bei bereits laufender WP (Piggyback) und bleibt davon unberührt.",
-          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Grund-Zieltemperatur."
+          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur."
         }
       }
     },
@@ -177,10 +177,11 @@
         "name": "PV-Regelung Status",
         "state": {
           "off": "Aus",
-          "base": "Grund",
-          "normal": "Normal (Piggyback)",
-          "high_boost": "Hoch + Boost",
-          "high_elec": "Hoch + ELEC"
+          "base": "Normal",
+          "normal": "Erhöht",
+          "high_boost": "Boost",
+          "high_elec": "Boost (ELEC)",
+          "manual": "Manueller Eingriff"
         }
       },
       "link_status": {
