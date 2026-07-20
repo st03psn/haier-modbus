@@ -5,6 +5,24 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.12.1] - 2026-07-20
+- **COP/Energie stürzt nach Zähler-Aussetzer nicht mehr ab:** Kehrte ein externer
+  Strom-/Wärmezähler aus `unavailable` mit einem minimal kleineren (gerundeten)
+  Wert zurück — z. B. `547.315837` → `547.315` —, wertete die interne
+  Delta-Akkumulation diesen winzigen Rückschritt fälschlich als **Zähler-Reset**
+  und rechnete den **gesamten Zählerstand** als Verbrauch ein. Ein einzelner
+  0,0008-kWh-Blip blähte so die Strom-Eimer um mehrere hundert kWh auf und ließ
+  den COP (Monat/Jahr) auf physikalisch unmögliche Werte (< 1) einbrechen. Ein
+  Rückschritt gilt jetzt — wie in HA für `total_increasing` üblich — erst ab
+  über 10 % Einbruch als echter Reset; kleinere Rückschritte (Rundung, Rückkehr
+  aus „nicht verfügbar", Mess-Jitter) werden als 0 verworfen.
+- **Einmalige Neu-Baseline:** Bereits verfälschte Monats-/Jahres-/Gesamt-Eimer
+  werden beim ersten Start dieser Version einmalig aus den (sauberen) Quell-
+  Statistiken bzw. Geräteregistern neu geseedet, sodass COP und Energiewerte
+  sich sofort erholen. Der bestehende Dienst `haier_modbus.reset_energy_statistics`
+  bereinigt zusätzlich den Ausreißer in der Langzeitstatistik der Gesamt-Zähler
+  (Energie-Dashboard / „Energie pro Tag").
+
 ## [1.12.0] - 2026-07-10
 - **Manueller Temperatur-Eingriff wird respektiert:** Ändert man die Solltemperatur
   von Hand — am Gerätedisplay oder über HA — überschreibt die PV-Steuerung
