@@ -21,15 +21,31 @@ from .const import DOMAIN
 
 STORE_VERSION = 1
 # Erhöhen, um bestehende Installationen einmalig neu zu seeden (Logikwechsel).
-SEED_VERSION = 5
+SEED_VERSION = 6
+
+# Ein Rückschritt der Quelle gilt erst als echter Zähler-Reset, wenn der Wert
+# deutlich (> 10 %) eingebrochen ist – wie HA es intern für ``total_increasing``
+# handhabt. Kleinere Rückschritte (Rundung, Wiederkehr aus „unavailable",
+# Mess-Jitter) sind KEIN Reset und dürfen nicht den vollen Absolutwert als
+# Verbrauch einschleusen.
+_RESET_FACTOR = 0.9
 
 
 def _delta(prev: float | None, cur: float | None) -> float:
-    """Positives Delta zweier kumulativer Messwerte; Quell-Reset -> cur."""
+    """Positives Delta zweier kumulativer Messwerte.
+
+    Quell-Reset (Register springt gegen 0) -> ``cur`` als neuer Verbrauch, wie
+    bei ``utility_meter``. Ein *kleiner* Rückschritt ist dagegen nur Jitter
+    (z. B. eine gerundete Wiederkehr aus ``unavailable``: 547.315837 -> 547.315)
+    und wird als 0 verworfen – sonst würde der gesamte Zählerstand fälschlich
+    als Verbrauch eingerechnet und COP/Energie verfälscht.
+    """
     if prev is None or cur is None:
         return 0.0
-    if cur < prev:  # Quell-Reset (Register auf 0 gesprungen)
-        return max(cur, 0.0)
+    if cur < prev:
+        if cur < prev * _RESET_FACTOR:  # echter Reset (Einbruch > 10 %)
+            return max(cur, 0.0)
+        return 0.0  # bloßes Zittern -> keine (negative) Bewegung zählen
     return cur - prev
 
 
