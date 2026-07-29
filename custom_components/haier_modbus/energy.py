@@ -68,8 +68,6 @@ def _empty() -> dict:
         "prev_elec": None,
         "total_heat": 0.0,
         "total_elec": 0.0,
-        "totals_seeded_heat": False,
-        "totals_seeded_elec": False,
         "month_key": None,
         "year_key": None,
         "month_heat": 0.0,
@@ -213,16 +211,21 @@ class EnergyAccumulator:
         month_elec: float,
         year_heat: float,
         year_elec: float,
-        total_heat: float,
-        total_elec: float,
         seed_ref: str | None = None,
     ) -> bool:
-        """Monats-/Jahres-/Gesamt-Eimer mit vorberechneten Werten vorbefüllen.
+        """Nur die Monats-/Jahres-Eimer mit vorberechneten Werten vorbefüllen.
 
         Ob (re-)geseedet wird, entscheidet der Aufrufer (Versions- bzw.
         Bezugsdatum-Wechsel). ``seed_ref`` ist die Signatur des verwendeten
         Bezugsdatums und wird gespeichert, damit eine spätere Änderung erkannt
         und neu geseedet werden kann. Danach übernimmt die Delta-Akkumulation.
+
+        WICHTIG: Die monotonen Gesamt-Totale (``total_heat``/``total_elec``)
+        werden hier bewusst NICHT angefasst – sie wachsen ausschließlich über
+        positive Deltas in ``update()``. Ein (Re-)Seed auf einen neu berechneten
+        Wert würde die als ``total_increasing`` gemeldeten Sensoren zurückspringen
+        lassen und damit die Reset-Heuristik des Recorders auslösen (einmaliger
+        Spike/Drop in der Langzeitstatistik).
         """
         if self._data is None:
             await self.async_load()
@@ -233,12 +236,8 @@ class EnergyAccumulator:
         d["year_key"] = now.strftime("%Y")
         d["month_heat"], d["month_elec"] = max(month_heat, 0.0), max(month_elec, 0.0)
         d["year_heat"], d["year_elec"] = max(year_heat, 0.0), max(year_elec, 0.0)
-        # Gesamt-Werte = „seit erstem Wärmewert" (vergleichbar mit der Wärme),
-        # nicht der Lebenswert der Quelle. prev zurücksetzen -> sauberes
-        # Re-Baselining; der erste Folgezyklus zählt mit Delta 0 weiter.
-        d["total_heat"], d["total_elec"] = max(total_heat, 0.0), max(total_elec, 0.0)
-        d["totals_seeded_heat"] = True
-        d["totals_seeded_elec"] = True
+        # prev zurücksetzen -> der erste Folgezyklus zählt mit Delta 0 weiter
+        # (kein Nachzählen des Zeitraums vor dem Seed in die Monats-/Jahres-Eimer).
         d["prev_heat"] = None
         d["prev_elec"] = None
         d["seeded"] = True

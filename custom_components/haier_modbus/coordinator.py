@@ -302,20 +302,12 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         yh = max(yh, mh)
         ye = max(ye, me)
 
-        # Gesamt-Werte = „seit Bezugsdatum" (vergleichbar Wärme/Strom).
-        total_heat = yh
-        if o.get(CONF_COP_ELEC_ENTITY) and ref_start is not None:
-            total_elec = await consumption_since(
-                self.hass, [o.get(CONF_COP_ELEC_ENTITY)], ref_start, now
-            )
-            if total_elec is None:
-                total_elec = me
-        else:
-            total_elec = ye
-        total_elec = max(total_elec, me)
-
+        # Nur die Monats-/Jahres-Eimer seeden. Die monotonen Gesamt-Totale
+        # (total_heat/total_elec) werden bewusst NICHT vorbelegt -> sie wachsen
+        # allein über positive Deltas und lösen so keine Recorder-Reset-Heuristik
+        # (Spike/Drop in der total_increasing-Langzeitstatistik) aus.
         try:
-            await self.energy.async_seed(mh, me, yh, ye, total_heat, total_elec, ref_sig)
+            await self.energy.async_seed(mh, me, yh, ye, ref_sig)
             self._seed_done = True
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Seeding übersprungen: %s", err)

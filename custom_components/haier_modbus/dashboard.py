@@ -182,7 +182,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         pv_status_section["visibility"] = _pv_vis
 
     # "Erfasst seit …"-Hinweis (dynamisches Datum aus dem 'seit'-Attribut).
-    _heat_eid = eid("sensor", "heat_total")
+    _heat_eid = eid("sensor", "total_heat")
     seit_md = {
         "type": "markdown",
         "content": (
@@ -196,7 +196,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "cop_month", "COP (Monat)", color="green"),
         tile("sensor", "cop_year", "JAZ (Jahr)"),
         tile("sensor", "cop_prev_year", "JAZ (Vorjahr)"),
-        tile("sensor", "heat_total", "Wärmemenge (gesamt)"),
+        tile("sensor", "total_heat", "Wärmemenge (gesamt)"),
         tile("sensor", "total_elec", "Strom gesamt"),
         tile("sensor", "heat_year", "Wärmemenge (akt. Jahr)"),
         tile("sensor", "hp_elec_year", "WP-Strom (Jahr)"),

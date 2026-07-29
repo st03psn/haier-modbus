@@ -5,6 +5,24 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.12.2] - 2026-07-29
+- **Keine Statistik-Ausreißer mehr bei Re-Seed:** Die monotonen Gesamt-Zähler
+  „Wärmemenge (gesamt)" / „Stromverbrauch (gesamt)" (`total_increasing`) wurden
+  beim (Neu-)Seeding auf einen neu berechneten Wert **überschrieben**. Sprang
+  der Wert dabei nach oben oder unten, wertete die HA-Recorder-Logik das als
+  Zähler-Reset und trug einen einmaligen **Spike bzw. Drop** in die
+  Langzeitstatistik ein (sichtbar im Energie-Dashboard und in „Energie pro Tag
+  (30 Tage)"). Das Seeding befüllt jetzt **nur noch die Monats-/Jahres-Eimer**
+  (für COP/JAZ); die Gesamt-Zähler wachsen ausschließlich über positive Deltas
+  und werden nie mehr zurückgesetzt — die Artefakte entfallen dauerhaft. Der
+  Dienst `haier_modbus.reset_energy_statistics` bleibt als manuelle Wartungs-
+  Option erhalten.
+- **Dashboard-Korrektur:** Die Kachel „Wärmemenge (gesamt)" und der Hinweis
+  „Energie erfasst seit …" verwiesen auf einen falschen Entitäts-Schlüssel
+  (`heat_total` statt `total_heat`) und wurden dadurch bei neu angelegten
+  Dashboards still weggelassen. Beide erscheinen nun korrekt (betrifft nur
+  neue Dashboards; bestehende bleiben unverändert editierbar).
+
 ## [1.12.1] - 2026-07-20
 - **COP/Energie stürzt nach Zähler-Aussetzer nicht mehr ab:** Kehrte ein externer
   Strom-/Wärmezähler aus `unavailable` mit einem minimal kleineren (gerundeten)
