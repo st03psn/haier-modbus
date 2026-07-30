@@ -50,6 +50,12 @@ class EmergencyController:
             self._forced = False
             return
 
+        # Läuft die Legionellen-Desinfektion, heizt sie ohnehin auf 65 °C und
+        # besitzt den Modus – die Notheizung tritt zurück (kein Modus-Konflikt).
+        if coordinator.legionella.active:
+            self._forced = False
+            return
+
         mode = data.get(REG_MODE)
         water = data.get(REG_WATER_TEMP)
         if mode is None or water is None:

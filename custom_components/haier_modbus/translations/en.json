@@ -91,13 +91,27 @@
           "pv_mode": "PV mode",
           "emergency_enabled": "Emergency reheat (ECO→AUTO at critical temperature)",
           "emergency_critical": "Critical water temperature (°C)",
-          "emergency_recover": "Recovered water temperature (°C)"
+          "emergency_recover": "Recovered water temperature (°C)",
+          "legionella_enabled": "Legionella protection (periodic 65 °C disinfection)",
+          "legionella_target": "Disinfection target temperature (°C)",
+          "legionella_interval_days": "Interval – max. days without a full heat-up",
+          "legionella_bottom_min": "Verification threshold, tank bottom (°C)",
+          "legionella_hold_min": "Hold time at verification threshold (min)",
+          "legionella_window_start": "Preferred window – start (ECO)",
+          "legionella_window_end": "Preferred window – end (ECO)"
         },
         "data_description": {
           "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus — fixed morning start, raise to the elevated target only while the heat pump already runs (piggyback), plus an ad-hoc electric-heater tier above the high threshold. Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs. The next page shows the fields for the chosen mode (skipped for Off).",
           "emergency_enabled": "When the water gets critically cold, temporarily switches ECO→AUTO to heat immediately (even outside the ECO time window); back to ECO on recovery.",
           "emergency_critical": "Below this water temperature it switches from ECO to AUTO.",
-          "emergency_recover": "At/above this water temperature it switches back to ECO."
+          "emergency_recover": "At/above this water temperature it switches back to ECO.",
+          "legionella_enabled": "Forces a thermal disinfection at least every X days: heats the tank to the target until the bottom (tank bottom) holds the verification threshold for the hold time. If the tank gets fully heated anyway in between (e.g. PV boost), that counts and the timer resets. Scald risk: with 65 °C use a thermostatic mixing valve.",
+          "legionella_target": "Setpoint during the disinfection run (recommended 60–65 °C).",
+          "legionella_interval_days": "A run is triggered after at most this many days without a verified full heat-up (DVGW practice: 7).",
+          "legionella_bottom_min": "The run only counts as reached once the tank bottom – the coldest layer – holds this temperature (slightly below the setpoint).",
+          "legionella_hold_min": "How long the tank bottom must hold the verification threshold before the run counts as successful.",
+          "legionella_window_start": "Preferred time window (usually the device's ECO window): the run starts here if possible and first heats efficiently in ECO; if it can't reach the target it escalates to AUTO. When overdue, protection is forced even outside this window.",
+          "legionella_window_end": "End of the preferred window (usually the device's ECO window)."
         }
       },
       "pv": {
@@ -190,6 +204,16 @@
           "ok": "OK",
           "no_converter": "Converter unreachable",
           "no_device": "Device not responding"
+        }
+      },
+      "legionella_status": {
+        "name": "Legionella protection",
+        "state": {
+          "off": "Off",
+          "idle": "Protected",
+          "due": "Due",
+          "running": "Disinfecting",
+          "holding": "Holding"
         }
       }
     },

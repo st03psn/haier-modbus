@@ -107,6 +107,7 @@ async def async_setup_entry(
     entities.append(HaierPrevYearCop(coordinator))
     entities.append(HaierLinkStatus(coordinator))
     entities.append(HaierPvStatus(coordinator))
+    entities.append(HaierLegionellaStatus(coordinator))
     async_add_entities(entities)
 
 
@@ -171,6 +172,44 @@ class HaierPvStatus(HaierModbusEntity, SensorEntity):
             "setpoint_c": s.get("setpoint"),
             "hp_running": s.get("running"),
             "heater_on": s.get("heater"),
+        }
+
+
+class HaierLegionellaStatus(HaierModbusEntity, SensorEntity):
+    """Live-Status des Legionellen-Schutzes (Watchdog auf letzte Volldurchheizung).
+
+    Zeigt, ob der Speicher innerhalb des Intervalls voll durchgeheizt wurde und
+    ob gerade ein Desinfektionslauf läuft. Attribute: letzte Volldurchheizung,
+    Tage seither, nächste Fälligkeit, Tank-unten und Ziel. Deaktiviert: ``off``.
+    """
+
+    _attr_translation_key = "legionella_status"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["off", "idle", "due", "running", "holding"]
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:bacteria-outline"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_legionella_status"
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self):
+        return self.coordinator.legionella.status.get("state")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        s = self.coordinator.legionella.status
+        return {
+            "last_disinfection": s.get("last_success"),
+            "days_since": s.get("days_since"),
+            "next_due": s.get("next_due"),
+            "tank_bottom_c": s.get("tank_bottom"),
+            "target_c": s.get("target"),
         }
 
 

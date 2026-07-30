@@ -91,13 +91,27 @@
           "pv_mode": "PV-Modus",
           "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO bei kritischer Temperatur)",
           "emergency_critical": "Kritische Wassertemperatur (°C)",
-          "emergency_recover": "Erholt-Wassertemperatur (°C)"
+          "emergency_recover": "Erholt-Wassertemperatur (°C)",
+          "legionella_enabled": "Legionellen-Schutz (periodische Desinfektion auf 65 °C)",
+          "legionella_target": "Desinfektions-Zieltemperatur (°C)",
+          "legionella_interval_days": "Intervall – max. Tage ohne Volldurchheizung",
+          "legionella_bottom_min": "Nachweis-Schwelle Tank unten (°C)",
+          "legionella_hold_min": "Haltezeit auf Nachweis-Schwelle (min)",
+          "legionella_window_start": "Bevorzugtes Fenster – Start (ECO)",
+          "legionella_window_end": "Bevorzugtes Fenster – Ende (ECO)"
         },
         "data_description": {
           "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss – fixer Morgen-Start, Anheben auf die Erhöht-Zieltemperatur nur bei bereits laufender WP (Piggyback), dazu eine ad-hoc Heizstab-Stufe oberhalb der Hoch-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit. Die nächste Seite zeigt die Felder des gewählten Modus (bei Aus übersprungen).",
           "emergency_enabled": "Schaltet bei kritisch niedriger Wassertemperatur vorübergehend ECO→AUTO, damit sofort geheizt wird (auch außerhalb des ECO-Zeitfensters); bei Erholung zurück zu ECO.",
           "emergency_critical": "Unter dieser Wassertemperatur wird von ECO auf AUTO geschaltet.",
-          "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet."
+          "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet.",
+          "legionella_enabled": "Erzwingt spätestens alle X Tage eine thermische Desinfektion: heizt den Speicher auf die Zieltemperatur, bis der Boden (Tank unten) die Nachweis-Schwelle für die Haltezeit hält. Wird der Speicher zwischendurch ohnehin voll durchgeheizt (z. B. PV-Boost), zählt das und der Timer springt zurück. Verbrühgefahr: bei 65 °C ein thermostatisches Mischventil vorsehen.",
+          "legionella_target": "Sollwert während des Desinfektionslaufs (empfohlen 60–65 °C).",
+          "legionella_interval_days": "Spätestens nach so vielen Tagen ohne nachgewiesene Volldurchheizung wird ein Lauf ausgelöst (DVGW-üblich: 7).",
+          "legionella_bottom_min": "Der Lauf gilt erst als erreicht, wenn Tank unten – die kälteste Schicht – diese Temperatur hält (etwas unter dem Sollwert).",
+          "legionella_hold_min": "So lange muss Tank unten die Nachweis-Schwelle halten, bevor der Lauf als erfolgreich zählt.",
+          "legionella_window_start": "Bevorzugtes Zeitfenster (i. d. R. das ECO-Fenster des Geräts): Der Lauf startet nach Möglichkeit hier und heizt zunächst effizient in ECO mit; kommt er nicht ans Ziel, eskaliert er auf AUTO. Überfällig wird der Schutz notfalls auch außerhalb erzwungen.",
+          "legionella_window_end": "Ende des bevorzugten Fensters (i. d. R. das ECO-Fenster des Geräts)."
         }
       },
       "pv": {
@@ -190,6 +204,16 @@
           "ok": "OK",
           "no_converter": "Konverter nicht erreichbar",
           "no_device": "Gerät antwortet nicht"
+        }
+      },
+      "legionella_status": {
+        "name": "Legionellen-Schutz",
+        "state": {
+          "off": "Aus",
+          "idle": "Geschützt",
+          "due": "Fällig",
+          "running": "Desinfektion läuft",
+          "holding": "Haltephase"
         }
       }
     },

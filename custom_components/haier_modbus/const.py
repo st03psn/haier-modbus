@@ -94,6 +94,24 @@ CONF_EMERGENCY_RECOVER: Final = "emergency_recover"     # °C: darüber zurück 
 DEFAULT_EMERGENCY_CRITICAL: Final = 38
 DEFAULT_EMERGENCY_RECOVER: Final = 48
 
+# --- Legionellen-Schutz (periodische thermische Desinfektion) --------------
+# Watchdog: erreicht der Speicher nicht innerhalb des Intervalls am Boden
+# (Reg 9) die Zieltemperatur, wird ein Desinfektionslauf erzwungen.
+CONF_LEGIONELLA_ENABLED: Final = "legionella_enabled"
+CONF_LEGIONELLA_INTERVAL: Final = "legionella_interval_days"    # max. Tage zwischen Volldurchheizungen
+CONF_LEGIONELLA_TARGET: Final = "legionella_target"            # °C Sollwert für den Desinfektionslauf
+CONF_LEGIONELLA_BOTTOM: Final = "legionella_bottom_min"        # °C: ab Tank-unten gilt der Lauf als erreicht
+CONF_LEGIONELLA_HOLD: Final = "legionella_hold_min"            # min: so lange muss Tank-unten das Ziel halten
+CONF_LEGIONELLA_WINDOW_START: Final = "legionella_window_start"  # bevorzugtes ECO-Fenster (Start "HH:MM")
+CONF_LEGIONELLA_WINDOW_END: Final = "legionella_window_end"      # bevorzugtes ECO-Fenster (Ende "HH:MM")
+
+DEFAULT_LEGIONELLA_INTERVAL: Final = 7
+DEFAULT_LEGIONELLA_TARGET: Final = 65
+DEFAULT_LEGIONELLA_BOTTOM: Final = 60
+DEFAULT_LEGIONELLA_HOLD: Final = 30
+DEFAULT_LEGIONELLA_WINDOW_START: Final = "10:00"
+DEFAULT_LEGIONELLA_WINDOW_END: Final = "18:00"
+
 # Schwellen auf den *rohen* PV-Überschuss (sensor.pv_uberschuss_watt, kappt bei 0):
 #  - Halte/Piggyback 50 W = kleiner Puffer; solange noch Überschuss da ist, WP-Zyklus
 #    halten/auf Erhöht verlängern (die WP läuft eh schon, kostet keine Extra-Leistung)

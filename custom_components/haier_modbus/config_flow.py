@@ -32,6 +32,13 @@ from .const import (
     CONF_EMERGENCY_RECOVER,
     CONF_ENERGY_SCALE,
     CONF_HOST,
+    CONF_LEGIONELLA_BOTTOM,
+    CONF_LEGIONELLA_ENABLED,
+    CONF_LEGIONELLA_HOLD,
+    CONF_LEGIONELLA_INTERVAL,
+    CONF_LEGIONELLA_TARGET,
+    CONF_LEGIONELLA_WINDOW_END,
+    CONF_LEGIONELLA_WINDOW_START,
     CONF_MODEL,
     CONF_PORT,
     CONF_PV_DEBOUNCE,
@@ -52,6 +59,12 @@ from .const import (
     DEFAULT_EMERGENCY_CRITICAL,
     DEFAULT_EMERGENCY_RECOVER,
     DEFAULT_ENERGY_SCALE,
+    DEFAULT_LEGIONELLA_BOTTOM,
+    DEFAULT_LEGIONELLA_HOLD,
+    DEFAULT_LEGIONELLA_INTERVAL,
+    DEFAULT_LEGIONELLA_TARGET,
+    DEFAULT_LEGIONELLA_WINDOW_END,
+    DEFAULT_LEGIONELLA_WINDOW_START,
     DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
     DEFAULT_PV_DEBOUNCE,
@@ -123,6 +136,14 @@ _TEMP = selector.NumberSelector(
 _OFFSET = selector.NumberSelector(
     selector.NumberSelectorConfig(min=-15, max=15, step=0.1,
                                   unit_of_measurement="°C", mode=selector.NumberSelectorMode.BOX)
+)
+_DAYS = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=1, max=30, step=1,
+                                  unit_of_measurement="d", mode=selector.NumberSelectorMode.BOX)
+)
+_MINUTES = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=1, max=180, step=1,
+                                  unit_of_measurement="min", mode=selector.NumberSelectorMode.BOX)
 )
 
 
@@ -351,10 +372,28 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
                          default=cur(CONF_EMERGENCY_RECOVER, DEFAULT_EMERGENCY_RECOVER)): _TEMP,
         }
 
+        legionella = {
+            vol.Optional(CONF_LEGIONELLA_ENABLED,
+                         default=cur(CONF_LEGIONELLA_ENABLED, False)): bool,
+            vol.Optional(CONF_LEGIONELLA_TARGET,
+                         default=cur(CONF_LEGIONELLA_TARGET, DEFAULT_LEGIONELLA_TARGET)): _TEMP,
+            vol.Optional(CONF_LEGIONELLA_INTERVAL,
+                         default=cur(CONF_LEGIONELLA_INTERVAL, DEFAULT_LEGIONELLA_INTERVAL)): _DAYS,
+            vol.Optional(CONF_LEGIONELLA_BOTTOM,
+                         default=cur(CONF_LEGIONELLA_BOTTOM, DEFAULT_LEGIONELLA_BOTTOM)): _TEMP,
+            vol.Optional(CONF_LEGIONELLA_HOLD,
+                         default=cur(CONF_LEGIONELLA_HOLD, DEFAULT_LEGIONELLA_HOLD)): _MINUTES,
+            vol.Optional(CONF_LEGIONELLA_WINDOW_START,
+                         default=cur(CONF_LEGIONELLA_WINDOW_START, DEFAULT_LEGIONELLA_WINDOW_START)): _TIME,
+            vol.Optional(CONF_LEGIONELLA_WINDOW_END,
+                         default=cur(CONF_LEGIONELLA_WINDOW_END, DEFAULT_LEGIONELLA_WINDOW_END)): _TIME,
+        }
+
         schema = vol.Schema(connection)
         schema = schema.extend(_cop_schema(o).schema)
         schema = schema.extend(_pv_mode_schema(o).schema)
         schema = schema.extend(emergency)
+        schema = schema.extend(legionella)
         schema = self.add_suggested_values_to_schema(schema, o)
         return self.async_show_form(step_id="init", data_schema=schema)
 

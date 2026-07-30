@@ -5,6 +5,32 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.13.0] - 2026-07-30
+- **Legionellen-Schutz (periodische thermische Desinfektion):** Neue optionale
+  Funktion nach dem **Watchdog-Prinzip** – überwacht wird nur die eine
+  sicherheitsrelevante Größe: *wie lange ist die letzte vollständige Durchheizung
+  her?* Erreicht der Speicher nicht innerhalb des Intervalls (Default **7 Tage**)
+  am **Boden** (`Tank unten`, kälteste Schicht) die Zieltemperatur, wird ein
+  Desinfektionslauf erzwungen: Sollwert temporär auf **65 °C**, bevorzugt im
+  **ECO-Fenster** (Default 10–18 Uhr) effizient mitheizend, mit Eskalation auf
+  **AUTO**, damit das Ziel garantiert erreicht wird (**kein Timeout/Abbruch** –
+  der Lauf endet nur bei nachgewiesenem Erfolg). Erfolg = `Tank unten` hält die
+  Nachweis-Schwelle (Default 60 °C) für die Haltezeit (Default 30 min); danach
+  wird der vorherige Sollwert/Modus wiederhergestellt.
+  - **Selbst-Reset:** Wird der Speicher zwischendurch ohnehin voll durchgeheizt
+    (z. B. PV-Boost auf 65/75 °C), zählt das als Desinfektion und der Timer
+    springt zurück – im Alltag mit täglicher Nutzung läuft also kaum ein
+    Extra-Zyklus, der Schutz greift v. a. bei Stagnation (Urlaub).
+  - **Neuer Diagnose-Sensor** „Legionellen-Schutz" (`sensor.haier_hwhp_legionella_status`):
+    Geschützt / Fällig / Desinfektion läuft / Haltephase, plus Attribute (letzte
+    Volldurchheizung, Tage seither, nächste Fälligkeit, Tank unten, Ziel).
+  - **Koordination:** Während eines Laufs pausiert die PV-Sollwert-Regelung und
+    die Notheizung tritt zurück (kein Schreibkonflikt); danach übernehmen sie
+    wieder normal. Persistiert (letzte Volldurchheizung übersteht HA-Neustarts).
+  - Alles im „Konfigurieren"-Dialog einstellbar (Intervall, Ziel, Nachweis-
+    Schwelle Tank unten, Haltezeit, bevorzugtes Fenster). **Verbrühgefahr:** bei
+    65 °C ein thermostatisches Mischventil vorsehen.
+
 ## [1.12.2] - 2026-07-30
 - **Notfall-Nachheizung erreicht jetzt die Zieltemperatur:** Die Rück-Schwelle
   `recover` (Standard 48 °C) wurde als fester Absolutwert ausgewertet – unabhängig

@@ -45,6 +45,7 @@ from .const import (
 )
 from .emergency import EmergencyController
 from .energy import EnergyAccumulator, consumption_since, state_float
+from .legionella import LegionellaController
 from .pv import PvController
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,6 +90,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         )
         self.energy = EnergyAccumulator(hass, entry.entry_id)
         self.pv = PvController(hass)
+        self.legionella = LegionellaController(hass)
         self._emergency = EmergencyController(hass)
         self._last_save = None
         self._seed_done = False
@@ -210,6 +212,9 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             self._auto_enable_sources(data)
             await self._maybe_seed(data)
             await self._accumulate_energy(data)
+            # Legionellen-Schutz zuerst: hat er einen Lauf aktiv, besitzt er
+            # Sollwert/Modus und PV/Notheizung treten zurück.
+            await self.legionella.async_evaluate(self, data)
             await self.pv.async_evaluate(self, data)
             await self._emergency.async_evaluate(self, data)
             return data
