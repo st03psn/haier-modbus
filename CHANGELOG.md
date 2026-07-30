@@ -5,6 +5,21 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.12.2] - 2026-07-30
+- **Notfall-Nachheizung erreicht jetzt die Zieltemperatur:** Die Rück-Schwelle
+  `recover` (Standard 48 °C) wurde als fester Absolutwert ausgewertet – unabhängig
+  vom Sollwert. Lag sie *unter* dem Sollwert (z. B. 48 °C bei Sollwert 50 °C bzw.
+  60 °C in der PV-Regelung), gab die Notheizung schon **vor** Erreichen der
+  Zieltemperatur von AUTO an ECO zurück – und zwar genau in die **ECO-Totzone**
+  (knapp unter dem Sollwert, aber über der geräteinternen Wiedereinschaltschwelle).
+  ECO sprang dann **trotz offenem Zeitfenster** nicht wieder an, die Wärmepumpe
+  blieb aus und das Warmwasser kühlte über Stunden aus (beobachtet: Rückschaltung
+  bei 48 °C mitten im 10–18-Uhr-Fenster, danach Absinken bis ~32 °C). Die
+  Rück-Schwelle wird jetzt nie unter den aktuellen Sollwert (Reg 6) gelegt
+  (`max(recover, Sollwert)`), sodass die Notheizung bis mindestens zur
+  Zieltemperatur in AUTO nachheizt. `recover` bleibt als eigenes Feld erhalten und
+  wirkt unverändert, sobald es ≥ Sollwert konfiguriert ist.
+
 ## [1.12.1] - 2026-07-20
 - **COP/Energie stürzt nach Zähler-Aussetzer nicht mehr ab:** Kehrte ein externer
   Strom-/Wärmezähler aus `unavailable` mit einem minimal kleineren (gerundeten)
