@@ -247,6 +247,12 @@ class PvController:
             self._set_status("off", None, None, None, False)
             return
 
+        # Läuft gerade die Legionellen-Desinfektion, besitzt sie Sollwert/Modus
+        # (65 °C). Die PV-Sollwert-Regelung pausiert, damit sie nicht dagegen
+        # schreibt (bzw. den 65-°C-Sollwert als manuellen Eingriff fehldeutet).
+        if coordinator.legionella.active:
+            return
+
         await self._ensure_loaded(coordinator)
 
         surplus = state_float(self.hass, o.get(CONF_PV_SENSOR))

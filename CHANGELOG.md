@@ -5,6 +5,47 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.13.0] - 2026-07-30
+- **Legionellen-Schutz (periodische thermische Desinfektion):** Neue optionale
+  Funktion nach dem **Watchdog-Prinzip** – überwacht wird nur die eine
+  sicherheitsrelevante Größe: *wie lange ist die letzte vollständige Durchheizung
+  her?* Erreicht der Speicher nicht innerhalb des Intervalls (Default **7 Tage**)
+  am **Boden** (`Tank unten`, kälteste Schicht) die Zieltemperatur, wird ein
+  Desinfektionslauf erzwungen: Sollwert temporär auf **65 °C**, bevorzugt im
+  **ECO-Fenster** (Default 10–18 Uhr) effizient mitheizend, mit Eskalation auf
+  **AUTO**, damit das Ziel garantiert erreicht wird (**kein Timeout/Abbruch** –
+  der Lauf endet nur bei nachgewiesenem Erfolg). Erfolg = `Tank unten` hält die
+  Nachweis-Schwelle (Default 60 °C) für die Haltezeit (Default 30 min); danach
+  wird der vorherige Sollwert/Modus wiederhergestellt.
+  - **Selbst-Reset:** Wird der Speicher zwischendurch ohnehin voll durchgeheizt
+    (z. B. PV-Boost auf 65/75 °C), zählt das als Desinfektion und der Timer
+    springt zurück – im Alltag mit täglicher Nutzung läuft also kaum ein
+    Extra-Zyklus, der Schutz greift v. a. bei Stagnation (Urlaub).
+  - **Neuer Diagnose-Sensor** „Legionellen-Schutz" (`sensor.haier_hwhp_legionella_status`):
+    Geschützt / Fällig / Desinfektion läuft / Haltephase, plus Attribute (letzte
+    Volldurchheizung, Tage seither, nächste Fälligkeit, Tank unten, Ziel).
+  - **Koordination:** Während eines Laufs pausiert die PV-Sollwert-Regelung und
+    die Notheizung tritt zurück (kein Schreibkonflikt); danach übernehmen sie
+    wieder normal. Persistiert (letzte Volldurchheizung übersteht HA-Neustarts).
+  - Alles im „Konfigurieren"-Dialog einstellbar (Intervall, Ziel, Nachweis-
+    Schwelle Tank unten, Haltezeit, bevorzugtes Fenster). **Verbrühgefahr:** bei
+    65 °C ein thermostatisches Mischventil vorsehen.
+
+## [1.12.2] - 2026-07-30
+- **Notfall-Nachheizung erreicht jetzt die Zieltemperatur:** Die Rück-Schwelle
+  `recover` (Standard 48 °C) wurde als fester Absolutwert ausgewertet – unabhängig
+  vom Sollwert. Lag sie *unter* dem Sollwert (z. B. 48 °C bei Sollwert 50 °C bzw.
+  60 °C in der PV-Regelung), gab die Notheizung schon **vor** Erreichen der
+  Zieltemperatur von AUTO an ECO zurück – und zwar genau in die **ECO-Totzone**
+  (knapp unter dem Sollwert, aber über der geräteinternen Wiedereinschaltschwelle).
+  ECO sprang dann **trotz offenem Zeitfenster** nicht wieder an, die Wärmepumpe
+  blieb aus und das Warmwasser kühlte über Stunden aus (beobachtet: Rückschaltung
+  bei 48 °C mitten im 10–18-Uhr-Fenster, danach Absinken bis ~32 °C). Die
+  Rück-Schwelle wird jetzt nie unter den aktuellen Sollwert (Reg 6) gelegt
+  (`max(recover, Sollwert)`), sodass die Notheizung bis mindestens zur
+  Zieltemperatur in AUTO nachheizt. `recover` bleibt als eigenes Feld erhalten und
+  wirkt unverändert, sobald es ≥ Sollwert konfiguriert ist.
+
 ## [1.12.1] - 2026-07-20
 - **COP/Energie stürzt nach Zähler-Aussetzer nicht mehr ab:** Kehrte ein externer
   Strom-/Wärmezähler aus `unavailable` mit einem minimal kleineren (gerundeten)
