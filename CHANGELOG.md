@@ -5,6 +5,21 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.13.1] - 2026-08-10
+- **Manueller Sollwert-Eingriff (PV-Coordinator) wird jetzt zuverlässig erkannt:**
+  Die seit v1.12.0 bestehende „manueller Eingriff wird respektiert"-Erkennung
+  griff nicht, wenn die PV-Steuerung seit dem letzten Neustart/Reload noch nie
+  selbst einen Sollwert geschrieben hatte (z. B. weil der Sollwert ohnehin schon
+  beim PV-Ziel stand). In dem Fall blieb die interne Baseline (`_last_written`)
+  dauerhaft leer, wodurch der **allererste** manuelle Eingriff (Display/HA) nicht
+  als „manuell" galt und beim nächsten Poll-Zyklus (Default 5 s, oft konfiguriert
+  auf mehr) **stillschweigend überschrieben** wurde – beobachtet als: Sollwert
+  manuell erhöht, WP läuft kurz an, dann schreibt die PV-Steuerung sofort wieder
+  auf ihr eigenes Ziel zurück, WP geht wieder aus. Die Baseline wird jetzt beim
+  ersten Auswerten nach dem Start/Reload aus dem aktuellen Register-Sollwert
+  gesetzt, sodass auch der erste manuelle Eingriff korrekt erkannt und bis zum
+  nächsten Morgen-Start in Ruhe gelassen wird.
+
 ## [1.13.0] - 2026-07-30
 - **Legionellen-Schutz (periodische thermische Desinfektion):** Neue optionale
   Funktion nach dem **Watchdog-Prinzip** – überwacht wird nur die eine

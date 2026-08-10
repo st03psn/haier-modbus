@@ -283,6 +283,15 @@ class PvController:
         if self._wp_target is None:
             self._wp_target = t_normal if current >= t_normal - 0.5 else t_base
 
+        # Baseline für die Manuell-Erkennung setzen, falls noch nie selbst
+        # geschrieben (frischer Start/Reload). Ohne das bleibt ``_last_written``
+        # ``None`` und der allererste manuelle Eingriff (Display/HA) wird nicht
+        # erkannt, sondern beim nächsten Poll stillschweigend überschrieben –
+        # insbesondere wenn der Sollwert seit dem Start ohnehin schon beim
+        # PV-Ziel steht und die PV-Steuerung deshalb nie selbst schreiben musste.
+        if self._last_written is None:
+            self._last_written = int(current)
+
         # 1) Morgen-Start (der einzige Kaltstart/Tag): max. 1×/Tag (über die
         #    persistierte ``_last_kick_day`` – überlebt Neustarts) und nur im
         #    Zeitfenster ab der Morgen-Uhrzeit (kein Abend-Kaltstart nach Neustart).
