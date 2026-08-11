@@ -3,14 +3,17 @@
 Zwei **aufeinander abgestimmte Schichten**, geregelt nach rohem PV-Überschuss
 (``sensor.pv_uberschuss_watt``, kappt bei 0):
 
-**Schicht 1 — WP-Zyklus, 3-stufig (Normal 50 -> Erhöht 65 -> Solar-Boost 75):**
+**Schicht 1 — WP-Zyklus, 3-stufig (Normal 50 -> Erhöht 60 -> Solar-Boost 65):**
+Die Stufen bleiben im Bereich des Verdichters: Solar-Boost zielt auf
+``min(Boost-Zieltemperatur, WP_MAX_TEMP)`` – über 65 °C kommt laut Datenblatt nur der
+Heizstab, dorthin die WP allein zu schicken hieße, ein unerreichbares Ziel anzusteuern.
 - **Morgen-Start (fix, 1×/Tag):** der einzige Kaltstart — zur Uhrzeit, wenn Wasser
   unter Normal liegt, Sollwert auf Erhöht -> WP startet im ECO-Fenster.
 - **Anheben Normal->Erhöht nur bei LAUFENDER WP** (Piggyback) + Überschuss ≥ Halte-Puffer.
   Kein Tages-Kaltstart -> kein Takten.
 - **Weiter anheben Erhöht->Solar-Boost** ebenfalls nur bei LAUFENDER WP (Piggyback) +
-  Überschuss ≥ Solar-Boost-Schwelle: dieselbe Zieltemperatur wie der Heizstab-Boost, aber
-  rein über den Verdichter (COP i. d. R. 3–4× besser als der Heizstab).
+  Überschuss ≥ Solar-Boost-Schwelle: der Verdichter fährt bis an seine eigene Grenze
+  (COP i. d. R. 3–4× besser als der Heizstab).
 - **Halten** auf der jeweiligen Stufe, solange deren Schwelle weiter erreicht wird ODER
   der Heizstab läuft.
 - **Absenken** schrittweise über die mittlere Stufe (Solar-Boost->Erhöht->Normal), nicht
@@ -89,6 +92,7 @@ from .const import (
     SET_TEMP_MAX,
     SET_TEMP_MIN,
     STATUS_HEATPUMP,
+    WP_MAX_TEMP,
 )
 from .energy import state_float
 
@@ -325,6 +329,10 @@ class PvController:
         # dauerhaft aussperren (siehe Sicherheitsventil in Schicht 2).
         t_high = max(t_high, t_base)
         t_normal = min(max(t_normal, t_base), t_high)
+        # Ziel der Solar-Boost-Stufe = so hoch, wie es der **Verdichter allein** schafft.
+        # Über WP_MAX_TEMP (Datenblatt: 65 °C) kommt nur der Heizstab – die WP dorthin
+        # jagen zu lassen hieße, ein unerreichbares Ziel anzusteuern.
+        t_wp_ceiling = min(t_high, float(WP_MAX_TEMP))
         hold = float(o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD))
         hoch = float(o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH))
         solarboost = min(
@@ -389,14 +397,14 @@ class PvController:
         #    nicht zwingend eine Stufe). Ein bares `else` würde jeden Zwischenwert als
         #    „Deckel" behandeln – und dieser Zweig hat keinen ``running``-Guard, würde
         #    also bei stehender WP direkt auf die Boost-Temperatur kaltstarten.
-        if self._wp_target >= t_high - 0.5:         # aktuell Solar-Boost (Deckel): nur halten
-            wp_want = t_high if (surplus >= solarboost or self._heater_on) else t_normal
+        if self._wp_target >= t_wp_ceiling - 0.5:   # aktuell Solar-Boost (WP-Deckel): halten
+            wp_want = t_wp_ceiling if (surplus >= solarboost or self._heater_on) else t_normal
         elif self._wp_target <= t_base + 0.5:       # aktuell Normal
             # Anheben nur bei laufender WP (Piggyback, kein Kaltstart).
             wp_want = t_normal if (running and surplus >= hold) else t_base
         else:                                       # Erhöht + alle Zwischenwerte (Bootstrap)
             if running and surplus >= solarboost:   # Aufstieg weiterhin nur per Piggyback
-                wp_want = t_high
+                wp_want = t_wp_ceiling
             elif surplus >= hold or self._heater_on:
                 wp_want = t_normal
             else:
@@ -415,8 +423,8 @@ class PvController:
             # Negativpreis: Einspeisung ist im Fenster ohnehin wertlos (§51 EEG) ->
             # Wartezeit entfällt, der Speicher wird schneller voll und die WP zieht
             # danach keinen (dann wieder vergüteten) Überschuss mehr ab.
-            ladder_reaches_ceiling = t_high > t_normal > t_base
-            at_ceiling = self._wp_target >= t_high - 0.5 or not ladder_reaches_ceiling
+            ladder_reaches_ceiling = t_wp_ceiling > t_normal > t_base
+            at_ceiling = self._wp_target >= t_wp_ceiling - 0.5 or not ladder_reaches_ceiling
             heater_want = (
                 running and surplus >= hoch and (at_ceiling or self._negative_price(o))
             )
@@ -476,7 +484,7 @@ class PvController:
             state = "high_boost"
         elif self._heater_on and choice == PV_ESC_ELEC:
             state = "high_elec"
-        elif self._wp_target >= t_high - 0.5:
+        elif self._wp_target >= t_wp_ceiling - 0.5:
             state = "solar_boost"
         elif self._wp_target >= t_normal - 0.5:
             state = "normal"

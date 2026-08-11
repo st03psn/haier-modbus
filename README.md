@@ -114,11 +114,12 @@ Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 > **⚠️ Zieltemperaturen: Registergrenze ≠ Gerätegrenze.** Das Hersteller-Datenblatt der
 > M7-Reihe nennt beides getrennt: **Einstellbereich *mit Heizstab* 35–75 °C** gegenüber
 > **max. Temperaturausgabe *nur Wärmepumpe* 65 °C**. Der Bereich 65–75 °C ist also nur mit
-> dem **1500-W-Heizstab** (COP ≈ 1) erreichbar. Für die **Boost-Zieltemperatur**
-> (`pv_temp_high`) deshalb **65 °C** wählen — dann bedeutet die Solar-Boost-Stufe „WP bis
-> an ihre Leistungsgrenze". Empfohlene Staffelung: **50 / 58–60 / 65 °C**. Belege,
-> Feldmessungen und Hinweise zum Legionellen-Schutz:
-> [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).
+> dem **1500-W-Heizstab** (COP ≈ 1) erreichbar. Die Integration setzt das um: **Normal**
+> und **Erhöht** sind auf **65 °C** begrenzt (Verdichter allein), nur die
+> **Boost-Zieltemperatur** darf bis **75 °C** (mit Heizstab). Die Solar-Boost-Stufe zielt
+> automatisch auf `min(Boost-Ziel, 65 °C)` — die WP bis an ihre Grenze, der Heizstab
+> übernimmt nur darüber. Empfohlen: **50 / 60 / 75 °C**. Belege, Feldmessungen und
+> Hinweise zum Legionellen-Schutz: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).
 
 Statt eines Bool-Hakens gibt es ein **Dropdown „PV-Modus"** (Setup-Schritt 3 oder
 „Konfigurieren"). Es regelt immer nur **ein** Gehirn — kein Doppelregler:
@@ -144,19 +145,19 @@ gebaut, dass die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts) und
   liegt — der **einzige Kaltstart** des Tages.
 - **Anheben auf Erhöht nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
   (Default 50 W) → kein Tages-Kaltstart, kein Takten.
-- **Weiter auf Solar-Boost** (= die **Boost-Zieltemperatur**, Default 75 °C) ebenfalls nur
-  bei laufender WP, über der **Solar-Boost-Schwelle** (Default 600 W): Der Verdichter
-  klettert **allein** auf den Deckel — mit COP i. d. R. 3–4× besser als der Heizstab, und
-  der nicht gezogene Überschuss bleibt (vergütet) einspeisbar.
+- **Weiter auf Solar-Boost** (= `min(Boost-Zieltemperatur, **65 °C**)`) ebenfalls nur bei
+  laufender WP, über der **Solar-Boost-Schwelle** (Default 600 W): Der Verdichter klettert
+  **allein bis an seine Grenze** — mit COP i. d. R. 3–4× besser als der Heizstab, und der
+  nicht gezogene Überschuss bleibt (vergütet) einspeisbar.
 - **Absenken** schrittweise über die mittlere Stufe (Solar-Boost → Erhöht → Normal), jeder
   Schritt einzeln entprellt (Default 5 min).
 
 **Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt nie die WP):** ab der **Boost-Schwelle**
 (Default 1550 W = Heizstab ~1500 W + Puffer):
 - **Boost** (WP + Heizstab) nur bei laufender WP **und erst, wenn Schicht 1 selbst schon
-  auf Solar-Boost steht** — der Heizstab (COP ≈ 1) springt also erst ein, wenn der
-  Verdichter den Überschuss nicht mehr aufnehmen kann. *Dadurch startet er bis zu zwei
-  Entprellzeiten später als früher — das ist beabsichtigt.*
+  auf Solar-Boost steht** — der Heizstab (COP ≈ 1) übernimmt damit ausschließlich den
+  Bereich **oberhalb 65 °C**, den laut Datenblatt **nur er** erreichen kann. *Dadurch
+  startet er bis zu zwei Entprellzeiten später als früher — das ist beabsichtigt.*
 - **Heizstab (ELEC)** **nur bei stehender** WP (ELEC würde die WP sonst stoppen) — dumpt
   sofort, z. B. um nach dem Tageszyklus Überschuss zu verheizen; danach zurück auf ECO +
   Normal-Temperatur. Hier gibt es **kein** Deckel-Gate (anderes Szenario).
@@ -290,10 +291,12 @@ exposes **code + description** attributes. Full table:
 > **⚠️ Target temperatures: register limit ≠ device limit.** The manufacturer's M7 data
 > sheet lists both separately: **setting range *with heater* 35–75 °C** vs. **max.
 > temperature output *heat pump only* 65 °C**. The 65–75 °C band is therefore only
-> reachable with the **1500 W electric heater** (COP ≈ 1). So set the **boost target**
-> (`pv_temp_high`) to **65 °C** — then the solar-boost tier means “compressor up to its
-> limit”. Recommended tiers: **50 / 58–60 / 65 °C**. Evidence, field measurements and
-> legionella-protection notes: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).
+> reachable with the **1500 W electric heater** (COP ≈ 1). The integration enforces this:
+> **normal** and **elevated** are capped at **65 °C** (compressor alone), only the **boost
+> target** may go up to **75 °C** (with the heater). The solar-boost tier automatically
+> aims at `min(boost target, 65 °C)` — the pump up to its limit, the heater only beyond.
+> Recommended: **50 / 60 / 75 °C**. Evidence, field measurements and legionella-protection
+> notes: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).
 
 Instead of a checkbox there is a **"PV mode" dropdown** (setup step 3 / *Configure*).
 Only **one** brain ever regulates — no double controller:

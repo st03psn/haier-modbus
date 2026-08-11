@@ -211,6 +211,14 @@ REG_FAULT: Final = 18         # R   Fehlercode 0..64
 SET_TEMP_MIN: Final = 35
 SET_TEMP_MAX: Final = 75
 
+# Höchste Wassertemperatur, die der **Verdichter allein** erreicht. Das
+# Hersteller-Datenblatt der M7-Reihe führt beides getrennt:
+#   "Temperatureinstellbereich mit Heizstab"   35..75 °C  (= SET_TEMP_MAX)
+#   "max. Temperaturausgabe nur Wärmepumpe"    65 °C      (= WP_MAX_TEMP)
+# Der Bereich dazwischen ist nur mit dem 1500-W-Heizstab erreichbar.
+# Belege: docs/geraete-grenzen.md
+WP_MAX_TEMP: Final = 65
+
 # --- Energie-/Wärmeregister (kWh) -----------------------------------------
 # Jeder Block: 7 Tageswerte + 12 Monatswerte + 5 Jahreswerte.
 # "dieses Jahr" = letztes Register des jeweiligen Blocks.

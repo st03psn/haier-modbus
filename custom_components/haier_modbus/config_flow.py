@@ -94,6 +94,7 @@ from .const import (
     READ_START,
     SET_TEMP_MAX,
     SET_TEMP_MIN,
+    WP_MAX_TEMP,
     localized_title,
 )
 
@@ -139,6 +140,13 @@ _WATT = selector.NumberSelector(
 )
 _TEMP = selector.NumberSelector(
     selector.NumberSelectorConfig(min=SET_TEMP_MIN, max=SET_TEMP_MAX, step=1,
+                                  unit_of_measurement="°C", mode=selector.NumberSelectorMode.SLIDER)
+)
+# Zieltemperaturen, die der **Verdichter allein** erreichen muss (Normal/Erhöht), sind auf
+# WP_MAX_TEMP begrenzt – darüber käme nur der Heizstab, was auf diesen Stufen nicht
+# vorgesehen ist. Nur die Boost-Zieltemperatur darf bis SET_TEMP_MAX (mit Heizstab).
+_TEMP_WP = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=SET_TEMP_MIN, max=WP_MAX_TEMP, step=1,
                                   unit_of_measurement="°C", mode=selector.NumberSelectorMode.SLIDER)
 )
 _OFFSET = selector.NumberSelector(
@@ -202,8 +210,8 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
             {
                 vol.Optional(CONF_PV_TEMP_HIGH, default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH)): _TEMP,
                 vol.Optional(CONF_PV_TEMP_NORMAL,
-                             default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP,
-                vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP,
+                             default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP_WP,
+                vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP_WP,
             }
         )
 
@@ -226,6 +234,29 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
             }
         )
     return vol.Schema(fields)
+
+
+def _temp_order_error(merged: dict[str, Any]) -> str | None:
+    """Plausibilität der PV-Zieltemperaturen: Normal < Erhöht ≤ Boost.
+
+    Ohne echte Staffelung kollabieren die Regelstufen: Ist Erhöht nicht höher als
+    Normal, gibt es keine Zwischenstufe mehr, und die Solar-Boost-Stufe (Verdichter
+    allein) kann nicht mehr von der Normalstufe unterschieden werden. ``pv.py`` klemmt
+    verdrehte Werte zwar zur Laufzeit ab, aber ein Hinweis beim Speichern ist ehrlicher
+    als eine stillschweigende Korrektur.
+    """
+    base = merged.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)
+    normal = merged.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)
+    high = merged.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH)
+    try:
+        base, normal, high = float(base), float(normal), float(high)
+    except (TypeError, ValueError):
+        return None
+    if normal <= base:
+        return "temp_order_normal"
+    if high < normal:
+        return "temp_order_high"
+    return None
 
 
 async def _test_connection(host: str, port: int, slave: int) -> bool:
@@ -319,6 +350,8 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             merged = {**self._pv, **details}
             if mode == PV_MODE_COORDINATOR and not merged.get(CONF_PV_SENSOR):
                 errors["base"] = "pv_sensor_required"
+            elif (order_error := _temp_order_error(merged)) is not None:
+                errors["base"] = order_error
             else:
                 self._pv = merged
                 return self._create_entry()
@@ -420,6 +453,8 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             merged = {**self._pending, **details}
             if mode == PV_MODE_COORDINATOR and not merged.get(CONF_PV_SENSOR):
                 errors["base"] = "pv_sensor_required"
+            elif (order_error := _temp_order_error(merged)) is not None:
+                errors["base"] = order_error
             else:
                 return self.async_create_entry(title="", data=merged)
 

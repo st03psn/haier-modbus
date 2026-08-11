@@ -42,6 +42,7 @@ from .const import (
     REG_SET_TEMP,
     SET_TEMP_MAX,
     SET_TEMP_MIN,
+    WP_MAX_TEMP,
 )
 from .entity import HaierModbusEntity
 
@@ -61,12 +62,14 @@ class OptionNumber:
 
 # Zieltemperaturen: auch im **Executor**-Modus wirksam – das Programm-Select
 # (select.py) übersetzt seine Programme über genau diese Werte in Sollwerte.
+# Normal/Erhöht muss der **Verdichter allein** schaffen -> auf WP_MAX_TEMP begrenzt;
+# nur Boost darf bis SET_TEMP_MAX gehen (dort hilft der Heizstab). S. docs/geraete-grenzen.md
 PV_TEMP_NUMBERS: tuple[OptionNumber, ...] = (
     OptionNumber(key=CONF_PV_TEMP_BASE, default=DEFAULT_PV_TEMP_BASE,
-                 min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,
+                 min_value=SET_TEMP_MIN, max_value=WP_MAX_TEMP,
                  unit=UnitOfTemperature.CELSIUS, icon="mdi:thermometer-low"),
     OptionNumber(key=CONF_PV_TEMP_NORMAL, default=DEFAULT_PV_TEMP_NORMAL,
-                 min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,
+                 min_value=SET_TEMP_MIN, max_value=WP_MAX_TEMP,
                  unit=UnitOfTemperature.CELSIUS, icon="mdi:thermometer"),
     OptionNumber(key=CONF_PV_TEMP_HIGH, default=DEFAULT_PV_TEMP_HIGH,
                  min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,

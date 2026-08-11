@@ -57,19 +57,23 @@
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
+          "pv_temp_high": "Ziel der Heizstab-Stufe. Nur hier sind bis 75 °C sinnvoll: Der Bereich über 65 °C ist laut Datenblatt ausschließlich **mit Heizstab** erreichbar. Die Wärmepumpe klettert im Solar-Boost zuvor allein bis 65 °C; der Heizstab schiebt darüber.",
+          "pv_temp_normal": "Mittlere Stufe, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Muss höher liegen als die Normal-Zieltemperatur.",
           "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
-          "pv_solar_boost": "Schwelle, ab der der WP-Zyklus (bei bereits laufender WP, Piggyback) selbst bis auf die Boost-Zieltemperatur weiterklettert – rein über den Verdichter, deutlich effizienter (COP i. d. R. 3–4×) als der Heizstab. Muss zwischen der Halte-/Piggyback-Schwelle und der Heizstab-Schwelle liegen. Kein spezifizierter Wert bekannt – am besten aus der eigenen externen Leistungsmessung (z. B. Shelly, siehe COP-Stromquelle) den typischen Verdichter-Verbrauch ablesen und die Schwelle knapp darüber setzen.",
+          "pv_solar_boost": "Schwelle, ab der der WP-Zyklus (bei bereits laufender WP, Piggyback) selbst bis an die **Wärmepumpen-Grenze (65 °C)** weiterklettert – rein über den Verdichter, deutlich effizienter (COP i. d. R. 3–4×) als der Heizstab. Muss zwischen der Halte-/Piggyback-Schwelle und der Heizstab-Schwelle liegen. Kein spezifizierter Wert bekannt – am besten aus der eigenen externen Leistungsmessung (z. B. Shelly, siehe COP-Stromquelle) den typischen Verdichter-Verbrauch ablesen und die Schwelle knapp darüber setzen.",
           "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Boost-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
           "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt für den Morgen-Start: Ein frischer Kaltstart wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber passiert nur bei bereits laufender WP (Piggyback) und bleibt davon unberührt.",
-          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur.",
+          "pv_escalation": "Was oberhalb der Heizstab-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab gleichzeitig, nur bei laufender WP – und erst, wenn die WP ihre 65-°C-Grenze selbst erreicht hat; der Heizstab übernimmt dann den Bereich darüber, den nur er schafft. Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – die separate Schnellaufheiz-/Dump-Option, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur.",
           "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). Ist er „an“, darf der Heizstab (Boost) auch zuschalten, bevor die WP die Solar-Boost-Stufe erreicht hat – Einspeisung wäre in diesem Fenster ohnehin nichts wert (Solarspitzengesetz/§51 EEG). Leer lassen, wenn kein solcher Sensor vorhanden ist (Standardverhalten bleibt unverändert)."
         }
       }
     },
     "error": {
       "cannot_connect": "Verbindung fehlgeschlagen. Host, Port und Slave-ID prüfen.",
-      "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird."
+      "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird.",
+      "temp_order_normal": "Die Erhöht-Zieltemperatur muss höher sein als die Normal-Zieltemperatur – sonst gibt es keine Zwischenstufe und die Regelstufen fallen zusammen.",
+      "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen. Hinweis: Normal/Erhöht muss die Wärmepumpe allein schaffen (max. 65 °C); nur Boost erreicht mit dem Heizstab bis 75 °C."
     },
     "abort": {
       "already_configured": "Diese Wärmepumpe ist bereits eingerichtet."
@@ -138,18 +142,22 @@
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
+          "pv_temp_high": "Ziel der Heizstab-Stufe. Nur hier sind bis 75 °C sinnvoll: Der Bereich über 65 °C ist laut Datenblatt ausschließlich **mit Heizstab** erreichbar. Die Wärmepumpe klettert im Solar-Boost zuvor allein bis 65 °C; der Heizstab schiebt darüber.",
+          "pv_temp_normal": "Mittlere Stufe, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Muss höher liegen als die Normal-Zieltemperatur.",
           "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
-          "pv_solar_boost": "Schwelle, ab der der WP-Zyklus (bei bereits laufender WP, Piggyback) selbst bis auf die Boost-Zieltemperatur weiterklettert – rein über den Verdichter, deutlich effizienter (COP i. d. R. 3–4×) als der Heizstab. Muss zwischen der Halte-/Piggyback-Schwelle und der Heizstab-Schwelle liegen. Kein spezifizierter Wert bekannt – am besten aus der eigenen externen Leistungsmessung (z. B. Shelly, siehe COP-Stromquelle) den typischen Verdichter-Verbrauch ablesen und die Schwelle knapp darüber setzen.",
+          "pv_solar_boost": "Schwelle, ab der der WP-Zyklus (bei bereits laufender WP, Piggyback) selbst bis an die **Wärmepumpen-Grenze (65 °C)** weiterklettert – rein über den Verdichter, deutlich effizienter (COP i. d. R. 3–4×) als der Heizstab. Muss zwischen der Halte-/Piggyback-Schwelle und der Heizstab-Schwelle liegen. Kein spezifizierter Wert bekannt – am besten aus der eigenen externen Leistungsmessung (z. B. Shelly, siehe COP-Stromquelle) den typischen Verdichter-Verbrauch ablesen und die Schwelle knapp darüber setzen.",
           "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Boost-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
           "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt für den Morgen-Start: Ein frischer Kaltstart wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber passiert nur bei bereits laufender WP (Piggyback) und bleibt davon unberührt.",
-          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur.",
+          "pv_escalation": "Was oberhalb der Heizstab-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab gleichzeitig, nur bei laufender WP – und erst, wenn die WP ihre 65-°C-Grenze selbst erreicht hat; der Heizstab übernimmt dann den Bereich darüber, den nur er schafft. Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – die separate Schnellaufheiz-/Dump-Option, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur.",
           "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). Ist er „an“, darf der Heizstab (Boost) auch zuschalten, bevor die WP die Solar-Boost-Stufe erreicht hat – Einspeisung wäre in diesem Fenster ohnehin nichts wert (Solarspitzengesetz/§51 EEG). Leer lassen, wenn kein solcher Sensor vorhanden ist (Standardverhalten bleibt unverändert)."
         }
       }
     },
     "error": {
-      "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird."
+      "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird.",
+      "temp_order_normal": "Die Erhöht-Zieltemperatur muss höher sein als die Normal-Zieltemperatur – sonst gibt es keine Zwischenstufe und die Regelstufen fallen zusammen.",
+      "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen. Hinweis: Normal/Erhöht muss die Wärmepumpe allein schaffen (max. 65 °C); nur Boost erreicht mit dem Heizstab bis 75 °C."
     }
   },
   "selector": {

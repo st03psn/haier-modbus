@@ -58,18 +58,26 @@ Aus vier Monaten Langzeitstatistik einer realen HP200M7-F9:
 
 ## Empfohlene Konfiguration
 
-**PV-Steuerung (Coordinator):** Die Solar-Boost-Stufe soll „WP bis an ihre Leistungsgrenze"
-bedeuten — also `pv_temp_high` = **65 °C**, nicht 75. Sinnvolle Staffelung:
+**PV-Steuerung (Coordinator):** Die Integration setzt die Grenze ab v1.15.0 selbst um —
+die Stufen sind entsprechend aufgeteilt:
 
-| Stufe | Option | Empfehlung |
-|---|---|---|
-| Normal | `pv_temp_base` | 50 °C |
-| Erhöht | `pv_temp_normal` | 58–60 °C |
-| Solar-Boost | `pv_temp_high` | **65 °C** (WP-Grenze) |
+| Stufe | Option | Bereich | Wer heizt |
+|---|---|---|---|
+| Normal | `pv_temp_base` | 35–**65** °C | Verdichter |
+| Erhöht | `pv_temp_normal` | 35–**65** °C | Verdichter |
+| Solar-Boost | *(kein eigenes Feld)* | automatisch `min(Boost-Ziel, **65**)` | **Verdichter allein an seiner Grenze** |
+| Boost | `pv_temp_high` | 35–**75** °C | **Heizstab** schiebt über 65 °C |
 
-Die Reihenfolge muss echt aufsteigend sein (`base < normal < high`); sonst greift das
-Sicherheitsventil in `pv.py` und die Heizstab-Stufe fällt auf das alte Verhalten zurück
-(kein Warten auf den Deckel). Die Werte werden intern zusätzlich geklemmt.
+Empfohlen: **50 / 60 / 75** (Normal / Erhöht / Boost). Die WP fährt dann 50 → 60 → 65 °C
+allein, der Heizstab übernimmt nur die letzten 65 → 75 °C — also genau den Bereich, den
+**nur er** erreichen kann. Keine Heizstab-kWh wird für eine Spanne verbraucht, die der
+Verdichter auch geschafft hätte.
+
+Normal/Erhöht sind in der Oberfläche auf **65 °C** begrenzt, weil sie der Verdichter allein
+erreichen muss. Nur die Boost-Zieltemperatur darf bis 75 °C. Zusätzlich prüft der
+Konfigurationsdialog die Reihenfolge (`Normal < Erhöht ≤ Boost`); `pv.py` klemmt verdrehte
+Werte zur Laufzeit zusätzlich ab und hat ein Sicherheitsventil, damit eine entartete
+Konfiguration den Heizstab nicht dauerhaft aussperrt.
 
 **Legionellen-Schutz:** `legionella_bottom_min` **nicht** auf 65 °C setzen — das ist exakt
 die WP-Maximaltemperatur, gemessen an der **kältesten** Schicht (Tank unten), und damit

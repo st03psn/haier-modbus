@@ -57,19 +57,23 @@
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
+          "pv_temp_high": "Target of the electric-heater tier. Only here do values up to 75 °C make sense: per the data sheet the band above 65 °C is reachable **only with the heater**. During solar boost the heat pump first climbs to 65 °C on its own; the heater pushes beyond.",
+          "pv_temp_normal": "Middle tier, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Must be higher than the normal target temperature.",
           "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and the heater is off.",
-          "pv_solar_boost": "Threshold above which the heat-pump cycle (while already running, piggyback) keeps climbing on its own up to the boost target — via the compressor alone, far more efficient (COP typically 3–4x) than the electric heater. Must sit between the hold/piggyback threshold and the heater threshold. No universal spec value exists — best derived from your own external power meter (e.g. Shelly, see COP electricity source): read the compressor's typical draw and set this just above it.",
+          "pv_solar_boost": "Threshold above which the heat-pump cycle (while already running, piggyback) keeps climbing on its own up to the **heat-pump limit (65 °C)** — via the compressor alone, far more efficient (COP typically 3–4x) than the electric heater. Must sit between the hold/piggyback threshold and the heater threshold. No universal spec value exists — best derived from your own external power meter (e.g. Shelly, see COP electricity source): read the compressor's typical draw and set this just above it.",
           "pv_high": "Electric-heater threshold (≈ 1550 W = heater ~1500 W + buffer). Above it the heater is added as an ad-hoc top-up at the boost target: Boost while the heat pump runs, ELEC only while it is off. The heater never stops the pump — when surplus drops, only the heater goes away while the cycle keeps running.",
           "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window.",
           "pv_min_off": "Anti-short-cycle for the morning start: a fresh cold start waits until the compressor has been off at least this long. Daytime raises happen only while the pump already runs (piggyback) and are unaffected.",
-          "pv_escalation": "What to add once surplus passes the high threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher setpoint. Boost: heat pump + electric heater together, only while the pump runs (efficient). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — inefficient, only to dump surplus, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone.",
+          "pv_escalation": "What to add once surplus passes the heater threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher target (the pump stays at max. 65 °C). Boost: heat pump + heater together, only while the pump runs — and only once the pump has reached its own 65 °C limit; the heater then covers the band above, which only it can reach. Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — the separate fast-heat/dump option, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone.",
           "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). When 'on', the electric heater (Boost) may switch on even before the heat pump has reached the Solar-Boost tier — feed-in would be worthless in that window anyway (German 'Solarspitzengesetz'/§51 EEG). Leave empty if you don't have such a sensor (default behaviour is unchanged)."
         }
       }
     },
     "error": {
       "cannot_connect": "Connection failed. Check host, port and slave ID.",
-      "pv_sensor_required": "Please select a PV surplus sensor before enabling the control."
+      "pv_sensor_required": "Please select a PV surplus sensor before enabling the control.",
+      "temp_order_normal": "The elevated target temperature must be higher than the normal target temperature — otherwise there is no middle tier and the control tiers collapse.",
+      "temp_order_high": "The boost target temperature must not be below the elevated target temperature. Note: normal/elevated must be reachable by the heat pump alone (max. 65 °C); only boost reaches up to 75 °C, with the electric heater."
     },
     "abort": {
       "already_configured": "This heat pump is already configured."
@@ -138,18 +142,22 @@
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
+          "pv_temp_high": "Target of the electric-heater tier. Only here do values up to 75 °C make sense: per the data sheet the band above 65 °C is reachable **only with the heater**. During solar boost the heat pump first climbs to 65 °C on its own; the heater pushes beyond.",
+          "pv_temp_normal": "Middle tier, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Must be higher than the normal target temperature.",
           "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and the heater is off.",
-          "pv_solar_boost": "Threshold above which the heat-pump cycle (while already running, piggyback) keeps climbing on its own up to the boost target — via the compressor alone, far more efficient (COP typically 3–4x) than the electric heater. Must sit between the hold/piggyback threshold and the heater threshold. No universal spec value exists — best derived from your own external power meter (e.g. Shelly, see COP electricity source): read the compressor's typical draw and set this just above it.",
+          "pv_solar_boost": "Threshold above which the heat-pump cycle (while already running, piggyback) keeps climbing on its own up to the **heat-pump limit (65 °C)** — via the compressor alone, far more efficient (COP typically 3–4x) than the electric heater. Must sit between the hold/piggyback threshold and the heater threshold. No universal spec value exists — best derived from your own external power meter (e.g. Shelly, see COP electricity source): read the compressor's typical draw and set this just above it.",
           "pv_high": "Electric-heater threshold (≈ 1550 W = heater ~1500 W + buffer). Above it the heater is added as an ad-hoc top-up at the boost target: Boost while the heat pump runs, ELEC only while it is off. The heater never stops the pump — when surplus drops, only the heater goes away while the cycle keeps running.",
           "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window.",
           "pv_min_off": "Anti-short-cycle for the morning start: a fresh cold start waits until the compressor has been off at least this long. Daytime raises happen only while the pump already runs (piggyback) and are unaffected.",
-          "pv_escalation": "What to add once surplus passes the high threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher setpoint. Boost: heat pump + electric heater together, only while the pump runs (efficient). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — inefficient, only to dump surplus, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone.",
+          "pv_escalation": "What to add once surplus passes the heater threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher target (the pump stays at max. 65 °C). Boost: heat pump + heater together, only while the pump runs — and only once the pump has reached its own 65 °C limit; the heater then covers the band above, which only it can reach. Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — the separate fast-heat/dump option, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone.",
           "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). When 'on', the electric heater (Boost) may switch on even before the heat pump has reached the Solar-Boost tier — feed-in would be worthless in that window anyway (German 'Solarspitzengesetz'/§51 EEG). Leave empty if you don't have such a sensor (default behaviour is unchanged)."
         }
       }
     },
     "error": {
-      "pv_sensor_required": "Please select a PV surplus sensor before enabling the control."
+      "pv_sensor_required": "Please select a PV surplus sensor before enabling the control.",
+      "temp_order_normal": "The elevated target temperature must be higher than the normal target temperature — otherwise there is no middle tier and the control tiers collapse.",
+      "temp_order_high": "The boost target temperature must not be below the elevated target temperature. Note: normal/elevated must be reachable by the heat pump alone (max. 65 °C); only boost reaches up to 75 °C, with the electric heater."
     }
   },
   "selector": {

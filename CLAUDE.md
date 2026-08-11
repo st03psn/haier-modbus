@@ -39,9 +39,13 @@ Controller aktiv ist.
    `modbus:` auf dasselbe Gerät schreiben.
 2. **Schreiben nur mit FC 0x10** (`write_registers`). Das Gerät weist FC 0x06 mit Ausnahme
    `0x86` zurück — siehe `docs/register-map.md`.
-3. **Register-Grenzen ≠ Gerätegrenzen.** Reg 6 nimmt 35–75 °C an, die WP schafft aber nur
-   **65 °C**; darüber arbeitet ausschließlich der 1500-W-Heizstab. Details und Belege:
-   `docs/geraete-grenzen.md`. Das ist bei jeder Arbeit an Zieltemperaturen relevant.
+3. **Register-Grenzen ≠ Gerätegrenzen.** Reg 6 nimmt 35–75 °C an (`SET_TEMP_MAX`), der
+   Verdichter erreicht aber nur **65 °C** (`WP_MAX_TEMP`); darüber arbeitet ausschließlich
+   der 1500-W-Heizstab. Das Datenblatt führt beides als getrennte Zeilen — Belege in
+   `docs/geraete-grenzen.md`. Konsequenz im Code: Stufen, die der **Verdichter allein**
+   fahren muss (Normal/Erhöht, Solar-Boost-Ziel), sind auf `WP_MAX_TEMP` zu begrenzen;
+   nur die Heizstab-Stufe darf bis `SET_TEMP_MAX`. Bei jeder Arbeit an Zieltemperaturen
+   prüfen, in welche der beiden Klassen ein Wert gehört.
 4. **Eine Quelle der Wahrheit.** Einstellungen leben in `entry.options`. Neue
    Bedien-Entitäten sind Fassaden darauf, kein Parallelspeicher.
 5. **Kein Reload für Laufzeit-Optionen.** Keys in `LIVE_OPTION_KEYS` (`const.py`) werden von

@@ -5,6 +5,29 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.15.0] - 2026-08-11
+- **Stufen folgen jetzt der echten Gerätegrenze (65 °C WP / 75 °C mit Heizstab).**
+  Aufbauend auf der in 1.14.1 dokumentierten Datenblatt-Angabe:
+  - **Normal- und Erhöht-Zieltemperatur sind auf 65 °C begrenzt** (Auswahl im Dialog und
+    an den `number`-Entitäten) — diese Stufen muss der **Verdichter allein** erreichen.
+  - **Die Boost-Zieltemperatur bleibt bis 75 °C wählbar** — nur dort hilft der Heizstab.
+  - **Die Solar-Boost-Stufe zielt jetzt auf `min(Boost-Ziel, 65 °C)`** statt stur auf die
+    Boost-Zieltemperatur. Vorher hätte die WP bei einem Boost-Ziel von 75 °C ein Ziel
+    angesteuert, das sie **nie allein erreichen kann**.
+  - Ergebnis ist eine saubere 4-Stufen-Kaskade, z. B. bei **50 / 60 / 75 °C**:
+    `Normal 50 → Erhöht 60 → Solar-Boost 65 (WP allein an der Grenze) → Boost 75
+    (Heizstab schiebt darüber)`. Beim Absenken fällt zuerst der Heizstab weg, dann Stufe
+    für Stufe. Der Heizstab verbraucht damit **keine kWh mehr für eine Spanne, die der
+    Verdichter auch geschafft hätte**.
+- **Plausibilitätsprüfung der Zieltemperaturen:** Der Konfigurationsdialog weist
+  `Erhöht ≤ Normal` und `Boost < Erhöht` jetzt mit einer verständlichen Meldung zurück,
+  statt die Stufen stillschweigend kollabieren zu lassen (die Laufzeit-Klemmung in `pv.py`
+  bleibt als zweites Netz bestehen).
+- **Klarstellung zu den Eskalations-Optionen** in den Feldbeschreibungen: *Boost* (WP +
+  Heizstab, primär) übernimmt gezielt den Bereich über 65 °C, den nur der Heizstab
+  erreicht; *Nur Heizstab (ELEC)* bleibt die davon getrennte Schnellaufheiz-/Dump-Option
+  bei **stehender** WP.
+
 ## [1.14.1] - 2026-08-11
 - **Doku: Gerätegrenzen dokumentiert** (neu: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md)).
   Kernpunkt: Das Hersteller-Datenblatt der M7-Reihe nennt zwei **getrennte** Zeilen —
