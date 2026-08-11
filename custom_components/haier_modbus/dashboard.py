@@ -234,7 +234,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             ("number", "set_temp", "Soll",
              {"type": "line", "curve": "stepline", "group_by": {"func": "max", "duration": "1h"}}),
         ],
-        yaxis=[{"min": 35, "max": 60, "decimals": 0}],
+        yaxis=[{"min": 35, "max": 80, "decimals": 0}],
         all_series_config={"stroke_width": 2},
     )
     # JAZ-Vergleich der letzten ~5 Jahre als Balken. Quelle: das Attribut

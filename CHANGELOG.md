@@ -5,6 +5,48 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.14.0] - 2026-08-11
+- **Verdichter vor Heizstab („Solar-Boost"):** Der WP-Zyklus (Schicht 1, Coordinator) ist
+  jetzt **3-stufig** — Normal → Erhöht → **Solar-Boost**. Über der neuen Schwelle
+  **„Solar-Boost"** (Default 600 W, konfigurierbar) klettert der Zyklus — weiterhin nur bei
+  bereits laufender WP (Piggyback, kein zusätzlicher Kaltstart) — selbst bis auf die
+  **Boost-Zieltemperatur** (Default 75 °C), rein über den Verdichter. Der **Heizstab**
+  (Schicht 2, Variante *Boost*) schaltet erst zu, wenn die WP diese Stufe **bereits selbst
+  erreicht** hat und weiterhin genug Überschuss übrig ist; bisher sprang er beim
+  Überschreiten der Boost-Schwelle sofort mit an. Hintergrund: Der Heizstab wandelt
+  Überschuss 1:1 um (COP ≈ 1), der Verdichter erreicht dasselbe Ziel mit COP i. d. R. 3–4×
+  — und der von der WP nicht gezogene Überschuss bleibt (vergütet) einspeisbar.
+  *Nebenwirkung: Der Heizstab startet dadurch bis zu zwei Entprellzeiten später — gewollt.*
+  **Absenken** erfolgt jetzt schrittweise über die mittlere Stufe (Solar-Boost → Erhöht →
+  Normal). **ELEC** (Heizstab bei stehender WP, Dump nach dem Tageszyklus) bleibt
+  unverändert. Neuer Diagnose-Zustand **„Solar-Boost (nur WP)"** im Status-Sensor.
+- **Optionaler Negativpreis-Sensor:** Neues (leer lassbares) Feld für einen
+  `binary_sensor`/`input_boolean`, der die aktuelle Viertelstunde als Negativ-/Null-Preis
+  kennzeichnet (Solarspitzengesetz/§51 EEG; z. B. eigenes Template über Tibber/aWATTar/
+  Nordpool — die Integration berechnet den Preis nicht selbst). Ist er „an", darf der
+  Heizstab schon **vor** Erreichen der Solar-Boost-Stufe zuschalten: Einspeisung ist in dem
+  Fenster ohnehin unvergütet, und der schneller volle Speicher lässt später am Tag mehr
+  **vergüteten** Überschuss übrig. Leer = unverändertes Verhalten.
+- **PV-Schwellen direkt auf der Geräteseite:** Zieltemperaturen (Normal/Erhöht/Boost) und
+  Überschuss-Schwellen (Halte/Solar-Boost/Heizstab) gibt es zusätzlich als eigene Entitäten
+  (`number.haier_hwhp_pv_*`, Kategorie *Konfiguration*) — dieselbe Quelle wie der
+  „Konfigurieren"-Dialog, nur ohne Umweg über den mehrstufigen Dialog. Die
+  Zieltemperaturen erscheinen auch im **Executor**-Modus (das Programm-Select nutzt sie),
+  die Watt-Schwellen nur im **Coordinator**-Modus. Sie bleiben auch bei Modbus-Störung
+  bedienbar.
+- **Kein Reload mehr bei reinen Schwellen-Änderungen:** Diese Werte liest die PV-Steuerung
+  ohnehin bei jedem Poll frisch; ein Reload war unnötig und **schädlich** — er verwarf
+  interne Besitzstände ohne Persistenz und konnte dadurch das **Boost-Bit dauerhaft gesetzt**
+  bzw. das Gerät **in ELEC hängen** lassen, den manuellen Sollwert-Schutz vergessen und
+  einen laufenden Legionellen-Lauf abbrechen. Änderungen an diesen Schwellen laufen jetzt
+  reload-frei; alle anderen Options-Änderungen laden weiterhin normal neu.
+- **Robustheit gegen verdrehte Schwellen:** Zieltemperaturen und Überschuss-Schwellen werden
+  intern in eine gültige Reihenfolge geklemmt, und ein Sicherheitsventil verhindert, dass
+  eine Konfiguration, in der die Leiter den Deckel nie erreicht, den Heizstab **dauerhaft
+  aussperrt**.
+- Dashboard: Temperatur-Diagramm reicht jetzt bis **80 °C** (vorher 60 °C — der Sollwert
+  klippte bereits bei 65 °C).
+
 ## [1.13.2] - 2026-08-10
 - **Config-Änderung unterbricht keinen laufenden PV-Zyklus mehr:** Jede
   Options-Änderung lädt die Integration komplett neu, wodurch auch die

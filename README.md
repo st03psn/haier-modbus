@@ -125,34 +125,51 @@ Boost-Switch) bleiben in jedem Modus beschreibbar. Der **38-°C-Guard** ist ein 
 separater Haken und bleibt als lokales WW-Sicherheitsnetz aktiv.
 
 ### Coordinator (Integration regelt selbst)
-Nach **rohem** Überschuss, in **zwei unabhängigen Schichten** — bewusst so gebaut, dass
-die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts):
+Nach **rohem** Überschuss, in **zwei aufeinander abgestimmten Schichten** — bewusst so
+gebaut, dass die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts) und dass der
+**Verdichter immer Vorrang vor dem Heizstab** hat:
 
-**Schicht 1 — WP-Zyklus (Normal ↔ Erhöht):**
+**Schicht 1 — WP-Zyklus, 3-stufig (Normal → Erhöht → Solar-Boost):**
 - **Morgen-Start (fix):** einmal/Tag zur konfigurierten Uhrzeit (Default 10:00 =
   ECO-Fensterstart) ein Kick auf Erhöht, wenn das Wasser noch unter der Normal-Temperatur
   liegt — der **einzige Kaltstart** des Tages.
 - **Anheben auf Erhöht nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
   (Default 50 W) → kein Tages-Kaltstart, kein Takten.
-- **Absenken** auf Normal, wenn der Überschuss für die **Entprellzeit** (5 min) unter die
-  Halte-Schwelle fällt **und** der Heizstab aus ist.
+- **Weiter auf Solar-Boost** (= die **Boost-Zieltemperatur**, Default 75 °C) ebenfalls nur
+  bei laufender WP, über der **Solar-Boost-Schwelle** (Default 600 W): Der Verdichter
+  klettert **allein** auf den Deckel — mit COP i. d. R. 3–4× besser als der Heizstab, und
+  der nicht gezogene Überschuss bleibt (vergütet) einspeisbar.
+- **Absenken** schrittweise über die mittlere Stufe (Solar-Boost → Erhöht → Normal), jeder
+  Schritt einzeln entprellt (Default 5 min).
 
 **Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt nie die WP):** ab der **Boost-Schwelle**
-(Default 1550 W = Heizstab ~1500 W + Puffer) auf die Boost-Temperatur plus:
-- **Boost** (WP + Heizstab) **nur bei laufender** WP,
+(Default 1550 W = Heizstab ~1500 W + Puffer):
+- **Boost** (WP + Heizstab) nur bei laufender WP **und erst, wenn Schicht 1 selbst schon
+  auf Solar-Boost steht** — der Heizstab (COP ≈ 1) springt also erst ein, wenn der
+  Verdichter den Überschuss nicht mehr aufnehmen kann. *Dadurch startet er bis zu zwei
+  Entprellzeiten später als früher — das ist beabsichtigt.*
 - **Heizstab (ELEC)** **nur bei stehender** WP (ELEC würde die WP sonst stoppen) — dumpt
   sofort, z. B. um nach dem Tageszyklus Überschuss zu verheizen; danach zurück auf ECO +
-  Normal-Temperatur.
+  Normal-Temperatur. Hier gibt es **kein** Deckel-Gate (anderes Szenario).
+- **Optionaler Negativpreis-Sensor:** Ist er „an" (Viertelstunde mit negativem/0-Ct-Preis,
+  Solarspitzengesetz/§51 EEG), entfällt das Warten auf den Deckel — Einspeisung wäre in
+  dem Fenster ohnehin wertlos, und der schneller volle Speicher lässt später am Tag mehr
+  **vergüteten** Überschuss übrig.
 
-Fällt der Überschuss weg, geht **nur der Heizstab** weg (Sollwert Boost→Erhöht/Normal); die
-WP läuft unverändert weiter. Solange der Heizstab an ist, hält Schicht 1 die Erhöht-Stufe.
+Fällt der Überschuss weg, geht **nur der Heizstab** weg; die WP läuft unverändert weiter.
+Solange der Heizstab an ist, hält Schicht 1 ihre Stufe.
 
 Den aktuellen Zustand zeigt der Diagnose-Sensor **„PV-Regelung Status"**
-(`sensor.haier_hwhp_pv_status`: Aus / Normal / Erhöht / Boost / Boost (ELEC), mit
-Überschuss/Sollwert/WP/Heizstab als Attributen); das mitgelieferte Dashboard hat dafür
-eine eigene **PV-Sektion** (Status-Kachel + Logbuch-Verlauf).
+(`sensor.haier_hwhp_pv_status`: Aus / Normal / Erhöht / Solar-Boost / Boost / Boost (ELEC),
+dazu Manueller Eingriff und „Laufender Zyklus gehalten", mit Überschuss/Sollwert/WP/Heizstab
+als Attributen); das mitgelieferte Dashboard hat dafür eine eigene **PV-Sektion**
+(Status-Kachel + Logbuch-Verlauf).
 
-Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar.
+Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar. Die
+**Zieltemperaturen und Überschuss-Schwellen** stehen zusätzlich als eigene Entitäten direkt
+auf der Geräteseite (`number.haier_hwhp_pv_*`, Kategorie *Konfiguration*) — dieselbe Quelle,
+nur bequemer erreichbar; ein Ändern dort löst **keinen** Reload aus und unterbricht damit
+auch keinen laufenden Zyklus.
 
 ### Executor (HEMS-Client, z. B. evcc)
 Die Integration regelt **nicht**, sondern stellt eine Auswahl-Entität
@@ -274,26 +291,39 @@ The **control entities** (`number.haier_hwhp_set_temp`, `select.haier_hwhp_mode`
 switch) stay writable in every mode. The **38 °C guard** is a separate option and stays
 active as a local hot-water safety net.
 
-**Coordinator** regulates from the **raw** surplus in **two independent layers**,
-deliberately built so the heat pump does not **short-cycle**:
+**Coordinator** regulates from the **raw** surplus in **two coordinated layers**,
+deliberately built so the heat pump does not **short-cycle** and so the **compressor
+always takes precedence over the electric heater**:
 
-- *Layer 1 — heat-pump cycle (base ↔ normal setpoint):* a fixed once-a-day **morning
-  start** (default 10:00) kicks to normal if the water is still below base — the
-  **only cold start** of the day. During the day the setpoint is raised to normal
-  **only while the pump is already running** (piggyback, above the **hold threshold**,
-  default 50 W), and lowered back to base after the debounce time (5 min) once the
-  surplus stays below the hold threshold and the heater is off.
+- *Layer 1 — heat-pump cycle, 3 tiers (base → normal → solar boost):* a fixed once-a-day
+  **morning start** (default 10:00) kicks to normal if the water is still below base — the
+  **only cold start** of the day. During the day the setpoint is raised to normal **only
+  while the pump is already running** (piggyback, above the **hold threshold**, default
+  50 W). Above the **solar-boost threshold** (default 600 W) — again only while running —
+  it keeps climbing to the **boost target** (default 75 °C) on the **compressor alone**
+  (COP typically 3–4× better than the heater, and the surplus it doesn't draw stays
+  exportable). It steps back down one tier at a time (solar boost → normal → base), each
+  step individually debounced (5 min).
 - *Layer 2 — electric heater (ad-hoc add-on that never stops the pump):* above the
-  **high threshold** (default 1550 W ≈ heater power + margin) the setpoint goes to
-  high plus **Boost** (pump + heater) while the pump runs, or **ELEC** (heater only)
-  while the pump is off — e.g. to dump surplus after the daily cycle; afterwards back
-  to ECO + base setpoint. If the surplus disappears, only the heater drops out; the
-  pump keeps running.
+  **high threshold** (default 1550 W ≈ heater power + margin), **Boost** (pump + heater)
+  engages only while the pump runs **and only once Layer 1 has itself reached solar
+  boost** — so the heater (COP ≈ 1) steps in only when the compressor can no longer absorb
+  the surplus (*this makes it start up to two debounce periods later than before — by
+  design*). **ELEC** (heater only) still applies while the pump is off — e.g. to dump
+  surplus after the daily cycle; afterwards back to ECO + base setpoint. No ceiling gate
+  there (different scenario). An optional **negative-price sensor** (zero/negative
+  feed-in quarter-hour) lifts the ceiling wait, since exporting is worthless in that
+  window anyway. If the surplus disappears, only the heater drops out; the pump keeps
+  running.
 
 The diagnostic sensor **“PV control status”** (`sensor.haier_hwhp_pv_status`) shows the
-live state (off / base / normal / high + Boost / high + ELEC, with surplus/setpoint/
-pump/heater attributes); the bundled dashboard has a dedicated PV section for it. All
-thresholds, target temps and timings are editable in the Configure dialog.
+live state (off / base / normal / solar boost / high + Boost / high + ELEC, plus manual
+override and “active cycle held”, with surplus/setpoint/pump/heater attributes); the
+bundled dashboard has a dedicated PV section for it. All thresholds, target temps and
+timings are editable in the Configure dialog; the **target temperatures and surplus
+thresholds** are additionally exposed as entities on the device page
+(`number.haier_hwhp_pv_*`, *config* category) — same single source of truth, just easier to
+reach, and changing them there triggers **no** reload, so a running cycle is not disturbed.
 
 **Executor** does not regulate; it exposes `select.haier_hwhp_pv_program`
 (`aus`/`grund`/`ueberschuss`/`boost`) that an external HEMS (or you) sets — the

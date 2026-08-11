@@ -24,6 +24,7 @@ from .const import (
     CONF_PV_FORCE_ELEC,
     CONF_PV_MODE,
     DOMAIN,
+    LIVE_OPTION_KEYS,
     PLATFORMS,
     PV_ESC_BOOST,
     PV_ESC_ELEC,
@@ -263,7 +264,25 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Bei Options-Änderung neu laden."""
+    """Bei Options-Änderung neu laden – außer bei reinen Laufzeit-Schwellen.
+
+    ``pv.py`` liest die PV-Schwellen/Zieltemperaturen ohnehin bei **jedem** Poll frisch
+    aus ``entry.options``; ein Reload wäre dafür nicht nur unnötig, sondern schädlich:
+    Er baut einen neuen ``PvController`` und verwirft dabei In-Memory-Besitzstände ohne
+    Persistenz – ``_boost_applied`` (sonst bliebe das Boost-Bit dauerhaft gesetzt),
+    ``_prev_mode`` (Gerät bliebe in ELEC hängen), den manuellen Sollwert-Schutz sowie
+    den Zustand von Notheizung und laufendem Legionellen-Lauf. Da die Schwellen jetzt
+    auch als Number-Entities direkt bedienbar sind, wäre das mit jedem Verstellen
+    passiert.
+    """
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if coordinator is not None:
+        old, new = coordinator.options_snapshot, dict(entry.options)
+        changed = {k for k in set(old) | set(new) if old.get(k) != new.get(k)}
+        coordinator.options_snapshot = new
+        if changed and changed <= LIVE_OPTION_KEYS:
+            _LOGGER.debug("PV-Schwelle live geändert (%s) – kein Reload", sorted(changed))
+            return
     await hass.config_entries.async_reload(entry.entry_id)
 
 
