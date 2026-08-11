@@ -70,6 +70,9 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.entry = entry
+        # Letzter bekannter Options-Stand – der Update-Listener vergleicht dagegen,
+        # um reine Laufzeit-Schwellen (LIVE_OPTION_KEYS) ohne Reload zu übernehmen.
+        self.options_snapshot: dict = dict(entry.options)
         # Verbindungsdaten: Options haben Vorrang (im GUI änderbar), sonst Setup-Daten.
         self.host: str = entry.options.get(CONF_HOST, entry.data[CONF_HOST])
         self.port: int = entry.options.get(

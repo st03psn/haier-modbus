@@ -1,24 +1,32 @@
 """Optionale PV-Überschuss-Steuerung (Coordinator-Modus) innerhalb der Integration.
 
-Zwei **unabhängige Schichten**, geregelt nach rohem PV-Überschuss
+Zwei **aufeinander abgestimmte Schichten**, geregelt nach rohem PV-Überschuss
 (``sensor.pv_uberschuss_watt``, kappt bei 0):
 
-**Schicht 1 — WP-Zyklus (Sollwert Normal 50 ↔ Erhöht 65):**
+**Schicht 1 — WP-Zyklus, 3-stufig (Normal 50 -> Erhöht 65 -> Solar-Boost 75):**
 - **Morgen-Start (fix, 1×/Tag):** der einzige Kaltstart — zur Uhrzeit, wenn Wasser
   unter Normal liegt, Sollwert auf Erhöht -> WP startet im ECO-Fenster.
 - **Anheben Normal->Erhöht nur bei LAUFENDER WP** (Piggyback) + Überschuss ≥ Halte-Puffer.
   Kein Tages-Kaltstart -> kein Takten.
-- **Halten** bei Erhöht solange Überschuss ≥ Halte ODER der Heizstab läuft.
-- **Absenken** Erhöht->Normal, wenn Überschuss < Halte (entprellt) UND Heizstab aus.
+- **Weiter anheben Erhöht->Solar-Boost** ebenfalls nur bei LAUFENDER WP (Piggyback) +
+  Überschuss ≥ Solar-Boost-Schwelle: dieselbe Zieltemperatur wie der Heizstab-Boost, aber
+  rein über den Verdichter (COP i. d. R. 3–4× besser als der Heizstab).
+- **Halten** auf der jeweiligen Stufe, solange deren Schwelle weiter erreicht wird ODER
+  der Heizstab läuft.
+- **Absenken** schrittweise über die mittlere Stufe (Solar-Boost->Erhöht->Normal), nicht
+  auf einen Schlag – jeder Schritt entprellt einzeln.
 
 **Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt NIE die WP), ab Boost-Schwelle:**
-- **Boost** (WP+Heizstab): nur bei **laufender** WP -> Sollwert Boost (75) + Boost-Bit.
+- **Boost** (WP+Heizstab): nur bei **laufender** WP **und erst, wenn Schicht 1 selbst
+  schon auf Solar-Boost steht** — der Heizstab (COP≈1) springt also erst ein, wenn der
+  Verdichter allein den Überschuss nicht mehr aufnehmen kann. Ausnahme: ein optionaler
+  Negativpreis-Sensor (Solarspitzengesetz/§51 EEG) hebt diese Wartezeit auf, weil
+  Einspeisung in dem Fenster ohnehin nichts wert ist.
 - **ELEC** (nur Heizstab): nur bei **stehender** WP -> Modus ELEC + Sollwert Boost (75),
-  Heizstab-Dump nach dem Tageszyklus. Ende -> Modus zurück (ECO) + Sollwert Normal.
-- Fällt der Überschuss unter die Boost-Schwelle: nur der Heizstab geht weg (Sollwert
-  Boost->Erhöht bei Boost bzw. ->Normal bei ELEC); die WP läuft unverändert weiter. Solange
-  der Heizstab an ist, hält Schicht 1 die Erhöht-Stufe (kein fälschliches Absenken durch den
-  Eigenverbrauch).
+  Heizstab-Dump nach dem Tageszyklus (anderes Szenario, kein Deckel-Gate).
+- Fällt der Überschuss unter die Boost-Schwelle: nur der Heizstab geht weg; die WP läuft
+  unverändert weiter. Solange der Heizstab an ist, hält Schicht 1 ihre Stufe (kein
+  fälschliches Absenken durch den Eigenverbrauch).
 
 Nur im **Coordinator**-Modus aktiv; in **Aus**/**Executor** steigt ``async_evaluate``
 sofort aus. Schreibzugriffe sind idempotent (nur bei Abweichung).
@@ -51,7 +59,9 @@ from .const import (
     CONF_PV_MODE,
     CONF_PV_MORNING_ENABLED,
     CONF_PV_MORNING_TIME,
+    CONF_PV_NEGATIVE_PRICE_SENSOR,
     CONF_PV_SENSOR,
+    CONF_PV_SOLAR_BOOST,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
     CONF_PV_TEMP_NORMAL,
@@ -61,6 +71,7 @@ from .const import (
     DEFAULT_PV_MIN_OFF,
     DEFAULT_PV_MORNING_ENABLED,
     DEFAULT_PV_MORNING_TIME,
+    DEFAULT_PV_SOLAR_BOOST,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
@@ -141,8 +152,9 @@ class PvController:
         self._store: Store | None = None       # Persistenz für _last_kick_day
         self._loaded = False                   # Store schon einmal geladen?
         # Live-Status (vom Diagnose-Sensor gelesen): aktueller Regel-Zustand.
-        #   state: off | base | normal | high_boost | high_elec | manual
-        #   (interne Keys – die Anzeigetexte lauten Normal/Erhöht/Boost, s. Übersetzungen)
+        #   state: off | base | normal | solar_boost | high_boost | high_elec | manual | held
+        #   (interne Keys – die Anzeigetexte lauten Normal/Erhöht/Solar-Boost/Boost,
+        #    s. Übersetzungen)
         self.status: dict = {
             "state": "off", "surplus": None, "setpoint": None,
             "running": None, "heater": False,
@@ -230,6 +242,21 @@ class PvController:
             float(o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)),
         )
 
+    def _negative_price(self, o: dict) -> bool:
+        """True, wenn ein optionaler Negativpreis-Sensor konfiguriert und aktiv ist.
+
+        Kein Sensor konfiguriert -> immer False (Verhalten wie ohne diese Erweiterung).
+        Erwartet einen ``binary_sensor``/``input_boolean``, der die aktuelle Viertelstunde
+        als Negativ-/Null-Preis markiert (z. B. eigenes Template über Tibber/aWATTar/
+        Nordpool – die Integration berechnet den Preis nicht selbst). Fehlt die Entität,
+        gilt ebenfalls False (sicherer Fallback: kein fälschliches Zuschalten).
+        """
+        entity_id = o.get(CONF_PV_NEGATIVE_PRICE_SENSOR)
+        if not entity_id:
+            return False
+        state = self.hass.states.get(entity_id)
+        return state is not None and state.state == "on"
+
     def _start_allowed(self, o: dict, running: bool, now) -> bool:
         """Anti-Takt für den Morgen-Start: läuft die WP -> ok; sonst nach Mindest-Stillstand."""
         if running:
@@ -292,8 +319,17 @@ class PvController:
         current = float(current)
         water = float(data.get(REG_WATER_TEMP) or 0)
         t_high, t_normal, t_base = self._temps(o)
+        # Monotonie erzwingen: weder der Options-Flow noch die Number-Entities validieren
+        # die Schwellen gegeneinander. Ohne Clamping könnte eine verdrehte Konfiguration
+        # (z. B. Normal == Basis) die Leiter blockieren und damit auch den Heizstab
+        # dauerhaft aussperren (siehe Sicherheitsventil in Schicht 2).
+        t_high = max(t_high, t_base)
+        t_normal = min(max(t_normal, t_base), t_high)
         hold = float(o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD))
         hoch = float(o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH))
+        solarboost = min(
+            max(float(o.get(CONF_PV_SOLAR_BOOST, DEFAULT_PV_SOLAR_BOOST)), hold), hoch
+        )
         choice = o.get(CONF_PV_ESCALATION, PV_ESC_NONE)
         debounce_s = o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE) * 60
 
@@ -345,26 +381,52 @@ class PvController:
                 self._set_status("normal", surplus, target, running, False)
                 return
 
-        # 2) Schicht 2 – Heizstab (entprellt). Boost nur wenn WP läuft, ELEC nur wenn WP aus.
+        # 2) Schicht 1 – WP-Zyklus-Ziel (Normal/Erhöht/Solar-Boost, 3-stufig, entprellt).
+        #    Läuft VOR der Heizstab-Schicht, damit deren Deckel-Gate den Stand dieses
+        #    Zyklus sieht (sonst käme der Heizstab eine ganze Entprellzeit später).
+        #    Der Ceiling-Zweig wird bewusst EXPLIZIT geprüft (nicht als `else`): seit
+        #    v1.13.2 wird ``_wp_target`` aus dem *rohen* Register gebootstrappt (35..75,
+        #    nicht zwingend eine Stufe). Ein bares `else` würde jeden Zwischenwert als
+        #    „Deckel" behandeln – und dieser Zweig hat keinen ``running``-Guard, würde
+        #    also bei stehender WP direkt auf die Boost-Temperatur kaltstarten.
+        if self._wp_target >= t_high - 0.5:         # aktuell Solar-Boost (Deckel): nur halten
+            wp_want = t_high if (surplus >= solarboost or self._heater_on) else t_normal
+        elif self._wp_target <= t_base + 0.5:       # aktuell Normal
+            # Anheben nur bei laufender WP (Piggyback, kein Kaltstart).
+            wp_want = t_normal if (running and surplus >= hold) else t_base
+        else:                                       # Erhöht + alle Zwischenwerte (Bootstrap)
+            if running and surplus >= solarboost:   # Aufstieg weiterhin nur per Piggyback
+                wp_want = t_high
+            elif surplus >= hold or self._heater_on:
+                wp_want = t_normal
+            else:
+                wp_want = t_base
+        self._wp_target = self._debounced(
+            "_wp_cand", "_wp_since", wp_want, now, debounce_s, self, self._wp_target
+        )
+
+        # 3) Schicht 2 – Heizstab (entprellt). Boost nur wenn WP läuft, ELEC nur wenn WP aus.
         if choice == PV_ESC_BOOST:
-            heater_want = running and surplus >= hoch
+            # Heizstab (COP≈1) erst, wenn die WP selbst schon am Deckel steht – sie
+            # bekommt immer zuerst die Chance, den Überschuss effizient zu verwerten.
+            # Sicherheitsventil: kann die Leiter den Deckel bei dieser Konfiguration gar
+            # nicht erreichen (z. B. Normal == Basis), darf der Heizstab nicht dauerhaft
+            # gesperrt bleiben -> dann gilt das bisherige Verhalten.
+            # Negativpreis: Einspeisung ist im Fenster ohnehin wertlos (§51 EEG) ->
+            # Wartezeit entfällt, der Speicher wird schneller voll und die WP zieht
+            # danach keinen (dann wieder vergüteten) Überschuss mehr ab.
+            ladder_reaches_ceiling = t_high > t_normal > t_base
+            at_ceiling = self._wp_target >= t_high - 0.5 or not ladder_reaches_ceiling
+            heater_want = (
+                running and surplus >= hoch and (at_ceiling or self._negative_price(o))
+            )
         elif choice == PV_ESC_ELEC:
+            # Anderes Szenario (WP steht) -> unverändert, kein Deckel-Gate.
             heater_want = (not running) and surplus >= hoch
         else:
             heater_want = False
         self._heater_on = self._debounced(
             "_heater_cand", "_heater_since", heater_want, now, debounce_s, self, self._heater_on
-        )
-
-        # 3) Schicht 1 – WP-Zyklus-Ziel (Normal/Erhöht, entprellt).
-        if self._wp_target <= t_base + 0.5:        # aktuell Normal
-            # Anheben nur bei laufender WP (Piggyback, kein Kaltstart).
-            wp_want = t_normal if (running and surplus >= hold) else t_base
-        else:                                       # aktuell Erhöht
-            # Halten solange Überschuss ≥ Halte ODER der Heizstab läuft; sonst absenken.
-            wp_want = t_normal if (surplus >= hold or self._heater_on) else t_base
-        self._wp_target = self._debounced(
-            "_wp_cand", "_wp_since", wp_want, now, debounce_s, self, self._wp_target
         )
 
         # 4) Effektiver Sollwert: Heizstab hebt auf Boost; sonst der WP-Zyklus-Sollwert.
@@ -414,6 +476,8 @@ class PvController:
             state = "high_boost"
         elif self._heater_on and choice == PV_ESC_ELEC:
             state = "high_elec"
+        elif self._wp_target >= t_high - 0.5:
+            state = "solar_boost"
         elif self._wp_target >= t_normal - 0.5:
             state = "normal"
         else:

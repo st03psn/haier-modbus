@@ -46,20 +46,24 @@
           "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
           "pv_temp_base": "Normal-Zieltemperatur (°C)",
           "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
+          "pv_solar_boost": "Solar-Boost-Schwelle – Überschuss (W)",
           "pv_high": "Heizstab-Schwelle – Überschuss (W)",
           "pv_morning_enabled": "Fixer Morgen-Start",
           "pv_morning_time": "Uhrzeit Morgen-Start",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
-          "pv_escalation": "Eskalation bei hohem Überschuss"
+          "pv_escalation": "Eskalation bei hohem Überschuss",
+          "pv_negative_price_sensor": "Negativpreis-Sensor (optional)"
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
           "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
+          "pv_solar_boost": "Schwelle, ab der der WP-Zyklus (bei bereits laufender WP, Piggyback) selbst bis auf die Boost-Zieltemperatur weiterklettert – rein über den Verdichter, deutlich effizienter (COP i. d. R. 3–4×) als der Heizstab. Muss zwischen der Halte-/Piggyback-Schwelle und der Heizstab-Schwelle liegen. Kein spezifizierter Wert bekannt – am besten aus der eigenen externen Leistungsmessung (z. B. Shelly, siehe COP-Stromquelle) den typischen Verdichter-Verbrauch ablesen und die Schwelle knapp darüber setzen.",
           "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Boost-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
           "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt für den Morgen-Start: Ein frischer Kaltstart wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber passiert nur bei bereits laufender WP (Piggyback) und bleibt davon unberührt.",
-          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur."
+          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur.",
+          "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). Ist er „an“, darf der Heizstab (Boost) auch zuschalten, bevor die WP die Solar-Boost-Stufe erreicht hat – Einspeisung wäre in diesem Fenster ohnehin nichts wert (Solarspitzengesetz/§51 EEG). Leer lassen, wenn kein solcher Sensor vorhanden ist (Standardverhalten bleibt unverändert)."
         }
       }
     },
@@ -123,20 +127,24 @@
           "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
           "pv_temp_base": "Normal-Zieltemperatur (°C)",
           "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
+          "pv_solar_boost": "Solar-Boost-Schwelle – Überschuss (W)",
           "pv_high": "Heizstab-Schwelle – Überschuss (W)",
           "pv_morning_enabled": "Fixer Morgen-Start",
           "pv_morning_time": "Uhrzeit Morgen-Start",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
-          "pv_escalation": "Eskalation bei hohem Überschuss"
+          "pv_escalation": "Eskalation bei hohem Überschuss",
+          "pv_negative_price_sensor": "Negativpreis-Sensor (optional)"
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
           "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
+          "pv_solar_boost": "Schwelle, ab der der WP-Zyklus (bei bereits laufender WP, Piggyback) selbst bis auf die Boost-Zieltemperatur weiterklettert – rein über den Verdichter, deutlich effizienter (COP i. d. R. 3–4×) als der Heizstab. Muss zwischen der Halte-/Piggyback-Schwelle und der Heizstab-Schwelle liegen. Kein spezifizierter Wert bekannt – am besten aus der eigenen externen Leistungsmessung (z. B. Shelly, siehe COP-Stromquelle) den typischen Verdichter-Verbrauch ablesen und die Schwelle knapp darüber setzen.",
           "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Boost-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
           "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
           "pv_min_off": "Anti-Takt für den Morgen-Start: Ein frischer Kaltstart wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber passiert nur bei bereits laufender WP (Piggyback) und bleibt davon unberührt.",
-          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur."
+          "pv_escalation": "Was oberhalb der Hoch-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur. Boost: WP + Heizstab gleichzeitig, nur bei laufender WP (effizient). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – ineffizient, nur zum Verheizen von Überschuss, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur.",
+          "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). Ist er „an“, darf der Heizstab (Boost) auch zuschalten, bevor die WP die Solar-Boost-Stufe erreicht hat – Einspeisung wäre in diesem Fenster ohnehin nichts wert (Solarspitzengesetz/§51 EEG). Leer lassen, wenn kein solcher Sensor vorhanden ist (Standardverhalten bleibt unverändert)."
         }
       }
     },
@@ -170,29 +178,64 @@
   },
   "entity": {
     "sensor": {
-      "water_temp": { "name": "Wassertemperatur" },
-      "target_temp": { "name": "Zieltemperatur" },
-      "tank_top": { "name": "Tank oben" },
-      "tank_bottom": { "name": "Tank unten" },
-      "ambient": { "name": "Umgebungstemperatur" },
-      "hotwater_pct": { "name": "Warmwasserstand" },
-      "fault": { "name": "Fehlercode" },
-      "mode_text": { "name": "Modus" },
-      "current_source": { "name": "Aktuelle Quelle" },
-      "hp_elec_year": { "name": "WP-Strom (Gerät, Jahr)" },
-      "heater_elec_year": { "name": "Heizstab-Strom (Gerät, Jahr)" },
-      "heat_year": { "name": "Wärmemenge (akt. Jahr)" },
-      "heat_total": { "name": "Wärmemenge (gesamt)" },
-      "elec_total": { "name": "Stromverbrauch (gesamt)" },
-      "cop_month": { "name": "COP (Monat)" },
-      "cop_year": { "name": "JAZ (Jahr)" },
-      "cop_prev_year": { "name": "JAZ (Vorjahr)" },
+      "water_temp": {
+        "name": "Wassertemperatur"
+      },
+      "target_temp": {
+        "name": "Zieltemperatur"
+      },
+      "tank_top": {
+        "name": "Tank oben"
+      },
+      "tank_bottom": {
+        "name": "Tank unten"
+      },
+      "ambient": {
+        "name": "Umgebungstemperatur"
+      },
+      "hotwater_pct": {
+        "name": "Warmwasserstand"
+      },
+      "fault": {
+        "name": "Fehlercode"
+      },
+      "mode_text": {
+        "name": "Modus"
+      },
+      "current_source": {
+        "name": "Aktuelle Quelle"
+      },
+      "hp_elec_year": {
+        "name": "WP-Strom (Gerät, Jahr)"
+      },
+      "heater_elec_year": {
+        "name": "Heizstab-Strom (Gerät, Jahr)"
+      },
+      "heat_year": {
+        "name": "Wärmemenge (akt. Jahr)"
+      },
+      "heat_total": {
+        "name": "Wärmemenge (gesamt)"
+      },
+      "elec_total": {
+        "name": "Stromverbrauch (gesamt)"
+      },
+      "cop_month": {
+        "name": "COP (Monat)"
+      },
+      "cop_year": {
+        "name": "JAZ (Jahr)"
+      },
+      "cop_prev_year": {
+        "name": "JAZ (Vorjahr)"
+      },
       "pv_status": {
         "name": "PV-Regelung Status",
         "state": {
           "off": "Aus",
           "base": "Normal",
           "normal": "Erhöht",
+          "solar_boost": "Solar-Boost (nur WP)",
           "high_boost": "Boost",
           "high_elec": "Boost (ELEC)",
           "manual": "Manueller Eingriff",
@@ -219,14 +262,26 @@
       }
     },
     "binary_sensor": {
-      "status_wp": { "name": "Wärmepumpe" },
-      "status_heater": { "name": "Heizstab" },
-      "status_solar": { "name": "Solar" },
-      "status_boiler": { "name": "Externe Wärmequelle" },
-      "connection": { "name": "Verbindung" }
+      "status_wp": {
+        "name": "Wärmepumpe"
+      },
+      "status_heater": {
+        "name": "Heizstab"
+      },
+      "status_solar": {
+        "name": "Solar"
+      },
+      "status_boiler": {
+        "name": "Externe Wärmequelle"
+      },
+      "connection": {
+        "name": "Verbindung"
+      }
     },
     "select": {
-      "mode_select": { "name": "Modus wählen" },
+      "mode_select": {
+        "name": "Modus wählen"
+      },
       "pv_program": {
         "name": "PV-Programm",
         "state": {
@@ -238,13 +293,41 @@
       }
     },
     "switch": {
-      "active": { "name": "Betrieb" },
-      "boost": { "name": "Boost" },
-      "mute": { "name": "Leise" },
-      "sterilize": { "name": "Sterilisation" }
+      "active": {
+        "name": "Betrieb"
+      },
+      "boost": {
+        "name": "Boost"
+      },
+      "mute": {
+        "name": "Leise"
+      },
+      "sterilize": {
+        "name": "Sterilisation"
+      }
     },
     "number": {
-      "set_temp": { "name": "Solltemperatur" }
+      "set_temp": {
+        "name": "Solltemperatur"
+      },
+      "pv_temp_base": {
+        "name": "PV Normal-Zieltemperatur"
+      },
+      "pv_temp_normal": {
+        "name": "PV Erhöht-Zieltemperatur"
+      },
+      "pv_temp_high": {
+        "name": "PV Boost-Zieltemperatur"
+      },
+      "pv_hold": {
+        "name": "PV Halte-/Piggyback-Schwelle"
+      },
+      "pv_solar_boost": {
+        "name": "PV Solar-Boost-Schwelle"
+      },
+      "pv_high": {
+        "name": "PV Heizstab-Schwelle"
+      }
     }
   },
   "issues": {

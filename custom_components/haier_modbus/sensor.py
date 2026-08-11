@@ -141,14 +141,17 @@ class HaierLinkStatus(HaierModbusEntity, SensorEntity):
 class HaierPvStatus(HaierModbusEntity, SensorEntity):
     """Live-Status der PV-Überschuss-Regelung (Coordinator-Modus).
 
-    Zeigt bei jedem Poll, was ``pv.py`` gerade tut — die WP-Zyklus-Stufe und ob
-    der Heizstab als ad-hoc Zusatz läuft. Als Attribute: aktueller Überschuss,
-    effektiver Sollwert, „WP läuft", „Heizstab an". Im Modus Aus/Executor: ``off``.
+    Zeigt bei jedem Poll, was ``pv.py`` gerade tut — die WP-Zyklus-Stufe (Normal /
+    Erhöht / Solar-Boost = WP allein am Deckel) und ob der Heizstab als ad-hoc Zusatz
+    läuft. Als Attribute: aktueller Überschuss, effektiver Sollwert, „WP läuft",
+    „Heizstab an". Im Modus Aus/Executor: ``off``.
     """
 
     _attr_translation_key = "pv_status"
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = ["off", "base", "normal", "high_boost", "high_elec", "manual", "held"]
+    _attr_options = [
+        "off", "base", "normal", "solar_boost", "high_boost", "high_elec", "manual", "held",
+    ]
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:solar-power-variant"
 

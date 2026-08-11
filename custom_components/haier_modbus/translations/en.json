@@ -46,20 +46,24 @@
           "pv_temp_normal": "Elevated target temperature (°C)",
           "pv_temp_base": "Normal target temperature (°C)",
           "pv_hold": "Hold / piggyback buffer – surplus (W)",
+          "pv_solar_boost": "Solar-boost threshold – surplus (W)",
           "pv_high": "Electric-heater threshold – surplus (W)",
           "pv_morning_enabled": "Fixed morning start",
           "pv_morning_time": "Morning start time",
           "pv_debounce": "Debounce time (minutes)",
           "pv_min_off": "Minimum off-time before restart (min)",
-          "pv_escalation": "Escalation at high surplus"
+          "pv_escalation": "Escalation at high surplus",
+          "pv_negative_price_sensor": "Negative-price sensor (optional)"
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
           "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and the heater is off.",
+          "pv_solar_boost": "Threshold above which the heat-pump cycle (while already running, piggyback) keeps climbing on its own up to the boost target — via the compressor alone, far more efficient (COP typically 3–4x) than the electric heater. Must sit between the hold/piggyback threshold and the heater threshold. No universal spec value exists — best derived from your own external power meter (e.g. Shelly, see COP electricity source): read the compressor's typical draw and set this just above it.",
           "pv_high": "Electric-heater threshold (≈ 1550 W = heater ~1500 W + buffer). Above it the heater is added as an ad-hoc top-up at the boost target: Boost while the heat pump runs, ELEC only while it is off. The heater never stops the pump — when surplus drops, only the heater goes away while the cycle keeps running.",
           "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window.",
           "pv_min_off": "Anti-short-cycle for the morning start: a fresh cold start waits until the compressor has been off at least this long. Daytime raises happen only while the pump already runs (piggyback) and are unaffected.",
-          "pv_escalation": "What to add once surplus passes the high threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher setpoint. Boost: heat pump + electric heater together, only while the pump runs (efficient). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — inefficient, only to dump surplus, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone."
+          "pv_escalation": "What to add once surplus passes the high threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher setpoint. Boost: heat pump + electric heater together, only while the pump runs (efficient). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — inefficient, only to dump surplus, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone.",
+          "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). When 'on', the electric heater (Boost) may switch on even before the heat pump has reached the Solar-Boost tier — feed-in would be worthless in that window anyway (German 'Solarspitzengesetz'/§51 EEG). Leave empty if you don't have such a sensor (default behaviour is unchanged)."
         }
       }
     },
@@ -123,20 +127,24 @@
           "pv_temp_normal": "Elevated target temperature (°C)",
           "pv_temp_base": "Normal target temperature (°C)",
           "pv_hold": "Hold / piggyback buffer – surplus (W)",
+          "pv_solar_boost": "Solar-boost threshold – surplus (W)",
           "pv_high": "Electric-heater threshold – surplus (W)",
           "pv_morning_enabled": "Fixed morning start",
           "pv_morning_time": "Morning start time",
           "pv_debounce": "Debounce time (minutes)",
           "pv_min_off": "Minimum off-time before restart (min)",
-          "pv_escalation": "Escalation at high surplus"
+          "pv_escalation": "Escalation at high surplus",
+          "pv_negative_price_sensor": "Negative-price sensor (optional)"
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
           "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and the heater is off.",
+          "pv_solar_boost": "Threshold above which the heat-pump cycle (while already running, piggyback) keeps climbing on its own up to the boost target — via the compressor alone, far more efficient (COP typically 3–4x) than the electric heater. Must sit between the hold/piggyback threshold and the heater threshold. No universal spec value exists — best derived from your own external power meter (e.g. Shelly, see COP electricity source): read the compressor's typical draw and set this just above it.",
           "pv_high": "Electric-heater threshold (≈ 1550 W = heater ~1500 W + buffer). Above it the heater is added as an ad-hoc top-up at the boost target: Boost while the heat pump runs, ELEC only while it is off. The heater never stops the pump — when surplus drops, only the heater goes away while the cycle keeps running.",
           "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window.",
           "pv_min_off": "Anti-short-cycle for the morning start: a fresh cold start waits until the compressor has been off at least this long. Daytime raises happen only while the pump already runs (piggyback) and are unaffected.",
-          "pv_escalation": "What to add once surplus passes the high threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher setpoint. Boost: heat pump + electric heater together, only while the pump runs (efficient). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — inefficient, only to dump surplus, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone."
+          "pv_escalation": "What to add once surplus passes the high threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher setpoint. Boost: heat pump + electric heater together, only while the pump runs (efficient). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — inefficient, only to dump surplus, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone.",
+          "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). When 'on', the electric heater (Boost) may switch on even before the heat pump has reached the Solar-Boost tier — feed-in would be worthless in that window anyway (German 'Solarspitzengesetz'/§51 EEG). Leave empty if you don't have such a sensor (default behaviour is unchanged)."
         }
       }
     },
@@ -170,29 +178,64 @@
   },
   "entity": {
     "sensor": {
-      "water_temp": { "name": "Water temperature" },
-      "target_temp": { "name": "Target temperature" },
-      "tank_top": { "name": "Tank top" },
-      "tank_bottom": { "name": "Tank bottom" },
-      "ambient": { "name": "Ambient temperature" },
-      "hotwater_pct": { "name": "Hot water level" },
-      "fault": { "name": "Fault code" },
-      "mode_text": { "name": "Mode" },
-      "current_source": { "name": "Current source" },
-      "hp_elec_year": { "name": "Heat pump electricity (device, year)" },
-      "heater_elec_year": { "name": "Electric heater electricity (device, year)" },
-      "heat_year": { "name": "Heat quantity (current year)" },
-      "heat_total": { "name": "Heat quantity (total)" },
-      "elec_total": { "name": "Electricity used (total)" },
-      "cop_month": { "name": "COP (month)" },
-      "cop_year": { "name": "SPF (year)" },
-      "cop_prev_year": { "name": "SPF (last year)" },
+      "water_temp": {
+        "name": "Water temperature"
+      },
+      "target_temp": {
+        "name": "Target temperature"
+      },
+      "tank_top": {
+        "name": "Tank top"
+      },
+      "tank_bottom": {
+        "name": "Tank bottom"
+      },
+      "ambient": {
+        "name": "Ambient temperature"
+      },
+      "hotwater_pct": {
+        "name": "Hot water level"
+      },
+      "fault": {
+        "name": "Fault code"
+      },
+      "mode_text": {
+        "name": "Mode"
+      },
+      "current_source": {
+        "name": "Current source"
+      },
+      "hp_elec_year": {
+        "name": "Heat pump electricity (device, year)"
+      },
+      "heater_elec_year": {
+        "name": "Electric heater electricity (device, year)"
+      },
+      "heat_year": {
+        "name": "Heat quantity (current year)"
+      },
+      "heat_total": {
+        "name": "Heat quantity (total)"
+      },
+      "elec_total": {
+        "name": "Electricity used (total)"
+      },
+      "cop_month": {
+        "name": "COP (month)"
+      },
+      "cop_year": {
+        "name": "SPF (year)"
+      },
+      "cop_prev_year": {
+        "name": "SPF (last year)"
+      },
       "pv_status": {
         "name": "PV control status",
         "state": {
           "off": "Off",
           "base": "Normal",
           "normal": "Elevated",
+          "solar_boost": "Solar boost (heat pump only)",
           "high_boost": "Boost",
           "high_elec": "Boost (ELEC)",
           "manual": "Manual override",
@@ -219,14 +262,26 @@
       }
     },
     "binary_sensor": {
-      "status_wp": { "name": "Heat pump" },
-      "status_heater": { "name": "Electric heater" },
-      "status_solar": { "name": "Solar" },
-      "status_boiler": { "name": "External heat source" },
-      "connection": { "name": "Connection" }
+      "status_wp": {
+        "name": "Heat pump"
+      },
+      "status_heater": {
+        "name": "Electric heater"
+      },
+      "status_solar": {
+        "name": "Solar"
+      },
+      "status_boiler": {
+        "name": "External heat source"
+      },
+      "connection": {
+        "name": "Connection"
+      }
     },
     "select": {
-      "mode_select": { "name": "Select mode" },
+      "mode_select": {
+        "name": "Select mode"
+      },
       "pv_program": {
         "name": "PV program",
         "state": {
@@ -238,13 +293,41 @@
       }
     },
     "switch": {
-      "active": { "name": "Operation" },
-      "boost": { "name": "Boost" },
-      "mute": { "name": "Mute" },
-      "sterilize": { "name": "Sterilize" }
+      "active": {
+        "name": "Operation"
+      },
+      "boost": {
+        "name": "Boost"
+      },
+      "mute": {
+        "name": "Mute"
+      },
+      "sterilize": {
+        "name": "Sterilize"
+      }
     },
     "number": {
-      "set_temp": { "name": "Setpoint temperature" }
+      "set_temp": {
+        "name": "Setpoint temperature"
+      },
+      "pv_temp_base": {
+        "name": "PV normal target temperature"
+      },
+      "pv_temp_normal": {
+        "name": "PV elevated target temperature"
+      },
+      "pv_temp_high": {
+        "name": "PV boost target temperature"
+      },
+      "pv_hold": {
+        "name": "PV hold / piggyback threshold"
+      },
+      "pv_solar_boost": {
+        "name": "PV solar-boost threshold"
+      },
+      "pv_high": {
+        "name": "PV electric-heater threshold"
+      }
     }
   },
   "issues": {

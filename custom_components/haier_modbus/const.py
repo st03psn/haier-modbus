@@ -55,6 +55,11 @@ DEFAULT_PV_MODE: Final = PV_MODE_OFF
 CONF_PV_SENSOR: Final = "pv_sensor"            # Sensor PV-Überschuss in W (roh, ≥0)
 CONF_PV_HIGH: Final = "pv_high"                # Boost-Schwelle Roh-Überschuss (W) -> Heizstab-Schicht
 CONF_PV_HOLD: Final = "pv_hold"                # Halte-/Piggyback-Puffer: darüber WP-Zyklus halten (W)
+CONF_PV_SOLAR_BOOST: Final = "pv_solar_boost"  # Solar-Boost-Schwelle (W): WP klettert allein auf die Boost-Zieltemp
+# Optionaler Sensor (binary_sensor/input_boolean), der die aktuelle Viertelstunde als
+# Negativ-/Null-Preis markiert (Solarspitzengesetz/§51 EEG). Ist er an, entfällt der
+# Effizienz-Vorteil des Wartens -> der Heizstab darf schon vor dem Deckel zuschalten.
+CONF_PV_NEGATIVE_PRICE_SENSOR: Final = "pv_negative_price_sensor"
 CONF_PV_MORNING_ENABLED: Final = "pv_morning_enabled"      # fixer Morgen-Start aktiv (bool)
 CONF_PV_MORNING_TIME: Final = "pv_morning_time"            # Uhrzeit Morgen-Start ("HH:MM")
 CONF_PV_TEMP_HIGH: Final = "pv_temp_high"      # Boost-Zieltemp (bei hohem Überschuss)
@@ -115,12 +120,31 @@ DEFAULT_LEGIONELLA_WINDOW_END: Final = "18:00"
 # Schwellen auf den *rohen* PV-Überschuss (sensor.pv_uberschuss_watt, kappt bei 0):
 #  - Halte/Piggyback 50 W = kleiner Puffer; solange noch Überschuss da ist, WP-Zyklus
 #    halten/auf Erhöht verlängern (die WP läuft eh schon, kostet keine Extra-Leistung)
+#  - Solar-Boost 600 W = die WP klettert allein (ohne Heizstab) bis auf die
+#    Boost-Zieltemperatur. Kein spezifizierter Wert – die Modbus-Schnittstelle liefert
+#    keine Momentanleistung; am besten am externen Zähler (Shelly) den typischen
+#    Verdichter-Verbrauch ablesen und knapp darüber setzen.
 #  - Boost 1550 W = Heizstab-Schwelle (Heizstab ~1500 W + Puffer); mehr wird nie gezogen
 DEFAULT_PV_HIGH: Final = 1550
+DEFAULT_PV_SOLAR_BOOST: Final = 600
 DEFAULT_PV_TEMP_HIGH: Final = 75    # Geräte-Max (Reg 6, 35..75); Boost-Stufe = Überschuss verheizen, i. d. R. mit Boost
 DEFAULT_PV_TEMP_NORMAL: Final = 65
 DEFAULT_PV_TEMP_BASE: Final = 50
 DEFAULT_PV_DEBOUNCE: Final = 5
+
+# Options, die ``pv.py`` bei JEDEM Poll frisch aus ``entry.options`` liest. Eine
+# Änderung braucht daher KEINEN Integration-Reload – im Gegenteil: ein Reload würde
+# In-Memory-Besitzstände verwerfen (Boost-Bit-/ELEC-Ownership in pv.py, manueller
+# Sollwert-Schutz, Notheizung, laufender Legionellen-Lauf) und den Heizstab bzw. den
+# ELEC-Modus dauerhaft anlassen. Siehe ``_async_update_listener`` in __init__.py.
+LIVE_OPTION_KEYS: Final = frozenset({
+    CONF_PV_TEMP_BASE,
+    CONF_PV_TEMP_NORMAL,
+    CONF_PV_TEMP_HIGH,
+    CONF_PV_HOLD,
+    CONF_PV_SOLAR_BOOST,
+    CONF_PV_HIGH,
+})
 
 # Gerät
 MANUFACTURER: Final = "Haier"
