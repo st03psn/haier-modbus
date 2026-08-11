@@ -108,6 +108,15 @@ Entwicklung auf einem `claude/*`-Branch, Draft-PR, CI abwarten, nach Freigabe sq
 Ist der Branch bereits gemergt, für Folgearbeit **frisch von `main` aufsetzen**
 (`git checkout -B <branch> origin/main`), nicht auf gemergter Historie weiterbauen.
 
+> **Symptom, wenn das vergessen wird: die CI startet gar nicht.** Nach einem
+> Squash-Merge liegen dieselben Änderungen doppelt vor (einzeln auf dem Branch,
+> gesquasht auf `main`) → der PR wird `mergeable_state: "dirty"`, und GitHub führt
+> `pull_request`-Workflows nicht aus, weil der Merge-Commit nicht berechenbar ist.
+> Es erscheinen **null Check-Runs** – das sieht wie ein CI-Ausfall aus, ist aber ein
+> Konflikt. Prüfen mit `pull_request_read method=get` (Feld `mergeable_state`), nicht
+> nur mit `get_check_runs`. Reparatur: Branch von `origin/main` neu aufsetzen und die
+> eigenen Commits per `git cherry-pick` übertragen.
+
 **HACS zieht Versionen aus GitHub-Releases, nicht aus `main`.** Nach dem Merge ist noch ein
 Release mit passendem Tag (`vX.Y.Z`) nötig, sonst bleibt die Integration bei der alten
 Version stehen.
