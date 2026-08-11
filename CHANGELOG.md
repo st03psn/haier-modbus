@@ -7,10 +7,11 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 
 ## [1.14.1] - 2026-08-11
 - **Doku: Gerätegrenzen dokumentiert** (neu: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md)).
-  Kernpunkt: Das Sollwert-Register (Reg 6) nimmt **35–75 °C** an, die Wärmepumpe der
-  M7-Familie erreicht laut Hersteller aber nur **65 °C** — darüber arbeitet ausschließlich
-  der **1500-W-Heizstab** (COP ≈ 1); 75 °C sind der geräteeigenen Sterilisationsfunktion
-  (1×/Woche) vorbehalten. Damit ist die **Boost-Zieltemperatur** praktisch auf **65 °C** zu
+  Kernpunkt: Das Hersteller-Datenblatt der M7-Reihe nennt zwei **getrennte** Zeilen —
+  **Einstellbereich *mit Heizstab* 35–75 °C** gegenüber **max. Temperaturausgabe *nur
+  Wärmepumpe* 65 °C**. Der Bereich 65–75 °C ist also nur mit dem **1500-W-Heizstab**
+  (COP ≈ 1) erreichbar; die geräteeigene Sterilisation heizt 1×/Woche auf 75 °C.
+  Damit ist die **Boost-Zieltemperatur** praktisch auf **65 °C** zu
   setzen, sonst kann die Solar-Boost-Stufe (Verdichter allein) ihr Ziel nie erreichen.
   Empfohlene Staffelung **50 / 58–60 / 65 °C**; für den Legionellen-Schutz
   `legionella_bottom_min` **60 °C** statt 65 (Nachweis an der kältesten Schicht).

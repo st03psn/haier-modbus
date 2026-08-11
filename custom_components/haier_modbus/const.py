@@ -127,11 +127,12 @@ DEFAULT_LEGIONELLA_WINDOW_END: Final = "18:00"
 #  - Boost 1550 W = Heizstab-Schwelle (Heizstab ~1500 W + Puffer); mehr wird nie gezogen
 DEFAULT_PV_HIGH: Final = 1550
 DEFAULT_PV_SOLAR_BOOST: Final = 600
-# ACHTUNG Registergrenze != Gerätegrenze: Reg 6 nimmt bis 75 °C an, die WP der M7-Familie
-# erreicht laut Hersteller aber nur 65 °C – darüber arbeitet ausschließlich der 1500-W-
-# Heizstab (COP ~1), 75 °C sind der geräteeigenen Sterilisation vorbehalten. Für die
-# Solar-Boost-Stufe (WP allein) daher praktisch 65 °C konfigurieren.
-# Belege/Feldmessungen: docs/geraete-grenzen.md
+# ACHTUNG Registergrenze != Gerätegrenze. Das Hersteller-Datenblatt der M7-Reihe nennt
+# beides getrennt: "Temperatureinstellbereich MIT HEIZSTAB 35..75 °C" gegenüber
+# "max. Temperaturausgabe NUR WÄRMEPUMPE 65 °C". Der Bereich 65..75 °C ist also nur mit
+# dem 1500-W-Heizstab (COP ~1) erreichbar. Für die Solar-Boost-Stufe (WP allein) daher
+# praktisch 65 °C konfigurieren.
+# Datenblatt-Belege + Feldmessungen: docs/geraete-grenzen.md
 DEFAULT_PV_TEMP_HIGH: Final = 75    # Registermaximum (Reg 6, 35..75) – s. Hinweis oben
 DEFAULT_PV_TEMP_NORMAL: Final = 65
 DEFAULT_PV_TEMP_BASE: Final = 50

@@ -5,30 +5,47 @@ Wichtig für die Konfiguration der PV-Steuerung und des Legionellen-Schutzes:
 
 ## Temperaturgrenzen
 
-| Größe | Wert | Quelle |
-|---|---|---|
-| Sollwert-Register (Reg 6) | **35–75 °C** schreibbar | Hersteller-Modbus-Doku |
-| **Max. Wassertemperatur im WP-Betrieb** | **65 °C** | Herstellerangabe (s. u.) |
-| **75 °C** | **nur** über die geräteeigene **Sterilisationsfunktion**, 1×/Woche | Herstellerangabe |
-| Integrierter E-Heizstab | **1500 W** – „als Reserve oder zur schnellen Warmwassererzeugung im Boost-Modus" | Herstellerangabe |
-| COP (Herstellerangabe) | 3,27–3,5 | Herstellerangabe |
+Das **Hersteller-Datenblatt** der M7-Reihe führt zwei **getrennte** Temperaturzeilen — genau
+die hier entscheidende Unterscheidung:
 
-Belegt für **HP200M7-F9** (192–200 L, R290 0,15 kg):
-[KlimaWorld](https://www.klimaworld.com/haier-brauchwasserwarmepumpe-hp200m7-f9-r290-192-liter.html) ·
-[heizungsdiscount24](https://www.heizungsdiscount24.de/waermepumpen/haier-hp200m7-f9-brauchwasserwaermepumpe-200-liter-r290-ohne-waermetauscher.html) ·
-[heima24](https://www.heima24.de/heizung/haier-brauchwasserwaermepumpe-m7-200-liter-ohne-waermetauscher-hp200m7-f9.html)
+| Datenblatt-Zeile | Wert |
+|---|---|
+| Temperatureinstellbereich **mit Heizstab** | **35–75 °C** |
+| Max. Temperaturausgabe **nur Wärmepumpe** | **65 °C** |
 
-> **Konsequenz:** Oberhalb **65 °C** arbeitet ausschließlich der **1500-W-Heizstab**
-> (COP ≈ 1). Ein Sollwert von 70–75 °C ist über Modbus zwar schreibbar, wird vom
-> Verdichter aber **nie allein erreicht**.
+Ergänzend:
 
-## Messtechnische Bestätigung (Feldbeobachtung)
+| Größe | Wert |
+|---|---|
+| Sollwert-Register (Reg 6) | 35–75 °C schreibbar (Hersteller-Modbus-Doku) |
+| Integrierter E-Heizstab | **1500 W** – „als Reserve oder zur schnellen Warmwassererzeugung im Boost-Modus"; im **BOOST**-Modus arbeiten WP und Heizstab gleichzeitig |
+| Geräteeigene Sterilisation | heizt 1×/Woche auf **75 °C** |
+| COP (Herstellerangabe) | 3,27–3,5 |
+
+Gilt laut Datenblatt für **HP200M7-F9 / HP250M7-F9 / HP200M7C-F9 / HP250M7C-F9**.
+
+**Primärquelle (Datenblatt, Spezifikationstabelle):**
+[haierhvac.eu – PF_HPWH_M7](https://haierhvac.eu/sites/haierhvac-eu/files/2024-06/20240610_PF_HPWH_M7_ENG.pdf) ·
+davon abgeleitete technische Datenblätter: [Hornbach](https://media.hornbach.de/hb/technicaldatasheet/as.162983863.pdf) ·
+[Otto](https://d.otto.de/files/ee3ddb74-cdb4-5685-ab13-601c94b63a4e.pdf) ·
+Betriebs-/Montageanleitung: [heima24 (PDF)](https://www.heima24.de/shop/images/products/media/betr-ma-hpm200-250-m7c-f9.pdf)
+
+> **Konsequenz:** Der Bereich **65–75 °C** ist laut Datenblatt nur **„mit Heizstab"**
+> erreichbar. Ein Sollwert von 70–75 °C ist über Modbus zwar schreibbar, liegt aber
+> oberhalb der ausgewiesenen Wärmepumpen-Maximaltemperatur.
+
+## Feldbeobachtung (konsistent mit dem Datenblatt)
 
 Aus vier Monaten Langzeitstatistik einer realen HP200M7-F9:
 
 - **Monats-Maxima der Wassertemperatur: 57 / 64 / 65 °C** — nie darüber.
 - Ein vollständiger Zyklus bis **65 °C** lief **rein über den Verdichter**
   (`binary_sensor.*_status_heater` durchgehend `off`) → 65 °C sind ohne Heizstab erreichbar.
+
+> *Einordnung:* Diese Beobachtung ist **konsistent** mit der Datenblattangabe, beweist sie
+> aber nicht eigenständig — im beobachteten Zeitraum lag der Sollwert nie über 65 °C, ein
+> Versuch oberhalb der Grenze wurde also nie gefahren. Die Grenze selbst steht im Datenblatt
+> (Tabelle oben); die Messung zeigt zusätzlich, wie sich die Leistung nach oben hin verhält.
 - **Messbarer Kapazitätsabfall zum Ende hin**, im selben Zyklus:
 
   | Bereich | Aufheizrate |

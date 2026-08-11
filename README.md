@@ -111,10 +111,10 @@ Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 > braucht daher einen externen **Watt**-Sensor: den **PV-Überschuss-Sensor**
 > (`sensor.pv_uberschuss_watt`, roh, kappt bei 0). Ohne ihn bleibt der Coordinator inaktiv.
 
-> **⚠️ Zieltemperaturen: Registergrenze ≠ Gerätegrenze.** Der Sollwert (Reg 6) nimmt
-> **35–75 °C** an, die Wärmepumpe erreicht laut Hersteller aber nur **65 °C**; darüber
-> arbeitet ausschließlich der **1500-W-Heizstab** (COP ≈ 1), und 75 °C sind der
-> geräteeigenen Sterilisation vorbehalten. Für die **Boost-Zieltemperatur**
+> **⚠️ Zieltemperaturen: Registergrenze ≠ Gerätegrenze.** Das Hersteller-Datenblatt der
+> M7-Reihe nennt beides getrennt: **Einstellbereich *mit Heizstab* 35–75 °C** gegenüber
+> **max. Temperaturausgabe *nur Wärmepumpe* 65 °C**. Der Bereich 65–75 °C ist also nur mit
+> dem **1500-W-Heizstab** (COP ≈ 1) erreichbar. Für die **Boost-Zieltemperatur**
 > (`pv_temp_high`) deshalb **65 °C** wählen — dann bedeutet die Solar-Boost-Stufe „WP bis
 > an ihre Leistungsgrenze". Empfohlene Staffelung: **50 / 58–60 / 65 °C**. Belege,
 > Feldmessungen und Hinweise zum Legionellen-Schutz:
@@ -287,10 +287,10 @@ exposes **code + description** attributes. Full table:
 > needs an external **watt** sensor: the **PV-surplus sensor** (`sensor.pv_uberschuss_watt`,
 > raw, clips at 0). Without it the Coordinator stays inactive.
 
-> **⚠️ Target temperatures: register limit ≠ device limit.** The setpoint register (Reg 6)
-> accepts **35–75 °C**, but the heat pump itself only reaches **65 °C** per the
-> manufacturer; above that only the **1500 W electric heater** works (COP ≈ 1), and 75 °C
-> is reserved for the device's own sterilization run. So set the **boost target**
+> **⚠️ Target temperatures: register limit ≠ device limit.** The manufacturer's M7 data
+> sheet lists both separately: **setting range *with heater* 35–75 °C** vs. **max.
+> temperature output *heat pump only* 65 °C**. The 65–75 °C band is therefore only
+> reachable with the **1500 W electric heater** (COP ≈ 1). So set the **boost target**
 > (`pv_temp_high`) to **65 °C** — then the solar-boost tier means “compressor up to its
 > limit”. Recommended tiers: **50 / 58–60 / 65 °C**. Evidence, field measurements and
 > legionella-protection notes: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).

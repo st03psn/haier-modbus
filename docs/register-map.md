@@ -26,9 +26,10 @@ Native Schnittstelle: **Modbus RTU, 9600 bps, 8N1** (TCP via RTU↔TCP-Gateway).
 | 11–17 | RTC (7 Register) | R | 0x03 | 11 Jahr (YY, 24=2024) · 12 Monat · 13 Tag · 14 Woche (1–7) · 15 Std · 16 Min · 17 Sek |
 | 18 | Fehlercode | R | 0x03 | 0 keiner; 1–15 E1–EF; 16–31 L0–LF; 32–47 F0–FF; 48–63 P0–PF; 64 PP |
 
-> **Registergrenze ≠ Gerätegrenze:** Reg 6 nimmt bis **75 °C** an, die Wärmepumpe erreicht
-> laut Hersteller aber nur **65 °C**; darüber arbeitet ausschließlich der 1500-W-Heizstab,
-> 75 °C sind der geräteeigenen Sterilisation vorbehalten. Belege, Feldmessungen und
+> **Registergrenze ≠ Gerätegrenze:** Reg 6 nimmt bis **75 °C** an. Das Hersteller-Datenblatt
+> unterscheidet aber **„Einstellbereich mit Heizstab 35–75 °C"** von **„max.
+> Temperaturausgabe nur Wärmepumpe 65 °C"** — der Bereich 65–75 °C ist nur mit dem
+> 1500-W-Heizstab erreichbar. Datenblatt-Belege, Feldmessungen und
 > Konfigurationsempfehlungen: [`geraete-grenzen.md`](geraete-grenzen.md).
 
 ## Energie-/Wärmeregister (kWh)
