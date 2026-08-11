@@ -18,13 +18,18 @@ Native Schnittstelle: **Modbus RTU, 9600 bps, 8N1** (TCP via RTU↔TCP-Gateway).
 | 3  | Betriebsstatus (current operating status / genutzte Quelle) | R | 0x03 | bit0 WP · bit1 Heizstab · bit2 Solar · bit3 Kessel |
 | 4  | Warmwasser % | R | 0x03 | 0..100 |
 | 5  | Zieltemperatur | R | 0x03 | °C, 1..100 |
-| 6  | Solltemperatur (user set) | RW | 0x03/0x10 | °C, 35..75 |
+| 6  | Solltemperatur (user set) | RW | 0x03/0x10 | °C, 35..75 — **Registergrenze, nicht Gerätegrenze**, s. u. |
 | 7  | Wassertemperatur (Ist) | R | 0x03 | °C, 0..100 |
 | 8  | Tank oben | R | 0x03 | °C, 0..100 |
 | 9  | Tank unten | R | 0x03 | °C, 0..100 |
 | 10 | Umgebungstemperatur | R | 0x03 | °C, **int16 vorzeichenbehaftet** (-50..100) |
 | 11–17 | RTC (7 Register) | R | 0x03 | 11 Jahr (YY, 24=2024) · 12 Monat · 13 Tag · 14 Woche (1–7) · 15 Std · 16 Min · 17 Sek |
 | 18 | Fehlercode | R | 0x03 | 0 keiner; 1–15 E1–EF; 16–31 L0–LF; 32–47 F0–FF; 48–63 P0–PF; 64 PP |
+
+> **Registergrenze ≠ Gerätegrenze:** Reg 6 nimmt bis **75 °C** an, die Wärmepumpe erreicht
+> laut Hersteller aber nur **65 °C**; darüber arbeitet ausschließlich der 1500-W-Heizstab,
+> 75 °C sind der geräteeigenen Sterilisation vorbehalten. Belege, Feldmessungen und
+> Konfigurationsempfehlungen: [`geraete-grenzen.md`](geraete-grenzen.md).
 
 ## Energie-/Wärmeregister (kWh)
 

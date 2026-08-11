@@ -5,6 +5,23 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.14.1] - 2026-08-11
+- **Doku: Gerätegrenzen dokumentiert** (neu: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md)).
+  Kernpunkt: Das Sollwert-Register (Reg 6) nimmt **35–75 °C** an, die Wärmepumpe der
+  M7-Familie erreicht laut Hersteller aber nur **65 °C** — darüber arbeitet ausschließlich
+  der **1500-W-Heizstab** (COP ≈ 1); 75 °C sind der geräteeigenen Sterilisationsfunktion
+  (1×/Woche) vorbehalten. Damit ist die **Boost-Zieltemperatur** praktisch auf **65 °C** zu
+  setzen, sonst kann die Solar-Boost-Stufe (Verdichter allein) ihr Ziel nie erreichen.
+  Empfohlene Staffelung **50 / 58–60 / 65 °C**; für den Legionellen-Schutz
+  `legionella_bottom_min` **60 °C** statt 65 (Nachweis an der kältesten Schicht).
+  Enthält außerdem Feldmessungen: 4 Monate Maximum 65 °C, und ein messbarer
+  Kapazitätsabfall von ≈ 6,0 K/h (53→59 °C) auf ≈ 3,9 K/h (60→65 °C).
+  Hinweise dazu jetzt auch im README (DE/EN) und als Kommentar an
+  `DEFAULT_PV_TEMP_HIGH`. **Keine Verhaltensänderung** — reine Dokumentation.
+- **Neu: `CLAUDE.md`** mit Architektur-Überblick, harten Regeln (kein zweiter Bus-Master,
+  nur FC 0x10, eine Quelle der Wahrheit, `LIVE_OPTION_KEYS` statt Reload) und den
+  Regelungs-Fallstricken, die in der Vergangenheit reale Fehler verursacht haben.
+
 ## [1.14.0] - 2026-08-11
 - **Verdichter vor Heizstab („Solar-Boost"):** Der WP-Zyklus (Schicht 1, Coordinator) ist
   jetzt **3-stufig** — Normal → Erhöht → **Solar-Boost**. Über der neuen Schwelle
