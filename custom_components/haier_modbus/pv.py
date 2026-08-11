@@ -22,6 +22,13 @@ Zwei **unabhängige Schichten**, geregelt nach rohem PV-Überschuss
 
 Nur im **Coordinator**-Modus aktiv; in **Aus**/**Executor** steigt ``async_evaluate``
 sofort aus. Schreibzugriffe sind idempotent (nur bei Abweichung).
+
+**Config-Änderungen mitten im Lauf:** Jede Options-Änderung lädt die Integration
+komplett neu (auch dieser Controller wird neu instanziiert). Läuft die WP dabei
+gerade, wird der vorgefundene Sollwert für den Rest dieses Zyklus **gehalten** –
+eine z. B. reduzierte Normaltemperatur senkt einen bereits laufenden
+Erhöht-Zyklus nicht mitten drin ab. Erst wenn die WP wieder aus ist, greift die
+(ggf. neue) Config normal ab dem nächsten Zyklus.
 """
 
 from __future__ import annotations
@@ -116,6 +123,13 @@ class PvController:
         # Anti-Takt (nur noch für den Morgen-Start relevant).
         self._off_since = None
         self._was_running: bool | None = None
+        # Lief die WP schon beim (Neu-)Start/Reload dieses Controllers, wird der
+        # dann vorgefundene Sollwert für den Rest dieses Laufs gehalten – eine
+        # zeitgleiche Config-Änderung (z. B. reduzierte Normaltemperatur) darf
+        # einen bereits laufenden Zyklus nicht mitten drin absenken/anheben.
+        # Löst sich, sobald die WP wieder aus ist; danach gilt die (ggf. neue)
+        # Config normal ab dem nächsten Zyklus.
+        self._hold_run = False
         # Logbuch.
         self._last_logged: int | None = None
         self._setpoint_eid: str | None = None
@@ -173,6 +187,7 @@ class PvController:
         self._wp_since = None
         self._heater_cand = None
         self._heater_since = None
+        self._hold_run = False
         # Manuellen Sollwert-Schutz beim Verlassen des Coordinator-Modus lösen.
         self._manual_hold = False
         self._manual_day = None
@@ -266,6 +281,9 @@ class PvController:
             self._off_since = None
         elif self._was_running:
             self._off_since = now
+            # WP-Lauf gerade beendet -> eine evtl. Halte-Sperre (siehe Bootstrap
+            # unten) lösen; die Config gilt ab jetzt wieder normal.
+            self._hold_run = False
         self._was_running = running
 
         current = data.get(REG_SET_TEMP)
@@ -279,9 +297,20 @@ class PvController:
         choice = o.get(CONF_PV_ESCALATION, PV_ESC_NONE)
         debounce_s = o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE) * 60
 
-        # WP-Zyklus-Ziel aus dem Ist ableiten, falls noch nicht bekannt.
+        # WP-Zyklus-Ziel aus dem Ist ableiten, falls noch nicht bekannt (frischer
+        # Start/Reload – z. B. auch nach einer Options-Änderung, die die ganze
+        # Integration neu lädt). Bewusst der *unveränderte* Register-Sollwert,
+        # nicht anhand der (ggf. gerade geänderten) Zieltemperaturen neu
+        # einsortiert – sonst würde z. B. eine reduzierte Normaltemperatur einen
+        # laufenden Erhöht-Zyklus beim Reload sofort neu bewerten und absenken.
         if self._wp_target is None:
-            self._wp_target = t_normal if current >= t_normal - 0.5 else t_base
+            self._wp_target = current
+            if running:
+                # Ein Zyklus läuft bereits: Sollwert für den Rest dieses Laufs
+                # halten (siehe Sperre unten), egal was die (ggf. neue) Config
+                # sagt. Läuft die WP gerade nicht, ist nichts zu schützen –
+                # die (ggf. neue) Config greift direkt normal.
+                self._hold_run = True
 
         # Baseline für die Manuell-Erkennung setzen, falls noch nie selbst
         # geschrieben (frischer Start/Reload). Ohne das bleibt ``_last_written``
@@ -357,7 +386,10 @@ class PvController:
 
         effective = t_high if self._heater_on else self._wp_target
         target = int(min(max(int(effective), SET_TEMP_MIN), SET_TEMP_MAX))
-        if not self._manual_hold and int(current) != target:
+        # Halte-Sperre (siehe Bootstrap oben): ein beim Reload bereits laufender
+        # Zyklus wird nicht mitten drin umgeschrieben – die (ggf. neue) Config
+        # greift erst normal, sobald die WP wieder aus ist.
+        if not self._manual_hold and not self._hold_run and int(current) != target:
             up = target > int(current)
             await self._write_setpoint(coordinator, target)
             _LOGGER.debug("PV: Soll %d -> %d (%s, Überschuss %.0f W, Heizstab %s)",
@@ -372,6 +404,11 @@ class PvController:
         if self._manual_hold:
             # Manueller Eingriff aktiv: Ist-Sollwert steht, Heizstab-Schicht läuft weiter.
             self._set_status("manual", surplus, int(current), running, self._heater_on)
+            return
+        if self._hold_run:
+            # Ein beim Reload bereits laufender Zyklus wird zu Ende gefahren,
+            # bevor eine (ggf. neue) Config den Sollwert wieder anfassen darf.
+            self._set_status("held", surplus, int(current), running, self._heater_on)
             return
         if self._heater_on and choice == PV_ESC_BOOST:
             state = "high_boost"

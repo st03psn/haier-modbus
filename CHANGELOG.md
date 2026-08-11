@@ -5,6 +5,20 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.13.2] - 2026-08-10
+- **Config-Änderung unterbricht keinen laufenden PV-Zyklus mehr:** Jede
+  Options-Änderung lädt die Integration komplett neu, wodurch auch die
+  PV-Steuerung (Coordinator-Modus) neu startet. Bisher hat sie dabei den
+  vorgefundenen Sollwert anhand der (ggf. gerade geänderten) Zieltemperaturen
+  neu einsortiert — reduzierte man z. B. die Normaltemperatur, während gerade
+  ein Erhöht-Zyklus lief, wurde dieser **mitten im Lauf** auf den neuen,
+  niedrigeren Wert abgesenkt statt zu Ende zu fahren. Der beim Reload
+  vorgefundene Sollwert wird jetzt unverändert übernommen; läuft die WP zu dem
+  Zeitpunkt bereits, bleibt er für den **gesamten Rest dieses Laufs** stehen —
+  eine (ggf. neue) Config greift erst normal, sobald die WP wieder aus ist.
+  Neuer Zwischenzustand **„Laufender Zyklus gehalten"** im Diagnose-Sensor
+  „PV-Regelung Status".
+
 ## [1.13.1] - 2026-08-10
 - **Manueller Sollwert-Eingriff (PV-Coordinator) wird jetzt zuverlässig erkannt:**
   Die seit v1.12.0 bestehende „manueller Eingriff wird respektiert"-Erkennung

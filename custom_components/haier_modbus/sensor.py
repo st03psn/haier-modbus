@@ -148,7 +148,7 @@ class HaierPvStatus(HaierModbusEntity, SensorEntity):
 
     _attr_translation_key = "pv_status"
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = ["off", "base", "normal", "high_boost", "high_elec", "manual"]
+    _attr_options = ["off", "base", "normal", "high_boost", "high_elec", "manual", "held"]
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:solar-power-variant"
 
