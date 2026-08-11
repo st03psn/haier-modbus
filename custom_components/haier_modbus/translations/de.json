@@ -195,7 +195,8 @@
           "normal": "Erhöht",
           "high_boost": "Boost",
           "high_elec": "Boost (ELEC)",
-          "manual": "Manueller Eingriff"
+          "manual": "Manueller Eingriff",
+          "held": "Laufender Zyklus gehalten"
         }
       },
       "link_status": {

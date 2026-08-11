@@ -195,7 +195,8 @@
           "normal": "Elevated",
           "high_boost": "Boost",
           "high_elec": "Boost (ELEC)",
-          "manual": "Manual override"
+          "manual": "Manual override",
+          "held": "Active cycle held"
         }
       },
       "link_status": {
