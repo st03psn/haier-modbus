@@ -23,10 +23,19 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   `Erhöht ≤ Normal` und `Boost < Erhöht` jetzt mit einer verständlichen Meldung zurück,
   statt die Stufen stillschweigend kollabieren zu lassen (die Laufzeit-Klemmung in `pv.py`
   bleibt als zweites Netz bestehen).
-- **Klarstellung zu den Eskalations-Optionen** in den Feldbeschreibungen: *Boost* (WP +
-  Heizstab, primär) übernimmt gezielt den Bereich über 65 °C, den nur der Heizstab
-  erreicht; *Nur Heizstab (ELEC)* bleibt die davon getrennte Schnellaufheiz-/Dump-Option
+- **Boost ist wieder das, was der Name sagt: WP + Heizstab gemeinsam.** Die in 1.14.0
+  eingeführte Wartebedingung („Heizstab erst, wenn die WP ihre Grenze erreicht hat")
+  entfällt — ab der Boost-Schwelle wird der deutliche Überschuss **direkt der laufenden
+  WP zugeschaltet**, ohne Verzögerung. Damit ist die Stufenfolge durchgängig:
+  **base** (Standard) → **Erhöht** (leichter Überschuss) → **Solar-Boost** (mehr
+  Überschuss, WP allein bis 65 °C) → **Boost** (deutlicher Überschuss, WP + Heizstab bis
+  75 °C). *Nur Heizstab (ELEC)* bleibt davon getrennt die Schnellaufheiz-/Notfall-Option
   bei **stehender** WP.
+- **Negativpreis-Sensor mit neuer Rolle:** Ist er „an", greift **Boost bereits ab der
+  Solar-Boost-Schwelle** statt erst ab der Boost-Schwelle (Einspeisung ist im Fenster
+  unvergütet). Neu dokumentierter Vorbehalt: **nur mit dynamischem Stromtarif sinnvoll** —
+  ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis;
+  reicht der Überschuss nicht für den Heizstab (~1500 W), kommt der Rest aus dem Netz.
 
 ## [1.14.1] - 2026-08-11
 - **Doku: Gerätegrenzen dokumentiert** (neu: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md)).

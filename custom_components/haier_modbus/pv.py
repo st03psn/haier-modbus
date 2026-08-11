@@ -20,11 +20,11 @@ Heizstab, dorthin die WP allein zu schicken hieße, ein unerreichbares Ziel anzu
   auf einen Schlag – jeder Schritt entprellt einzeln.
 
 **Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt NIE die WP), ab Boost-Schwelle:**
-- **Boost** (WP+Heizstab): nur bei **laufender** WP **und erst, wenn Schicht 1 selbst
-  schon auf Solar-Boost steht** — der Heizstab (COP≈1) springt also erst ein, wenn der
-  Verdichter allein den Überschuss nicht mehr aufnehmen kann. Ausnahme: ein optionaler
-  Negativpreis-Sensor (Solarspitzengesetz/§51 EEG) hebt diese Wartezeit auf, weil
-  Einspeisung in dem Fenster ohnehin nichts wert ist.
+- **Boost** (WP+Heizstab): heißt, was der Name sagt — beide **gemeinsam**. Ab der
+  Heizstab-Schwelle wird der deutliche Überschuss direkt der **laufenden** WP
+  zugeschaltet (Absorptions-Stufe). Mit optionalem Negativpreis-Sensor greift Boost
+  schon ab der niedrigeren Solar-Boost-Schwelle, weil Einspeisung in dem Fenster
+  unvergütet ist (Solarspitzengesetz/§51 EEG).
 - **ELEC** (nur Heizstab): nur bei **stehender** WP -> Modus ELEC + Sollwert Boost (75),
   Heizstab-Dump nach dem Tageszyklus (anderes Szenario, kein Deckel-Gate).
 - Fällt der Überschuss unter die Boost-Schwelle: nur der Heizstab geht weg; die WP läuft
@@ -415,19 +415,14 @@ class PvController:
 
         # 3) Schicht 2 – Heizstab (entprellt). Boost nur wenn WP läuft, ELEC nur wenn WP aus.
         if choice == PV_ESC_BOOST:
-            # Heizstab (COP≈1) erst, wenn die WP selbst schon am Deckel steht – sie
-            # bekommt immer zuerst die Chance, den Überschuss effizient zu verwerten.
-            # Sicherheitsventil: kann die Leiter den Deckel bei dieser Konfiguration gar
-            # nicht erreichen (z. B. Normal == Basis), darf der Heizstab nicht dauerhaft
-            # gesperrt bleiben -> dann gilt das bisherige Verhalten.
-            # Negativpreis: Einspeisung ist im Fenster ohnehin wertlos (§51 EEG) ->
-            # Wartezeit entfällt, der Speicher wird schneller voll und die WP zieht
-            # danach keinen (dann wieder vergüteten) Überschuss mehr ab.
-            ladder_reaches_ceiling = t_wp_ceiling > t_normal > t_base
-            at_ceiling = self._wp_target >= t_wp_ceiling - 0.5 or not ladder_reaches_ceiling
-            heater_want = (
-                running and surplus >= hoch and (at_ceiling or self._negative_price(o))
-            )
+            # Boost heißt, was der Name sagt: **WP + Heizstab gemeinsam**. Ab der
+            # Heizstab-Schwelle wird der deutliche Überschuss direkt der laufenden WP
+            # zugeschaltet – bewusst ohne Wartezeit auf die WP-Grenze (der Heizstab ist
+            # hier die Absorptions-Stufe, nicht nur der Lückenfüller über 65 °C).
+            # Negativpreis (optional): dann greift Boost schon ab der niedrigeren
+            # Solar-Boost-Schwelle, weil Einspeisung im Fenster unvergütet ist (§51 EEG).
+            trigger = solarboost if self._negative_price(o) else hoch
+            heater_want = running and surplus >= trigger
         elif choice == PV_ESC_ELEC:
             # Anderes Szenario (WP steht) -> unverändert, kein Deckel-Gate.
             heater_want = (not running) and surplus >= hoch

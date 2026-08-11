@@ -154,17 +154,18 @@ gebaut, dass die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts) und
 
 **Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt nie die WP):** ab der **Boost-Schwelle**
 (Default 1550 W = Heizstab ~1500 W + Puffer):
-- **Boost** (WP + Heizstab) nur bei laufender WP **und erst, wenn Schicht 1 selbst schon
-  auf Solar-Boost steht** — der Heizstab (COP ≈ 1) übernimmt damit ausschließlich den
-  Bereich **oberhalb 65 °C**, den laut Datenblatt **nur er** erreichen kann. *Dadurch
-  startet er bis zu zwei Entprellzeiten später als früher — das ist beabsichtigt.*
+- **Boost** (WP + Heizstab) heißt, was der Name sagt: **beide gemeinsam**. Ab der
+  Boost-Schwelle wird der deutliche Überschuss direkt der **laufenden** WP zugeschaltet;
+  der Sollwert geht dabei auf die Boost-Zieltemperatur (bis 75 °C — den Bereich über
+  65 °C erreicht ohnehin nur der Heizstab).
 - **Heizstab (ELEC)** **nur bei stehender** WP (ELEC würde die WP sonst stoppen) — dumpt
   sofort, z. B. um nach dem Tageszyklus Überschuss zu verheizen; danach zurück auf ECO +
   Normal-Temperatur. Hier gibt es **kein** Deckel-Gate (anderes Szenario).
 - **Optionaler Negativpreis-Sensor:** Ist er „an" (Viertelstunde mit negativem/0-Ct-Preis,
-  Solarspitzengesetz/§51 EEG), entfällt das Warten auf den Deckel — Einspeisung wäre in
-  dem Fenster ohnehin wertlos, und der schneller volle Speicher lässt später am Tag mehr
-  **vergüteten** Überschuss übrig.
+  Solarspitzengesetz/§51 EEG), greift Boost bereits ab der **Solar-Boost-Schwelle** statt
+  erst ab der Boost-Schwelle — Einspeisung ist in dem Fenster ohnehin unvergütet.
+  *Nur sinnvoll mit dynamischem Stromtarif:* Ein negativer Börsenpreis senkt den
+  Einspeiseerlös, nicht automatisch den Bezugspreis.
 
 Fällt der Überschuss weg, geht **nur der Heizstab** weg; die WP läuft unverändert weiter.
 Solange der Heizstab an ist, hält Schicht 1 ihre Stufe.
@@ -324,17 +325,16 @@ always takes precedence over the electric heater**:
   (COP typically 3–4× better than the heater, and the surplus it doesn't draw stays
   exportable). It steps back down one tier at a time (solar boost → normal → base), each
   step individually debounced (5 min).
-- *Layer 2 — electric heater (ad-hoc add-on that never stops the pump):* above the
-  **high threshold** (default 1550 W ≈ heater power + margin), **Boost** (pump + heater)
-  engages only while the pump runs **and only once Layer 1 has itself reached solar
-  boost** — so the heater (COP ≈ 1) steps in only when the compressor can no longer absorb
-  the surplus (*this makes it start up to two debounce periods later than before — by
-  design*). **ELEC** (heater only) still applies while the pump is off — e.g. to dump
-  surplus after the daily cycle; afterwards back to ECO + base setpoint. No ceiling gate
-  there (different scenario). An optional **negative-price sensor** (zero/negative
-  feed-in quarter-hour) lifts the ceiling wait, since exporting is worthless in that
-  window anyway. If the surplus disappears, only the heater drops out; the pump keeps
-  running.
+- *Layer 2 — electric heater (ad-hoc add-on that never stops the pump):* **Boost** means
+  what the name says — pump **and** heater together. Above the **high threshold**
+  (default 1550 W ≈ heater power + margin) the substantial surplus is fed directly to the
+  **running** pump, with the setpoint moving to the boost target (up to 75 °C — the band
+  above 65 °C is heater-only anyway). **ELEC** (heater only) applies while the pump is off
+  — the separate fast-heat/emergency option, e.g. to dump surplus after the daily cycle;
+  afterwards back to ECO + base setpoint. An optional **negative-price sensor**
+  (zero/negative feed-in quarter-hour) makes Boost engage already at the solar-boost
+  threshold, since exporting is unpaid in that window — *only sensible with a dynamic
+  tariff.* If the surplus disappears, only the heater drops out; the pump keeps running.
 
 The diagnostic sensor **“PV control status”** (`sensor.haier_hwhp_pv_status`) shows the
 live state (off / base / normal / solar boost / high + Boost / high + ELEC, plus manual
