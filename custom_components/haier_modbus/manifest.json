@@ -1,14 +1,22 @@
 {
   "domain": "haier_modbus",
   "name": "Haier HWHP (Modbus)",
-  "after_dependencies": ["frontend", "lovelace", "recorder"],
-  "codeowners": ["@st03psn"],
+  "after_dependencies": [
+    "frontend",
+    "lovelace",
+    "recorder"
+  ],
+  "codeowners": [
+    "@st03psn"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/st03psn/haier-modbus",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/st03psn/haier-modbus/issues",
-  "requirements": ["pymodbus>=3.6.0"],
-  "version": "1.16.1"
+  "requirements": [
+    "pymodbus>=3.6.0"
+  ],
+  "version": "1.16.2"
 }

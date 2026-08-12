@@ -225,6 +225,10 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     4. Solar-Boost-Stufe entfernt (ab v1.16.0, AP1): ``pv_solar_boost`` entfällt
        ersatzlos, die Stufe existiert nicht mehr (Erhöht ist bereits auf
        ``WP_MAX_TEMP`` begrenzt, s. ``docs/geraete-grenzen.md``).
+    4b. Nachtabsenkung entfernt (ab v1.16.2): ``pv_night_floor`` entfällt ersatzlos.
+       Nachts gilt schlicht die Basis-Zieltemperatur in ECO – ein tieferer Boden
+       brächte PV-seitig nichts (das deckt der Tages-Kaltstart ab) und nähme nur die
+       Reserve für ungewöhnlich hohen Warmwasserbedarf.
     5. PV-Eskalation ``elec`` entfällt (ab v1.16.0, AP5): ELEC ist keine
        PV-Eskalation mehr, sondern eine Notfall-Option in ``emergency.py``
        (``CONF_EMERGENCY_MODE``). Alte ``pv_escalation: elec`` wird auf ``boost``
@@ -263,7 +267,7 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
         changed = True
     for legacy in ("pv_bwwp_sensor", "pv_normal", "pv_hysteresis",
                    "pv_reraise_threshold", "pv_reraise_enabled",
-                   "pv_solar_boost"):
+                   "pv_solar_boost", "pv_night_floor"):
         if legacy in o:
             del o[legacy]
             changed = True
