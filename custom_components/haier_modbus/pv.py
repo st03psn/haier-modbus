@@ -7,8 +7,11 @@ kappt bei 0):
 **Schicht 1 — WP-Zyklus, 2-stufig (Normal 50 -> Erhöht 60), auf dem *rohen* Überschuss:**
 Das Anheben des Sollwerts erzeugt keine Zusatzlast, daher braucht diese Schicht keine
 Normalisierung.
-- **Fixer Morgen-Start (1×/Tag):** zur Uhrzeit, wenn Wasser unter Normal liegt, Sollwert
-  auf Erhöht -> WP startet im ECO-Fenster.
+- **Fixer Morgen-Start (1×/Tag):** zur Uhrzeit, wenn Wasser unter Basis liegt, Sollwert
+  auf **Basis** in **ECO** -> die WP macht eine effiziente Grundladung. Bewusst *nicht*
+  Erhöht/AUTO: der Morgen-Start ist der garantierte Tagesstart, keine Überschuss-Reaktion
+  (sonst käme an trüben Tagen die volle Ladung aus dem Netz). Die Anhebung auf Erhöht +
+  AUTO folgt bei Überschuss über den Piggyback-Zweig – ohne neues Startkontingent.
 - **Tages-Kaltstart (neu, AP6a):** überschussgetrieben, aber streng verriegelt – Wasser <
   Erhöht-Ziel, voll entprellter Überschuss ≥ ``pv_coldstart``, Anti-Takt erfüllt UND das
   Tageskontingent (``pv_max_starts``, Default 1) noch nicht ausgeschöpft. Morgen-Start und
@@ -531,15 +534,24 @@ class PvController:
             if (water < t_base and current < t_normal
                     and self._starts_today(now.date()) < max_starts
                     and self._start_allowed(o, running, now)):
-                self._wp_target = t_normal
-                target = int(min(max(int(t_normal), SET_TEMP_MIN), SET_TEMP_MAX))
+                # Der Morgen-Start ist der GARANTIERTE Tagesstart, keine Überschuss-
+                # Reaktion: deshalb Basis-Zieltemperatur in ECO (nicht Erhöht/AUTO).
+                # Sonst lüde er an trüben Tagen den vollen Speicher aus dem Netz.
+                # Die Anhebung auf Erhöht + AUTO passiert danach von selbst über den
+                # Piggyback-Zweig in Schicht 1 – und zwar OHNE erneutes
+                # ``_register_start()``, verbraucht also kein weiteres Tageskontingent
+                # (die WP läuft dann bereits, es ist kein neuer Verdichterstart).
+                # Wirksam ist das Schreiben der Basis nur, weil die Nachtabsenkung den
+                # Sollwert zuvor auf ``pv_night_floor`` gedrückt hat.
+                self._wp_target = t_base
+                target = int(min(max(int(t_base), SET_TEMP_MIN), SET_TEMP_MAX))
                 await self._write_setpoint(coordinator, target)
                 await self._register_start(now.date())
                 self._night = False
-                await self._apply_mode(coordinator, data, MODE_AUTO, target)
-                _LOGGER.debug("PV: Morgen-Start Soll -> %d (Überschuss %.0f W)", target, surplus)
+                await self._apply_mode(coordinator, data, MODE_ECO, target)
+                _LOGGER.debug("PV: Morgen-Start Soll -> %d (ECO, Überschuss %.0f W)", target, surplus)
                 self._announce(coordinator, target, surplus, up=True)
-                self._set_status("normal", surplus, target, running, False)
+                self._set_status("base", surplus, target, running, False)
                 return
 
         # 2) Tages-Kaltstart (AP6a): überschussgetrieben, aber streng verriegelt – teilt

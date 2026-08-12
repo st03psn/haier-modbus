@@ -5,6 +5,22 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.16.1] - 2026-08-12
+- **Morgen-Start heizt nicht mehr aus dem Netz auf Erhöht.** Der fixe Morgen-Start schrieb
+  bedingungslos die Erhöht-Zieltemperatur (65 °C) und schaltete auf AUTO – ohne den
+  Überschuss anzusehen. An trüben Tagen kam damit die gesamte Ladung aus dem Netz.
+  Neu: Der Morgen-Start schreibt die **Basis-Zieltemperatur in ECO** und macht damit eine
+  effiziente Grundladung. Die Anhebung auf Erhöht + AUTO folgt erst bei Überschuss über
+  den bestehenden Piggyback-Zweig – und **ohne** ein weiteres Startkontingent zu
+  verbrauchen, weil die Wärmepumpe dann bereits läuft (kein neuer Verdichterstart).
+  Wirksam ist das Schreiben der Basis, weil die Nachtabsenkung (1.16.0) den Sollwert
+  zuvor auf `pv_night_floor` gedrückt hat.
+
+> **Hinweis zum Release `v1.16.0`:** Das GitHub-Release mit diesem Tag wurde versehentlich
+> auf einem älteren Commit (Stand 1.14.0) erzeugt, bevor der zugehörige PR gemergt war –
+> es enthält **nicht** die unten beschriebenen Änderungen und kann übersprungen werden.
+> Der vollständige Stand von 1.16.0 ist in **1.16.1** enthalten.
+
 ## [1.16.0] - 2026-08-12
 - **PV-Regelstufen überarbeitet: vier klar getrennte Stufen** (`base` -> `Erhöht` ->
   `Boost`, ELEC separat als Notfall). Grundlage: Code-Analyse + 10 Tage Verlaufsdaten
