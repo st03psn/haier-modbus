@@ -222,6 +222,14 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
        und die Wiederanlauf-Schlüssel (``pv_reraise_threshold`` /
        ``pv_reraise_enabled``) entfallen – die neuen Defaults (Roh-Überschuss-
        Modell, Zwei-Schicht-Regelung) greifen stattdessen.
+    4. Solar-Boost-Stufe entfernt (ab v1.16.0, AP1): ``pv_solar_boost`` entfällt
+       ersatzlos, die Stufe existiert nicht mehr (Erhöht ist bereits auf
+       ``WP_MAX_TEMP`` begrenzt, s. ``docs/geraete-grenzen.md``).
+    5. PV-Eskalation ``elec`` entfällt (ab v1.16.0, AP5): ELEC ist keine
+       PV-Eskalation mehr, sondern eine Notfall-Option in ``emergency.py``
+       (``CONF_EMERGENCY_MODE``). Alte ``pv_escalation: elec`` wird auf ``boost``
+       abgebildet (kein Fehler bei Altbestand); wer wirklich nur den Heizstab bei
+       Notfall wollte, aktiviert das jetzt separat über die Notheizung.
 
     Läuft genau einmal (danach sind die Alt-Keys weg, no-op).
     """
@@ -254,10 +262,16 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
         o.setdefault(CONF_PV_MODE, PV_MODE_COORDINATOR if enabled else PV_MODE_OFF)
         changed = True
     for legacy in ("pv_bwwp_sensor", "pv_normal", "pv_hysteresis",
-                   "pv_reraise_threshold", "pv_reraise_enabled"):
+                   "pv_reraise_threshold", "pv_reraise_enabled",
+                   "pv_solar_boost"):
         if legacy in o:
             del o[legacy]
             changed = True
+
+    # 5. PV-Eskalation "elec" -> "boost" (ELEC ist seit v1.16.0 keine PV-Eskalation mehr).
+    if o.get(CONF_PV_ESCALATION) == PV_ESC_ELEC:
+        o[CONF_PV_ESCALATION] = PV_ESC_BOOST
+        changed = True
 
     if changed:
         hass.config_entries.async_update_entry(entry, options=o)
