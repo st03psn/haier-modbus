@@ -58,26 +58,30 @@ Aus vier Monaten Langzeitstatistik einer realen HP200M7-F9:
 
 ## Empfohlene Konfiguration
 
-**PV-Steuerung (Coordinator):** Die Integration setzt die Grenze ab v1.15.0 selbst um —
-die Stufen sind entsprechend aufgeteilt:
+**PV-Steuerung (Coordinator):** Die Integration setzt die Grenze seit v1.15.0 selbst um.
+Seit v1.16.0 gibt es **drei** Stufen (plus ELEC als separate Notfall-Option in
+`emergency.py`, kein Teil der PV-Eskalation mehr) — Boost ist eine **Leistungssenke**
+(WP + Heizstab gemeinsam), keine eigene Temperaturstufe:
 
 | Stufe | Option | Bereich | Wer heizt |
 |---|---|---|---|
-| Normal | `pv_temp_base` | 35–**65** °C | Verdichter |
-| Erhöht | `pv_temp_normal` | 35–**65** °C | Verdichter |
-| Solar-Boost | *(kein eigenes Feld)* | automatisch `min(Boost-Ziel, **65**)` | **Verdichter allein an seiner Grenze** |
-| Boost | `pv_temp_high` | 35–**75** °C | **Heizstab** schiebt über 65 °C |
+| Normal (`base`) | `pv_temp_base` | 35–**65** °C | Verdichter (i. d. R. aus) |
+| Erhöht (`normal`) | `pv_temp_normal` | 35–**65** °C | Verdichter |
+| Boost | *(gleiche Zieltemp wie Erhöht, `pv_temp_normal`)* | 35–**65** °C | **Verdichter + Heizstab gemeinsam** |
 
-Empfohlen: **50 / 60 / 75** (Normal / Erhöht / Boost). Die WP fährt dann 50 → 60 → 65 °C
-allein, der Heizstab übernimmt nur die letzten 65 → 75 °C — also genau den Bereich, den
-**nur er** erreichen kann. Keine Heizstab-kWh wird für eine Spanne verbraucht, die der
-Verdichter auch geschafft hätte.
+`pv_temp_high` (35–**75** °C) bleibt bestehen, ist im Coordinator-Modus aber **unbenutzt**
+— nur noch das Executor-Programm (`select.haier_hwhp_pv_program`, Programm „Boost“)
+verwendet es für einen echten Sollwert bis 75 °C.
 
-Normal/Erhöht sind in der Oberfläche auf **65 °C** begrenzt, weil sie der Verdichter allein
-erreichen muss. Nur die Boost-Zieltemperatur darf bis 75 °C. Zusätzlich prüft der
-Konfigurationsdialog die Reihenfolge (`Normal < Erhöht ≤ Boost`); `pv.py` klemmt verdrehte
-Werte zur Laufzeit zusätzlich ab und hat ein Sicherheitsventil, damit eine entartete
-Konfiguration den Heizstab nicht dauerhaft aussperrt.
+Empfohlen (Coordinator): **50 / 60** (Normal / Erhöht). Die WP fährt bis 60 °C allein;
+Boost schaltet ab ausreichendem Überschuss zusätzlich den Heizstab dazu, ohne die
+Zieltemperatur zu ändern — der Heizstab ist hier eine reine Absorptions-/Leistungsstufe
+für deutlichen Überschuss, kein Weg zu einer höheren Temperatur.
+
+Erhöht ist in der Oberfläche auf **65 °C** begrenzt, weil sie der Verdichter allein
+erreichen muss — und weil Boost dieselbe Zieltemperatur nutzt, gilt die Grenze
+automatisch auch für Boost. Zusätzlich prüft der Konfigurationsdialog die Reihenfolge
+(`Normal < Erhöht`); `pv.py` klemmt verdrehte Werte zur Laufzeit zusätzlich ab.
 
 **Legionellen-Schutz:** `legionella_bottom_min` **nicht** auf 65 °C setzen — das ist exakt
 die WP-Maximaltemperatur, gemessen an der **kältesten** Schicht (Tank unten), und damit

@@ -32,6 +32,15 @@ Native Schnittstelle: **Modbus RTU, 9600 bps, 8N1** (TCP via RTU↔TCP-Gateway).
 > 1500-W-Heizstab erreichbar. Datenblatt-Belege, Feldmessungen und
 > Konfigurationsempfehlungen: [`geraete-grenzen.md`](geraete-grenzen.md).
 
+> **Reg 2 bit1 (Boost) vs. Reg 1 = 2 (ELEC) — nicht verwechseln:** Reg 2 ist ein
+> *Bitfeld*, Reg 1 ein *Wert*. Laut Datenblatt fährt **Boost (Reg 2 bit1) Wärmepumpe UND
+> Heizstab gemeinsam** — es ist kein Weg, den Heizstab isoliert zu schalten. ELEC (Reg 1
+> = 2) ist dagegen ein eigenständiger *Moduswert*, kein Bit, und schaltet die Wärmepumpe
+> ab (nur Heizstab). Ein „ELEC-Bit" existiert nicht. Diese Verwechslung war der
+> Ausgangspunkt des PV-Regelstufen-Umbaus in v1.16.0 (s. `CHANGELOG.md`): `pv.py` nutzt
+> seither ausschließlich Reg 2 bit1 für Boost (WP + Heizstab gemeinsam als Leistungssenke),
+> ELEC ist eine reine Notfall-Option in `emergency.py`.
+
 ## Energie-/Wärmeregister (kWh)
 
 Jeder Block umfasst **24 Register**: **7 Tageswerte (Mo–So) + 12 Monatswerte

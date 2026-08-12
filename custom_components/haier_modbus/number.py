@@ -26,13 +26,11 @@ from .const import (
     CONF_PV_HIGH,
     CONF_PV_HOLD,
     CONF_PV_MODE,
-    CONF_PV_SOLAR_BOOST,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
     CONF_PV_TEMP_NORMAL,
     DEFAULT_PV_HIGH,
     DEFAULT_PV_HOLD,
-    DEFAULT_PV_SOLAR_BOOST,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
@@ -62,8 +60,8 @@ class OptionNumber:
 
 # Zieltemperaturen: auch im **Executor**-Modus wirksam – das Programm-Select
 # (select.py) übersetzt seine Programme über genau diese Werte in Sollwerte.
-# Normal/Erhöht muss der **Verdichter allein** schaffen -> auf WP_MAX_TEMP begrenzt;
-# nur Boost darf bis SET_TEMP_MAX gehen (dort hilft der Heizstab). S. docs/geraete-grenzen.md
+# Normal/Erhöht muss der **Verdichter allein** schaffen -> auf WP_MAX_TEMP begrenzt.
+# S. docs/geraete-grenzen.md
 PV_TEMP_NUMBERS: tuple[OptionNumber, ...] = (
     OptionNumber(key=CONF_PV_TEMP_BASE, default=DEFAULT_PV_TEMP_BASE,
                  min_value=SET_TEMP_MIN, max_value=WP_MAX_TEMP,
@@ -71,9 +69,16 @@ PV_TEMP_NUMBERS: tuple[OptionNumber, ...] = (
     OptionNumber(key=CONF_PV_TEMP_NORMAL, default=DEFAULT_PV_TEMP_NORMAL,
                  min_value=SET_TEMP_MIN, max_value=WP_MAX_TEMP,
                  unit=UnitOfTemperature.CELSIUS, icon="mdi:thermometer"),
-    OptionNumber(key=CONF_PV_TEMP_HIGH, default=DEFAULT_PV_TEMP_HIGH,
-                 min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,
-                 unit=UnitOfTemperature.CELSIUS, icon="mdi:thermometer-high"),
+)
+
+# Boost-Zieltemperatur: seit v1.16.0 nur noch für das Executor-Programm relevant
+# (``select.PV_PROGRAM_BOOST``) – im Coordinator-Modus ist Boost eine Leistungssenke
+# und nutzt dieselbe Zieltemperatur wie Erhöht (AP2). Daher hier bewusst NICHT mehr im
+# Coordinator-Modus angezeigt (sonst ein wirkungsloses Bedienelement).
+PV_TEMP_HIGH_NUMBER = OptionNumber(
+    key=CONF_PV_TEMP_HIGH, default=DEFAULT_PV_TEMP_HIGH,
+    min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,
+    unit=UnitOfTemperature.CELSIUS, icon="mdi:thermometer-high",
 )
 
 # Watt-Schwellen: nur im **Coordinator**-Modus relevant (gleicher Split wie im
@@ -81,8 +86,6 @@ PV_TEMP_NUMBERS: tuple[OptionNumber, ...] = (
 PV_WATT_NUMBERS: tuple[OptionNumber, ...] = (
     OptionNumber(key=CONF_PV_HOLD, default=DEFAULT_PV_HOLD,
                  min_value=0, max_value=10000, step=50, unit="W", icon="mdi:solar-power"),
-    OptionNumber(key=CONF_PV_SOLAR_BOOST, default=DEFAULT_PV_SOLAR_BOOST,
-                 min_value=0, max_value=10000, step=50, unit="W", icon="mdi:heat-pump"),
     OptionNumber(key=CONF_PV_HIGH, default=DEFAULT_PV_HIGH,
                  min_value=0, max_value=10000, step=50, unit="W", icon="mdi:radiator"),
 )
@@ -97,6 +100,8 @@ async def async_setup_entry(
     mode = entry.options.get(CONF_PV_MODE)
     if mode in (PV_MODE_COORDINATOR, PV_MODE_EXECUTOR):
         entities += [HaierPvOptionNumber(coordinator, d) for d in PV_TEMP_NUMBERS]
+    if mode == PV_MODE_EXECUTOR:
+        entities.append(HaierPvOptionNumber(coordinator, PV_TEMP_HIGH_NUMBER))
     if mode == PV_MODE_COORDINATOR:
         entities += [HaierPvOptionNumber(coordinator, d) for d in PV_WATT_NUMBERS]
 

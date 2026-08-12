@@ -29,6 +29,7 @@ from .const import (
     CONF_COP_REF_DATE,
     CONF_EMERGENCY_CRITICAL,
     CONF_EMERGENCY_ENABLED,
+    CONF_EMERGENCY_MODE,
     CONF_EMERGENCY_RECOVER,
     CONF_ENERGY_SCALE,
     CONF_HOST,
@@ -41,17 +42,22 @@ from .const import (
     CONF_LEGIONELLA_WINDOW_START,
     CONF_MODEL,
     CONF_PORT,
+    CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
+    CONF_PV_COLDSTART,
     CONF_PV_DEBOUNCE,
     CONF_PV_ESCALATION,
+    CONF_PV_HEATER_POWER,
     CONF_PV_HIGH,
     CONF_PV_HOLD,
+    CONF_PV_MAX_STARTS,
     CONF_PV_MIN_OFF,
     CONF_PV_MODE,
     CONF_PV_MORNING_ENABLED,
     CONF_PV_MORNING_TIME,
     CONF_PV_NEGATIVE_PRICE_SENSOR,
+    CONF_PV_NIGHT_FLOOR,
+    CONF_PV_POWER_ENTITY,
     CONF_PV_SENSOR,
-    CONF_PV_SOLAR_BOOST,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
     CONF_PV_TEMP_NORMAL,
@@ -59,6 +65,7 @@ from .const import (
     CONF_SLAVE,
     DEFAULT_AMBIENT_OFFSET,
     DEFAULT_EMERGENCY_CRITICAL,
+    DEFAULT_EMERGENCY_MODE,
     DEFAULT_EMERGENCY_RECOVER,
     DEFAULT_ENERGY_SCALE,
     DEFAULT_LEGIONELLA_BOTTOM,
@@ -69,24 +76,29 @@ from .const import (
     DEFAULT_LEGIONELLA_WINDOW_START,
     DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
+    DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE,
+    DEFAULT_PV_COLDSTART,
     DEFAULT_PV_DEBOUNCE,
     DEFAULT_PV_ESCALATION,
+    DEFAULT_PV_HEATER_POWER,
     DEFAULT_PV_HIGH,
     DEFAULT_PV_HOLD,
+    DEFAULT_PV_MAX_STARTS,
     DEFAULT_PV_MIN_OFF,
     DEFAULT_PV_MODE,
     DEFAULT_PV_MORNING_ENABLED,
     DEFAULT_PV_MORNING_TIME,
-    DEFAULT_PV_SOLAR_BOOST,
+    DEFAULT_PV_NIGHT_FLOOR,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     DOMAIN,
+    EMERGENCY_MODE_AUTO,
+    EMERGENCY_MODE_ELEC,
     MODELS,
     PV_ESC_BOOST,
-    PV_ESC_ELEC,
     PV_ESC_NONE,
     PV_MODE_COORDINATOR,
     PV_MODE_EXECUTOR,
@@ -109,10 +121,21 @@ _PV_SENSOR = selector.EntitySelector(
 _NEGATIVE_PRICE_SENSOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain=["binary_sensor", "input_boolean"])
 )
+# Optionale Geräte-Gesamtleistung (W) – Verfeinerung der Heizstab-Leistungsschätzung (AP3).
+_POWER_ENTITY = selector.EntitySelector(
+    selector.EntitySelectorConfig(domain="sensor", device_class="power")
+)
 _ESCALATION = selector.SelectSelector(
     selector.SelectSelectorConfig(
-        options=[PV_ESC_NONE, PV_ESC_BOOST, PV_ESC_ELEC],
+        options=[PV_ESC_NONE, PV_ESC_BOOST],
         translation_key="pv_escalation",
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+_EMERGENCY_MODE = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[EMERGENCY_MODE_AUTO, EMERGENCY_MODE_ELEC],
+        translation_key="emergency_mode",
         mode=selector.SelectSelectorMode.DROPDOWN,
     )
 )
@@ -161,6 +184,10 @@ _MINUTES = selector.NumberSelector(
     selector.NumberSelectorConfig(min=1, max=180, step=1,
                                   unit_of_measurement="min", mode=selector.NumberSelectorMode.BOX)
 )
+# Tageskontingent für von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart, AP6a).
+_STARTS = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=1, max=5, step=1, mode=selector.NumberSelectorMode.BOX)
+)
 
 
 def _cop_schema(o: dict[str, Any]) -> vol.Schema:
@@ -208,28 +235,44 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
         # Zieltemps sind die gemeinsame Mechanik beider Modi.
         fields.update(
             {
-                vol.Optional(CONF_PV_TEMP_HIGH, default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH)): _TEMP,
                 vol.Optional(CONF_PV_TEMP_NORMAL,
                              default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP_WP,
                 vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP_WP,
             }
         )
 
+    if mode == PV_MODE_EXECUTOR:
+        # Nur noch für das Executor-Programm relevant (PV_PROGRAM_BOOST) – im
+        # Coordinator ist Boost seit v1.16.0 eine Leistungssenke mit derselben
+        # Zieltemperatur wie Erhöht (AP2), dieses Feld dort daher bewusst nicht mehr.
+        fields[vol.Optional(CONF_PV_TEMP_HIGH,
+                             default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH))] = _TEMP
+
     if mode == PV_MODE_COORDINATOR:
         fields.update(
             {
                 vol.Optional(CONF_PV_HOLD, default=o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD)): _WATT,
-                vol.Optional(CONF_PV_SOLAR_BOOST,
-                             default=o.get(CONF_PV_SOLAR_BOOST, DEFAULT_PV_SOLAR_BOOST)): _WATT,
                 vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
+                vol.Optional(CONF_PV_HEATER_POWER,
+                             default=o.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER)): _WATT,
+                vol.Optional(CONF_PV_POWER_ENTITY): _POWER_ENTITY,
                 vol.Optional(CONF_PV_MORNING_ENABLED,
                              default=o.get(CONF_PV_MORNING_ENABLED, DEFAULT_PV_MORNING_ENABLED)): bool,
                 vol.Optional(CONF_PV_MORNING_TIME,
                              default=o.get(CONF_PV_MORNING_TIME, DEFAULT_PV_MORNING_TIME)): _TIME,
+                vol.Optional(CONF_PV_COLDSTART,
+                             default=o.get(CONF_PV_COLDSTART, DEFAULT_PV_COLDSTART)): _WATT,
+                vol.Optional(CONF_PV_MAX_STARTS,
+                             default=o.get(CONF_PV_MAX_STARTS, DEFAULT_PV_MAX_STARTS)): _STARTS,
+                vol.Optional(CONF_PV_NIGHT_FLOOR,
+                             default=o.get(CONF_PV_NIGHT_FLOOR, DEFAULT_PV_NIGHT_FLOOR)): _TEMP_WP,
                 vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
                 vol.Optional(CONF_PV_MIN_OFF, default=o.get(CONF_PV_MIN_OFF, DEFAULT_PV_MIN_OFF)): int,
                 vol.Optional(CONF_PV_ESCALATION,
                              default=o.get(CONF_PV_ESCALATION, DEFAULT_PV_ESCALATION)): _ESCALATION,
+                vol.Optional(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
+                             default=o.get(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
+                                           DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE)): bool,
                 vol.Optional(CONF_PV_NEGATIVE_PRICE_SENSOR): _NEGATIVE_PRICE_SENSOR,
             }
         )
@@ -256,6 +299,29 @@ def _temp_order_error(merged: dict[str, Any]) -> str | None:
         return "temp_order_normal"
     if high < normal:
         return "temp_order_high"
+    return None
+
+
+def _pv_coordinator_error(merged: dict[str, Any]) -> str | None:
+    """Zusätzliche Plausibilität für den Coordinator-Modus (AP7):
+
+    - ``pv_high`` muss die Heizstab-Nennleistung + 50 W decken – sonst schaltet der
+      Heizstab in den Netzbezug hinein ab. Die Laufzeit-Klemme in ``pv.py`` bleibt
+      als zweites Netz bestehen (falls die Heizstab-Leistung später geändert wird).
+    - ``pv_night_floor`` muss über der kritischen Notheizungs-Temperatur liegen –
+      sonst unterläuft die Nachtabsenkung deren harten Boden.
+    """
+    try:
+        pv_high = float(merged.get(CONF_PV_HIGH, DEFAULT_PV_HIGH))
+        heater_power = float(merged.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER))
+        night_floor = float(merged.get(CONF_PV_NIGHT_FLOOR, DEFAULT_PV_NIGHT_FLOOR))
+        critical = float(merged.get(CONF_EMERGENCY_CRITICAL, DEFAULT_EMERGENCY_CRITICAL))
+    except (TypeError, ValueError):
+        return None
+    if pv_high < heater_power + 50:
+        return "pv_high_too_low"
+    if night_floor <= critical:
+        return "night_floor_too_low"
     return None
 
 
@@ -352,6 +418,8 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "pv_sensor_required"
             elif (order_error := _temp_order_error(merged)) is not None:
                 errors["base"] = order_error
+            elif mode == PV_MODE_COORDINATOR and (coord_error := _pv_coordinator_error(merged)) is not None:
+                errors["base"] = coord_error
             else:
                 self._pv = merged
                 return self._create_entry()
@@ -414,6 +482,8 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
                          default=cur(CONF_EMERGENCY_CRITICAL, DEFAULT_EMERGENCY_CRITICAL)): _TEMP,
             vol.Optional(CONF_EMERGENCY_RECOVER,
                          default=cur(CONF_EMERGENCY_RECOVER, DEFAULT_EMERGENCY_RECOVER)): _TEMP,
+            vol.Optional(CONF_EMERGENCY_MODE,
+                         default=cur(CONF_EMERGENCY_MODE, DEFAULT_EMERGENCY_MODE)): _EMERGENCY_MODE,
         }
 
         legionella = {
@@ -455,6 +525,8 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
                 errors["base"] = "pv_sensor_required"
             elif (order_error := _temp_order_error(merged)) is not None:
                 errors["base"] = order_error
+            elif mode == PV_MODE_COORDINATOR and (coord_error := _pv_coordinator_error(merged)) is not None:
+                errors["base"] = coord_error
             else:
                 return self.async_create_entry(title="", data=merged)
 

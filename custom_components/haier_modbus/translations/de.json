@@ -29,43 +29,54 @@
       },
       "pv": {
         "title": "Haier BWWP – PV-Modus",
-        "description": "Optionale PV-Überschuss-Steuerung. Betriebsmodus wählen: Aus (nur die rohen Entitäten + 38-°C-Guard), Coordinator (die Integration regelt den Sollwert selbst nach rohem PV-Überschuss + fixem Morgen-Start) oder Executor (ein externes HEMS regelt über select.haier_hwhp_pv_program). Die nächste Seite zeigt genau die Felder des gewählten Modus. Später jederzeit unter „Konfigurieren“ änderbar.",
+        "description": "Optionale PV-Überschuss-Steuerung. Betriebsmodus wählen: Aus (nur die rohen Entitäten + 38-°C-Guard), Coordinator (die Integration regelt den Sollwert selbst nach PV-Überschuss + Tagesplan) oder Executor (ein externes HEMS regelt über select.haier_hwhp_pv_program). Die nächste Seite zeigt genau die Felder des gewählten Modus. Später jederzeit unter „Konfigurieren“ änderbar.",
         "data": {
           "pv_mode": "PV-Modus"
         },
         "data_description": {
-          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss – fixer Morgen-Start, Anheben auf die Erhöht-Zieltemperatur nur bei bereits laufender WP (Piggyback), dazu eine ad-hoc Heizstab-Stufe oberhalb der Hoch-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit."
+          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt Sollwert und Modus nach PV-Überschuss – fixer Morgen-Start plus überschussgetriebener Kaltstart (zusammen i. d. R. ein Lauf/Tag), Anheben auf Erhöht nur bei bereits laufender WP (Piggyback), dazu Boost (WP + Heizstab gemeinsam) als Leistungssenke ab der Boost-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit."
         }
       },
       "pv_details": {
         "title": "Haier BWWP – PV-Einstellungen",
-        "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
+        "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen, Tagesplan und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
         "data": {
           "pv_sensor": "PV-Überschuss-Sensor (W)",
-          "pv_temp_high": "Boost-Zieltemperatur (°C)",
           "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
           "pv_temp_base": "Normal-Zieltemperatur (°C)",
+          "pv_temp_high": "Boost-Zieltemperatur (°C, nur Executor)",
           "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
-          "pv_solar_boost": "Solar-Boost-Schwelle – Überschuss (W)",
-          "pv_high": "Heizstab-Schwelle – Überschuss (W)",
+          "pv_high": "Boost-Schwelle – verfügbar (W)",
+          "pv_heater_power": "Heizstab-Nennleistung (W)",
+          "pv_power_entity": "Geräte-Gesamtleistung (optional, W)",
           "pv_morning_enabled": "Fixer Morgen-Start",
           "pv_morning_time": "Uhrzeit Morgen-Start",
+          "pv_coldstart": "Kaltstart-Schwelle – Überschuss (W)",
+          "pv_max_starts": "Max. Starts/Tag (Leiter)",
+          "pv_night_floor": "Sollwert-Boden Nachtfenster (°C)",
           "pv_debounce": "Entprellzeit (Minuten)",
-          "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
+          "pv_min_off": "Mindest-Stillstand vor Anhebung (min)",
           "pv_escalation": "Eskalation bei hohem Überschuss",
+          "pv_boost_only_negative_price": "Boost nur bei Negativpreis",
           "pv_negative_price_sensor": "Negativpreis-Sensor (optional)"
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
-          "pv_temp_high": "Ziel der Heizstab-Stufe. Nur hier sind bis 75 °C sinnvoll: Der Bereich über 65 °C ist laut Datenblatt ausschließlich **mit Heizstab** erreichbar. Die Wärmepumpe klettert im Solar-Boost zuvor allein bis 65 °C; der Heizstab schiebt darüber.",
-          "pv_temp_normal": "Mittlere Stufe, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Muss höher liegen als die Normal-Zieltemperatur.",
-          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
-          "pv_solar_boost": "Schwelle, ab der der WP-Zyklus (bei bereits laufender WP, Piggyback) selbst bis an die **Wärmepumpen-Grenze (65 °C)** weiterklettert – rein über den Verdichter, deutlich effizienter (COP i. d. R. 3–4×) als der Heizstab. Muss zwischen der Halte-/Piggyback-Schwelle und der Heizstab-Schwelle liegen. Kein spezifizierter Wert bekannt – am besten aus der eigenen externen Leistungsmessung (z. B. Shelly, siehe COP-Stromquelle) den typischen Verdichter-Verbrauch ablesen und die Schwelle knapp darüber setzen.",
-          "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Boost-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
-          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
-          "pv_min_off": "Anti-Takt für den Morgen-Start: Ein frischer Kaltstart wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber passiert nur bei bereits laufender WP (Piggyback) und bleibt davon unberührt.",
-          "pv_escalation": "Was oberhalb der Heizstab-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam** – der deutliche Überschuss wird direkt der laufenden WP zugeschaltet; der Sollwert geht dabei auf die Boost-Zieltemperatur (bis 75 °C, die nur der Heizstab erreicht). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – die separate Schnellaufheiz-/Notfall-Option, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur.",
-          "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). Ist er „an“, greift Boost (WP + Heizstab) bereits ab der **Solar-Boost-Schwelle** statt erst ab der Heizstab-Schwelle: Einspeisung ist in diesem Fenster ohnehin unvergütet (Solarspitzengesetz/§51 EEG). **Nur sinnvoll mit dynamischem Stromtarif** – ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis; reicht der Überschuss nicht für den Heizstab (~1500 W), wird der Rest aus dem Netz gezogen. Im Zweifel leer lassen (Standardverhalten bleibt unverändert)."
+          "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
+          "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für die Nachtabsenkung.",
+          "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht.",
+          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und Boost aus ist.",
+          "pv_high": "Boost-Schwelle auf den **normalisierten** Überschuss („verfügbar“ = roher Überschuss + Heizstab-Leistung, solange Boost läuft – macht das Signal invariant gegen die eigene Schalthandlung). Muss mindestens Heizstab-Nennleistung + 50 W betragen, sonst schaltet der Heizstab in den Netzbezug hinein ab (wird sonst automatisch hochgeklemmt). Einschalten entprellt mit der vollen Entprellzeit, Ausschalten sofort (ein Poll) – strikte Bezugsvermeidung.",
+          "pv_heater_power": "Nennleistung des Heizstabs laut Datenblatt (1500 W) – Grundlage der Verfügbar-Normalisierung. Ein Messsensor ist dafür nicht erforderlich.",
+          "pv_power_entity": "Optional: Geräte-Gesamtleistung (W), um die Heizstab-Leistung aus dem real gemessenen Einschalt-Zuwachs zu bestimmen statt aus dem Nennwert. Nie Voraussetzung – ohne Entität wird der Nennwert verwendet.",
+          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet. Teilt sich das Tageskontingent (s. u.) mit dem Kaltstart.",
+          "pv_coldstart": "Schwelle (verfügbarer Überschuss), ab der tagsüber – zusätzlich zum fixen Morgen-Start – kalt gestartet wird, wenn das Wasser unter der Erhöht-Zieltemperatur liegt. Entprellt mit der vollen Entprellzeit, respektiert denselben Anti-Takt wie der Morgen-Start und dasselbe Tageskontingent.",
+          "pv_max_starts": "Wie viele von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart zusammen) pro Tag erlaubt sind – Default 1, für „möglichst ein Lauf pro Tag“ (Verdichterschonung). Geräte-Eigenstarts zählen nicht mit.",
+          "pv_night_floor": "Sollwert, auf den nach einem abgeschlossenen Zyklus bis zum nächsten Start/Morgen-Start abgesenkt wird (statt der Normal-Zieltemperatur) – verhindert Nachheizen in der Nacht ohne Sonne. Muss über der kritischen Notheizungs-Temperatur liegen; der harte Boden bleibt in jedem Fall die Notheizung.",
+          "pv_min_off": "Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND Kaltstart): wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber bei bereits laufender WP (Piggyback) bleibt davon unberührt.",
+          "pv_escalation": "Was ab der Boost-Schwelle zusätzlich zugeschaltet wird. Keine: nur die Erhöht-Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam**, bei gleicher Zieltemperatur wie Erhöht – eine reine Leistungssenke für deutlichen Überschuss, keine eigene Temperaturstufe.",
+          "pv_boost_only_negative_price": "Ist ein Negativpreis-Sensor gewählt (s. u.) und dieser Haken gesetzt, feuert Boost **nur** im Negativpreisfenster. Ohne gewählten Sensor feuert Boost dann **nie** – vorher prüfen, ob der Sensor gesetzt ist.",
+          "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). **Nur sinnvoll mit dynamischem Stromtarif** – ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis. Im Zweifel leer lassen (Standardverhalten bleibt unverändert)."
         }
       }
     },
@@ -73,7 +84,9 @@
       "cannot_connect": "Verbindung fehlgeschlagen. Host, Port und Slave-ID prüfen.",
       "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird.",
       "temp_order_normal": "Die Erhöht-Zieltemperatur muss höher sein als die Normal-Zieltemperatur – sonst gibt es keine Zwischenstufe und die Regelstufen fallen zusammen.",
-      "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen. Hinweis: Normal/Erhöht muss die Wärmepumpe allein schaffen (max. 65 °C); nur Boost erreicht mit dem Heizstab bis 75 °C."
+      "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen.",
+      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab.",
+      "night_floor_too_low": "Der Sollwert-Boden im Nachtfenster muss über der kritischen Notheizungs-Temperatur liegen – sonst unterläuft die Nachtabsenkung deren harten Boden."
     },
     "abort": {
       "already_configured": "Diese Wärmepumpe ist bereits eingerichtet."
@@ -97,9 +110,10 @@
           "energy_scale": "Skalierung der kWh-Register (×)",
           "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)",
           "pv_mode": "PV-Modus",
-          "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO bei kritischer Temperatur)",
+          "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO/ELEC bei kritischer Temperatur)",
           "emergency_critical": "Kritische Wassertemperatur (°C)",
           "emergency_recover": "Erholt-Wassertemperatur (°C)",
+          "emergency_mode": "Eskalationsmodus der Notheizung",
           "legionella_enabled": "Legionellen-Schutz (periodische Desinfektion auf 65 °C)",
           "legionella_target": "Desinfektions-Zieltemperatur (°C)",
           "legionella_interval_days": "Intervall – max. Tage ohne Volldurchheizung",
@@ -109,10 +123,11 @@
           "legionella_window_end": "Bevorzugtes Fenster – Ende (ECO)"
         },
         "data_description": {
-          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt den Sollwert nach rohem PV-Überschuss – fixer Morgen-Start, Anheben auf die Erhöht-Zieltemperatur nur bei bereits laufender WP (Piggyback), dazu eine ad-hoc Heizstab-Stufe oberhalb der Hoch-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit. Die nächste Seite zeigt die Felder des gewählten Modus (bei Aus übersprungen).",
-          "emergency_enabled": "Schaltet bei kritisch niedriger Wassertemperatur vorübergehend ECO→AUTO, damit sofort geheizt wird (auch außerhalb des ECO-Zeitfensters); bei Erholung zurück zu ECO.",
-          "emergency_critical": "Unter dieser Wassertemperatur wird von ECO auf AUTO geschaltet.",
+          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt Sollwert und Modus nach PV-Überschuss – fixer Morgen-Start plus überschussgetriebener Kaltstart (zusammen i. d. R. ein Lauf/Tag), Anheben auf Erhöht nur bei bereits laufender WP (Piggyback), dazu Boost (WP + Heizstab gemeinsam) als Leistungssenke ab der Boost-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit. Die nächste Seite zeigt die Felder des gewählten Modus (bei Aus übersprungen).",
+          "emergency_enabled": "Schaltet bei kritisch niedriger Wassertemperatur vorübergehend ECO→AUTO/ELEC, damit sofort geheizt wird (auch außerhalb des ECO-Zeitfensters); bei Erholung zurück zu ECO.",
+          "emergency_critical": "Unter dieser Wassertemperatur eskaliert die Notheizung.",
           "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet.",
+          "emergency_mode": "AUTO (Standard, bisheriges Verhalten): WP-Vorrang, wie ein normaler AUTO-Lauf. ELEC: nur der Heizstab – schnellste Aufheizung, wenn es wirklich eilt. Reg 1 ist ein Modus-Wert (kein Bitfeld), ELEC ist daher ein echter Moduswechsel, kein Boost-Bit.",
           "legionella_enabled": "Erzwingt spätestens alle X Tage eine thermische Desinfektion: heizt den Speicher auf die Zieltemperatur, bis der Boden (Tank unten) die Nachweis-Schwelle für die Haltezeit hält. Wird der Speicher zwischendurch ohnehin voll durchgeheizt (z. B. PV-Boost), zählt das und der Timer springt zurück. Verbrühgefahr: bei 65 °C ein thermostatisches Mischventil vorsehen.",
           "legionella_target": "Sollwert während des Desinfektionslaufs (empfohlen 60–65 °C).",
           "legionella_interval_days": "Spätestens nach so vielen Tagen ohne nachgewiesene Volldurchheizung wird ein Lauf ausgelöst (DVGW-üblich: 7).",
@@ -124,40 +139,53 @@
       },
       "pv": {
         "title": "Haier BWWP – PV-Einstellungen",
-        "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
+        "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen, Tagesplan und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
         "data": {
           "pv_sensor": "PV-Überschuss-Sensor (W)",
-          "pv_temp_high": "Boost-Zieltemperatur (°C)",
           "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
           "pv_temp_base": "Normal-Zieltemperatur (°C)",
+          "pv_temp_high": "Boost-Zieltemperatur (°C, nur Executor)",
           "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
-          "pv_solar_boost": "Solar-Boost-Schwelle – Überschuss (W)",
-          "pv_high": "Heizstab-Schwelle – Überschuss (W)",
+          "pv_high": "Boost-Schwelle – verfügbar (W)",
+          "pv_heater_power": "Heizstab-Nennleistung (W)",
+          "pv_power_entity": "Geräte-Gesamtleistung (optional, W)",
           "pv_morning_enabled": "Fixer Morgen-Start",
           "pv_morning_time": "Uhrzeit Morgen-Start",
+          "pv_coldstart": "Kaltstart-Schwelle – Überschuss (W)",
+          "pv_max_starts": "Max. Starts/Tag (Leiter)",
+          "pv_night_floor": "Sollwert-Boden Nachtfenster (°C)",
           "pv_debounce": "Entprellzeit (Minuten)",
-          "pv_min_off": "Mindest-Stillstand vor Neustart (min)",
+          "pv_min_off": "Mindest-Stillstand vor Anhebung (min)",
           "pv_escalation": "Eskalation bei hohem Überschuss",
+          "pv_boost_only_negative_price": "Boost nur bei Negativpreis",
           "pv_negative_price_sensor": "Negativpreis-Sensor (optional)"
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
-          "pv_temp_high": "Ziel der Heizstab-Stufe. Nur hier sind bis 75 °C sinnvoll: Der Bereich über 65 °C ist laut Datenblatt ausschließlich **mit Heizstab** erreichbar. Die Wärmepumpe klettert im Solar-Boost zuvor allein bis 65 °C; der Heizstab schiebt darüber.",
-          "pv_temp_normal": "Mittlere Stufe, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Muss höher liegen als die Normal-Zieltemperatur.",
-          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und der Heizstab aus ist.",
-          "pv_solar_boost": "Schwelle, ab der der WP-Zyklus (bei bereits laufender WP, Piggyback) selbst bis an die **Wärmepumpen-Grenze (65 °C)** weiterklettert – rein über den Verdichter, deutlich effizienter (COP i. d. R. 3–4×) als der Heizstab. Muss zwischen der Halte-/Piggyback-Schwelle und der Heizstab-Schwelle liegen. Kein spezifizierter Wert bekannt – am besten aus der eigenen externen Leistungsmessung (z. B. Shelly, siehe COP-Stromquelle) den typischen Verdichter-Verbrauch ablesen und die Schwelle knapp darüber setzen.",
-          "pv_high": "Heizstab-Schwelle (≈ 1550 W = Heizstab ~1500 W + Puffer). Darüber wird der Heizstab als ad-hoc Zusatz auf der Boost-Zieltemperatur zugeschaltet: Boost bei laufender WP, ELEC nur bei stehender WP. Der Heizstab stoppt nie die WP – fällt der Überschuss, geht nur der Heizstab weg, der Zyklus läuft weiter.",
-          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet.",
-          "pv_min_off": "Anti-Takt für den Morgen-Start: Ein frischer Kaltstart wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber passiert nur bei bereits laufender WP (Piggyback) und bleibt davon unberührt.",
-          "pv_escalation": "Was oberhalb der Heizstab-Schwelle zusätzlich zugeschaltet wird – ein ad-hoc Heizstab-Zusatz, der den WP-Zyklus nie stoppt. Keine: nur die höhere Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam** – der deutliche Überschuss wird direkt der laufenden WP zugeschaltet; der Sollwert geht dabei auf die Boost-Zieltemperatur (bis 75 °C, die nur der Heizstab erreicht). Nur Heizstab (ELEC): Heizstab an, während die WP aus ist (sie würde sonst stoppen) – die separate Schnellaufheiz-/Notfall-Option, z. B. nach dem Tageszyklus. Nach Wegfall des Überschusses zurück auf ECO + Normal-Zieltemperatur.",
-          "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). Ist er „an“, greift Boost (WP + Heizstab) bereits ab der **Solar-Boost-Schwelle** statt erst ab der Heizstab-Schwelle: Einspeisung ist in diesem Fenster ohnehin unvergütet (Solarspitzengesetz/§51 EEG). **Nur sinnvoll mit dynamischem Stromtarif** – ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis; reicht der Überschuss nicht für den Heizstab (~1500 W), wird der Rest aus dem Netz gezogen. Im Zweifel leer lassen (Standardverhalten bleibt unverändert)."
+          "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
+          "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für die Nachtabsenkung.",
+          "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht.",
+          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und Boost aus ist.",
+          "pv_high": "Boost-Schwelle auf den **normalisierten** Überschuss („verfügbar“ = roher Überschuss + Heizstab-Leistung, solange Boost läuft – macht das Signal invariant gegen die eigene Schalthandlung). Muss mindestens Heizstab-Nennleistung + 50 W betragen, sonst schaltet der Heizstab in den Netzbezug hinein ab (wird sonst automatisch hochgeklemmt). Einschalten entprellt mit der vollen Entprellzeit, Ausschalten sofort (ein Poll) – strikte Bezugsvermeidung.",
+          "pv_heater_power": "Nennleistung des Heizstabs laut Datenblatt (1500 W) – Grundlage der Verfügbar-Normalisierung. Ein Messsensor ist dafür nicht erforderlich.",
+          "pv_power_entity": "Optional: Geräte-Gesamtleistung (W), um die Heizstab-Leistung aus dem real gemessenen Einschalt-Zuwachs zu bestimmen statt aus dem Nennwert. Nie Voraussetzung – ohne Entität wird der Nennwert verwendet.",
+          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet. Teilt sich das Tageskontingent (s. u.) mit dem Kaltstart.",
+          "pv_coldstart": "Schwelle (verfügbarer Überschuss), ab der tagsüber – zusätzlich zum fixen Morgen-Start – kalt gestartet wird, wenn das Wasser unter der Erhöht-Zieltemperatur liegt. Entprellt mit der vollen Entprellzeit, respektiert denselben Anti-Takt wie der Morgen-Start und dasselbe Tageskontingent.",
+          "pv_max_starts": "Wie viele von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart zusammen) pro Tag erlaubt sind – Default 1, für „möglichst ein Lauf pro Tag“ (Verdichterschonung). Geräte-Eigenstarts zählen nicht mit.",
+          "pv_night_floor": "Sollwert, auf den nach einem abgeschlossenen Zyklus bis zum nächsten Start/Morgen-Start abgesenkt wird (statt der Normal-Zieltemperatur) – verhindert Nachheizen in der Nacht ohne Sonne. Muss über der kritischen Notheizungs-Temperatur liegen; der harte Boden bleibt in jedem Fall die Notheizung.",
+          "pv_min_off": "Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND Kaltstart): wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber bei bereits laufender WP (Piggyback) bleibt davon unberührt.",
+          "pv_escalation": "Was ab der Boost-Schwelle zusätzlich zugeschaltet wird. Keine: nur die Erhöht-Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam**, bei gleicher Zieltemperatur wie Erhöht – eine reine Leistungssenke für deutlichen Überschuss, keine eigene Temperaturstufe.",
+          "pv_boost_only_negative_price": "Ist ein Negativpreis-Sensor gewählt (s. u.) und dieser Haken gesetzt, feuert Boost **nur** im Negativpreisfenster. Ohne gewählten Sensor feuert Boost dann **nie** – vorher prüfen, ob der Sensor gesetzt ist.",
+          "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). **Nur sinnvoll mit dynamischem Stromtarif** – ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis. Im Zweifel leer lassen (Standardverhalten bleibt unverändert)."
         }
       }
     },
     "error": {
       "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird.",
       "temp_order_normal": "Die Erhöht-Zieltemperatur muss höher sein als die Normal-Zieltemperatur – sonst gibt es keine Zwischenstufe und die Regelstufen fallen zusammen.",
-      "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen. Hinweis: Normal/Erhöht muss die Wärmepumpe allein schaffen (max. 65 °C); nur Boost erreicht mit dem Heizstab bis 75 °C."
+      "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen.",
+      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab.",
+      "night_floor_too_low": "Der Sollwert-Boden im Nachtfenster muss über der kritischen Notheizungs-Temperatur liegen – sonst unterläuft die Nachtabsenkung deren harten Boden."
     }
   },
   "selector": {
@@ -170,9 +198,14 @@
     },
     "pv_escalation": {
       "options": {
-        "none": "Keine (nur höhere Zieltemperatur)",
-        "boost": "Boost (WP + Heizstab)",
-        "elec": "Nur Heizstab (ELEC, WP aus)"
+        "none": "Keine (nur Erhöht-Zieltemperatur)",
+        "boost": "Boost (WP + Heizstab gemeinsam)"
+      }
+    },
+    "emergency_mode": {
+      "options": {
+        "auto": "AUTO (WP-Vorrang, Standard)",
+        "elec": "ELEC (nur Heizstab, schnellste Aufheizung)"
       }
     },
     "model": {
@@ -243,9 +276,7 @@
           "off": "Aus",
           "base": "Normal",
           "normal": "Erhöht",
-          "solar_boost": "Solar-Boost (nur WP)",
-          "high_boost": "Boost",
-          "high_elec": "Boost (ELEC)",
+          "boost": "Boost",
           "manual": "Manueller Eingriff",
           "held": "Laufender Zyklus gehalten"
         }
@@ -330,11 +361,8 @@
       "pv_hold": {
         "name": "PV Halte-/Piggyback-Schwelle"
       },
-      "pv_solar_boost": {
-        "name": "PV Solar-Boost-Schwelle"
-      },
       "pv_high": {
-        "name": "PV Heizstab-Schwelle"
+        "name": "PV Boost-Schwelle"
       }
     }
   },

@@ -29,43 +29,54 @@
       },
       "pv": {
         "title": "Haier HWHP – PV mode",
-        "description": "Optional PV-surplus control. Pick the operating mode: Off (only the raw entities + 38 °C guard), Coordinator (the integration controls the setpoint itself from the raw PV surplus + a fixed morning start), or Executor (an external HEMS controls it via select.haier_hwhp_pv_program). The next page shows exactly the fields for the chosen mode. Changeable later via \"Configure\".",
+        "description": "Optional PV-surplus control. Pick the operating mode: Off (only the raw entities + 38 °C guard), Coordinator (the integration controls setpoint and mode itself from PV surplus + a daily plan), or Executor (an external HEMS controls it via select.haier_hwhp_pv_program). The next page shows exactly the fields for the chosen mode. Changeable later via \"Configure\".",
         "data": {
           "pv_mode": "PV mode"
         },
         "data_description": {
-          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus — fixed morning start, raise to the elevated target only while the heat pump already runs (piggyback), plus an ad-hoc electric-heater tier above the high threshold. Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs."
+          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls setpoint and mode from PV surplus — fixed morning start plus a surplus-driven cold start (together usually one run/day), raise to the elevated target only while the heat pump already runs (piggyback), plus Boost (heat pump + heater together) as a power sink above the boost threshold. Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs."
         }
       },
       "pv_details": {
         "title": "Haier HWHP – PV settings",
-        "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
+        "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps, daily plan and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
         "data": {
           "pv_sensor": "PV surplus sensor (W)",
-          "pv_temp_high": "Boost target temperature (°C)",
           "pv_temp_normal": "Elevated target temperature (°C)",
           "pv_temp_base": "Normal target temperature (°C)",
+          "pv_temp_high": "Boost target temperature (°C, Executor only)",
           "pv_hold": "Hold / piggyback buffer – surplus (W)",
-          "pv_solar_boost": "Solar-boost threshold – surplus (W)",
-          "pv_high": "Electric-heater threshold – surplus (W)",
+          "pv_high": "Boost threshold – available (W)",
+          "pv_heater_power": "Electric heater rated power (W)",
+          "pv_power_entity": "Device total power (optional, W)",
           "pv_morning_enabled": "Fixed morning start",
           "pv_morning_time": "Morning start time",
+          "pv_coldstart": "Cold-start threshold – surplus (W)",
+          "pv_max_starts": "Max. starts/day (ladder)",
+          "pv_night_floor": "Night-window setpoint floor (°C)",
           "pv_debounce": "Debounce time (minutes)",
-          "pv_min_off": "Minimum off-time before restart (min)",
+          "pv_min_off": "Minimum off-time before a raise (min)",
           "pv_escalation": "Escalation at high surplus",
+          "pv_boost_only_negative_price": "Boost only on negative price",
           "pv_negative_price_sensor": "Negative-price sensor (optional)"
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
-          "pv_temp_high": "Target of the electric-heater tier. Only here do values up to 75 °C make sense: per the data sheet the band above 65 °C is reachable **only with the heater**. During solar boost the heat pump first climbs to 65 °C on its own; the heater pushes beyond.",
-          "pv_temp_normal": "Middle tier, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Must be higher than the normal target temperature.",
-          "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and the heater is off.",
-          "pv_solar_boost": "Threshold above which the heat-pump cycle (while already running, piggyback) keeps climbing on its own up to the **heat-pump limit (65 °C)** — via the compressor alone, far more efficient (COP typically 3–4x) than the electric heater. Must sit between the hold/piggyback threshold and the heater threshold. No universal spec value exists — best derived from your own external power meter (e.g. Shelly, see COP electricity source): read the compressor's typical draw and set this just above it.",
-          "pv_high": "Electric-heater threshold (≈ 1550 W = heater ~1500 W + buffer). Above it the heater is added as an ad-hoc top-up at the boost target: Boost while the heat pump runs, ELEC only while it is off. The heater never stops the pump — when surplus drops, only the heater goes away while the cycle keeps running.",
-          "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window.",
-          "pv_min_off": "Anti-short-cycle for the morning start: a fresh cold start waits until the compressor has been off at least this long. Daytime raises happen only while the pump already runs (piggyback) and are unaffected.",
-          "pv_escalation": "What to add once surplus passes the heater threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher target (the pump stays at max. 65 °C). Boost: heat pump + heater **together** — the substantial surplus is fed directly to the running pump; the setpoint moves to the boost target (up to 75 °C, which only the heater reaches). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — the separate fast-heat/emergency option, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone.",
-          "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). When 'on', Boost (pump + heater) already engages at the **solar-boost threshold** instead of the heater threshold: feed-in is unpaid in that window anyway (German 'Solarspitzengesetz'/§51 EEG). **Only sensible with a dynamic tariff** — a negative exchange price cuts your feed-in revenue, not automatically your purchase price; if the surplus doesn't cover the heater (~1500 W), the remainder is drawn from the grid. When in doubt leave empty (default behaviour unchanged)."
+          "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
+          "pv_temp_base": "Normal target temperature (no surplus) — also the reference point for the night setback.",
+          "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated.",
+          "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and Boost is off.",
+          "pv_high": "Boost threshold on the **normalized** surplus (\"available\" = raw surplus + heater power while Boost is running — makes the signal invariant to its own switching action). Must be at least the heater's rated power + 50 W, otherwise the heater would switch off into grid draw (auto-raised otherwise). Turning on debounces for the full time, turning off is immediate (one poll) — strict grid-draw avoidance.",
+          "pv_heater_power": "Rated power of the electric heater per the data sheet (1500 W) — basis of the available-surplus normalization. No power meter required.",
+          "pv_power_entity": "Optional: device total power (W), to derive the heater's power from the real measured step-up on switch-on instead of the rated value. Never a requirement — without an entity the rated value is used.",
+          "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window. Shares the daily quota (below) with the cold start.",
+          "pv_coldstart": "Threshold (available surplus) above which — in addition to the fixed morning start — a cold start happens during the day if the water is below the elevated target. Debounces with the full debounce time, honours the same anti-short-cycle guard as the morning start and the same daily quota.",
+          "pv_max_starts": "How many ladder-triggered starts (morning start + cold start together) are allowed per day — default 1, for \"as few compressor cycles as possible\". Device-initiated starts don't count.",
+          "pv_night_floor": "Setpoint the ladder drops to after a completed cycle, until the next start/morning start (instead of the normal target) — prevents reheating overnight without sun. Must be above the critical emergency-reheat temperature; the hard floor always remains the emergency reheat.",
+          "pv_min_off": "Anti-short-cycle for EVERY setpoint raise while the pump is off (morning start AND cold start): waits until the compressor has been off at least this long. Daytime raises while already running (piggyback) are unaffected.",
+          "pv_escalation": "What gets added once surplus passes the boost threshold. None: just the elevated target (the pump stays at max. 65 °C). Boost: heat pump + heater **together**, at the same target as Elevated — a pure power sink for substantial surplus, not its own temperature tier.",
+          "pv_boost_only_negative_price": "If a negative-price sensor is selected (below) and this is checked, Boost fires **only** during the negative-price window. Without a selected sensor Boost then **never** fires — check the sensor is set first.",
+          "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). **Only sensible with a dynamic tariff** — a negative exchange price cuts your feed-in revenue, not automatically your purchase price. When in doubt leave empty (default behaviour unchanged)."
         }
       }
     },
@@ -73,7 +84,9 @@
       "cannot_connect": "Connection failed. Check host, port and slave ID.",
       "pv_sensor_required": "Please select a PV surplus sensor before enabling the control.",
       "temp_order_normal": "The elevated target temperature must be higher than the normal target temperature — otherwise there is no middle tier and the control tiers collapse.",
-      "temp_order_high": "The boost target temperature must not be below the elevated target temperature. Note: normal/elevated must be reachable by the heat pump alone (max. 65 °C); only boost reaches up to 75 °C, with the electric heater."
+      "temp_order_high": "The boost target temperature must not be below the elevated target temperature.",
+      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw.",
+      "night_floor_too_low": "The night-window setpoint floor must be above the critical emergency-reheat temperature — otherwise the night setback would undercut its hard floor."
     },
     "abort": {
       "already_configured": "This heat pump is already configured."
@@ -97,9 +110,10 @@
           "energy_scale": "kWh register scaling (x)",
           "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)",
           "pv_mode": "PV mode",
-          "emergency_enabled": "Emergency reheat (ECO→AUTO at critical temperature)",
+          "emergency_enabled": "Emergency reheat (ECO→AUTO/ELEC at critical temperature)",
           "emergency_critical": "Critical water temperature (°C)",
           "emergency_recover": "Recovered water temperature (°C)",
+          "emergency_mode": "Emergency escalation mode",
           "legionella_enabled": "Legionella protection (periodic 65 °C disinfection)",
           "legionella_target": "Disinfection target temperature (°C)",
           "legionella_interval_days": "Interval – max. days without a full heat-up",
@@ -109,10 +123,11 @@
           "legionella_window_end": "Preferred window – end (ECO)"
         },
         "data_description": {
-          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls the setpoint from the raw PV surplus — fixed morning start, raise to the elevated target only while the heat pump already runs (piggyback), plus an ad-hoc electric-heater tier above the high threshold. Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs. The next page shows the fields for the chosen mode (skipped for Off).",
-          "emergency_enabled": "When the water gets critically cold, temporarily switches ECO→AUTO to heat immediately (even outside the ECO time window); back to ECO on recovery.",
-          "emergency_critical": "Below this water temperature it switches from ECO to AUTO.",
+          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls setpoint and mode from PV surplus — fixed morning start plus a surplus-driven cold start (together usually one run/day), raise to the elevated target only while the heat pump already runs (piggyback), plus Boost (heat pump + heater together) as a power sink above the boost threshold. Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs. The next page shows the fields for the chosen mode (skipped for Off).",
+          "emergency_enabled": "When the water gets critically cold, temporarily switches ECO→AUTO/ELEC to heat immediately (even outside the ECO time window); back to ECO on recovery.",
+          "emergency_critical": "Below this water temperature the emergency reheat escalates.",
           "emergency_recover": "At/above this water temperature it switches back to ECO.",
+          "emergency_mode": "AUTO (default, previous behaviour): heat-pump priority, like a normal AUTO run. ELEC: heater only — fastest reheat, for when it's truly urgent. Reg 1 is a mode value (not a bitfield), so ELEC is a real mode switch, not a boost bit.",
           "legionella_enabled": "Forces a thermal disinfection at least every X days: heats the tank to the target until the bottom (tank bottom) holds the verification threshold for the hold time. If the tank gets fully heated anyway in between (e.g. PV boost), that counts and the timer resets. Scald risk: with 65 °C use a thermostatic mixing valve.",
           "legionella_target": "Setpoint during the disinfection run (recommended 60–65 °C).",
           "legionella_interval_days": "A run is triggered after at most this many days without a verified full heat-up (DVGW practice: 7).",
@@ -124,40 +139,53 @@
       },
       "pv": {
         "title": "Haier HWHP – PV settings",
-        "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
+        "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps, daily plan and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
         "data": {
           "pv_sensor": "PV surplus sensor (W)",
-          "pv_temp_high": "Boost target temperature (°C)",
           "pv_temp_normal": "Elevated target temperature (°C)",
           "pv_temp_base": "Normal target temperature (°C)",
+          "pv_temp_high": "Boost target temperature (°C, Executor only)",
           "pv_hold": "Hold / piggyback buffer – surplus (W)",
-          "pv_solar_boost": "Solar-boost threshold – surplus (W)",
-          "pv_high": "Electric-heater threshold – surplus (W)",
+          "pv_high": "Boost threshold – available (W)",
+          "pv_heater_power": "Electric heater rated power (W)",
+          "pv_power_entity": "Device total power (optional, W)",
           "pv_morning_enabled": "Fixed morning start",
           "pv_morning_time": "Morning start time",
+          "pv_coldstart": "Cold-start threshold – surplus (W)",
+          "pv_max_starts": "Max. starts/day (ladder)",
+          "pv_night_floor": "Night-window setpoint floor (°C)",
           "pv_debounce": "Debounce time (minutes)",
-          "pv_min_off": "Minimum off-time before restart (min)",
+          "pv_min_off": "Minimum off-time before a raise (min)",
           "pv_escalation": "Escalation at high surplus",
+          "pv_boost_only_negative_price": "Boost only on negative price",
           "pv_negative_price_sensor": "Negative-price sensor (optional)"
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
-          "pv_temp_high": "Target of the electric-heater tier. Only here do values up to 75 °C make sense: per the data sheet the band above 65 °C is reachable **only with the heater**. During solar boost the heat pump first climbs to 65 °C on its own; the heater pushes beyond.",
-          "pv_temp_normal": "Middle tier, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Must be higher than the normal target temperature.",
-          "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and the heater is off.",
-          "pv_solar_boost": "Threshold above which the heat-pump cycle (while already running, piggyback) keeps climbing on its own up to the **heat-pump limit (65 °C)** — via the compressor alone, far more efficient (COP typically 3–4x) than the electric heater. Must sit between the hold/piggyback threshold and the heater threshold. No universal spec value exists — best derived from your own external power meter (e.g. Shelly, see COP electricity source): read the compressor's typical draw and set this just above it.",
-          "pv_high": "Electric-heater threshold (≈ 1550 W = heater ~1500 W + buffer). Above it the heater is added as an ad-hoc top-up at the boost target: Boost while the heat pump runs, ELEC only while it is off. The heater never stops the pump — when surplus drops, only the heater goes away while the cycle keeps running.",
-          "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window.",
-          "pv_min_off": "Anti-short-cycle for the morning start: a fresh cold start waits until the compressor has been off at least this long. Daytime raises happen only while the pump already runs (piggyback) and are unaffected.",
-          "pv_escalation": "What to add once surplus passes the heater threshold — an ad-hoc heater top-up that never stops the heat-pump cycle. None: just the higher target (the pump stays at max. 65 °C). Boost: heat pump + heater **together** — the substantial surplus is fed directly to the running pump; the setpoint moves to the boost target (up to 75 °C, which only the heater reaches). Electric heater only (ELEC): heater on while the pump is off (it would otherwise stop the pump) — the separate fast-heat/emergency option, e.g. after the daily cycle. Back to ECO + normal target once surplus is gone.",
-          "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). When 'on', Boost (pump + heater) already engages at the **solar-boost threshold** instead of the heater threshold: feed-in is unpaid in that window anyway (German 'Solarspitzengesetz'/§51 EEG). **Only sensible with a dynamic tariff** — a negative exchange price cuts your feed-in revenue, not automatically your purchase price; if the surplus doesn't cover the heater (~1500 W), the remainder is drawn from the grid. When in doubt leave empty (default behaviour unchanged)."
+          "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
+          "pv_temp_base": "Normal target temperature (no surplus) — also the reference point for the night setback.",
+          "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated.",
+          "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and Boost is off.",
+          "pv_high": "Boost threshold on the **normalized** surplus (\"available\" = raw surplus + heater power while Boost is running — makes the signal invariant to its own switching action). Must be at least the heater's rated power + 50 W, otherwise the heater would switch off into grid draw (auto-raised otherwise). Turning on debounces for the full time, turning off is immediate (one poll) — strict grid-draw avoidance.",
+          "pv_heater_power": "Rated power of the electric heater per the data sheet (1500 W) — basis of the available-surplus normalization. No power meter required.",
+          "pv_power_entity": "Optional: device total power (W), to derive the heater's power from the real measured step-up on switch-on instead of the rated value. Never a requirement — without an entity the rated value is used.",
+          "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window. Shares the daily quota (below) with the cold start.",
+          "pv_coldstart": "Threshold (available surplus) above which — in addition to the fixed morning start — a cold start happens during the day if the water is below the elevated target. Debounces with the full debounce time, honours the same anti-short-cycle guard as the morning start and the same daily quota.",
+          "pv_max_starts": "How many ladder-triggered starts (morning start + cold start together) are allowed per day — default 1, for \"as few compressor cycles as possible\". Device-initiated starts don't count.",
+          "pv_night_floor": "Setpoint the ladder drops to after a completed cycle, until the next start/morning start (instead of the normal target) — prevents reheating overnight without sun. Must be above the critical emergency-reheat temperature; the hard floor always remains the emergency reheat.",
+          "pv_min_off": "Anti-short-cycle for EVERY setpoint raise while the pump is off (morning start AND cold start): waits until the compressor has been off at least this long. Daytime raises while already running (piggyback) are unaffected.",
+          "pv_escalation": "What gets added once surplus passes the boost threshold. None: just the elevated target (the pump stays at max. 65 °C). Boost: heat pump + heater **together**, at the same target as Elevated — a pure power sink for substantial surplus, not its own temperature tier.",
+          "pv_boost_only_negative_price": "If a negative-price sensor is selected (below) and this is checked, Boost fires **only** during the negative-price window. Without a selected sensor Boost then **never** fires — check the sensor is set first.",
+          "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). **Only sensible with a dynamic tariff** — a negative exchange price cuts your feed-in revenue, not automatically your purchase price. When in doubt leave empty (default behaviour unchanged)."
         }
       }
     },
     "error": {
       "pv_sensor_required": "Please select a PV surplus sensor before enabling the control.",
       "temp_order_normal": "The elevated target temperature must be higher than the normal target temperature — otherwise there is no middle tier and the control tiers collapse.",
-      "temp_order_high": "The boost target temperature must not be below the elevated target temperature. Note: normal/elevated must be reachable by the heat pump alone (max. 65 °C); only boost reaches up to 75 °C, with the electric heater."
+      "temp_order_high": "The boost target temperature must not be below the elevated target temperature.",
+      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw.",
+      "night_floor_too_low": "The night-window setpoint floor must be above the critical emergency-reheat temperature — otherwise the night setback would undercut its hard floor."
     }
   },
   "selector": {
@@ -170,9 +198,14 @@
     },
     "pv_escalation": {
       "options": {
-        "none": "None (only higher target)",
-        "boost": "Boost (heat pump + heater)",
-        "elec": "Electric heater only (ELEC, heat pump off)"
+        "none": "None (only elevated target)",
+        "boost": "Boost (heat pump + heater together)"
+      }
+    },
+    "emergency_mode": {
+      "options": {
+        "auto": "AUTO (heat-pump priority, default)",
+        "elec": "ELEC (heater only, fastest reheat)"
       }
     },
     "model": {
@@ -243,9 +276,7 @@
           "off": "Off",
           "base": "Normal",
           "normal": "Elevated",
-          "solar_boost": "Solar boost (heat pump only)",
-          "high_boost": "Boost",
-          "high_elec": "Boost (ELEC)",
+          "boost": "Boost",
           "manual": "Manual override",
           "held": "Active cycle held"
         }
@@ -330,11 +361,8 @@
       "pv_hold": {
         "name": "PV hold / piggyback threshold"
       },
-      "pv_solar_boost": {
-        "name": "PV solar-boost threshold"
-      },
       "pv_high": {
-        "name": "PV electric-heater threshold"
+        "name": "PV boost threshold"
       }
     }
   },

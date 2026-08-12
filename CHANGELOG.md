@@ -5,6 +5,53 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.16.0] - 2026-08-12
+- **PV-Regelstufen überarbeitet: vier klar getrennte Stufen** (`base` -> `Erhöht` ->
+  `Boost`, ELEC separat als Notfall). Grundlage: Code-Analyse + 10 Tage Verlaufsdaten
+  einer realen HP200M7-F9.
+  - **Solar-Boost-Stufe entfernt** (AP1): In der Praxis-Konfiguration war ihr Ziel
+    identisch mit Erhöht (`min(pv_temp_high, 65) == pv_temp_normal`) – eine wirkungslose
+    Stufe. `CONF_PV_SOLAR_BOOST`/die zugehörige Number-Entität entfallen.
+  - **Boost ist jetzt eine Leistungssenke, keine eigene Temperaturstufe** (AP2): Die
+    Zieltemperatur bei Boost ist dieselbe wie bei Erhöht. `pv_temp_high` bleibt nur noch
+    für das Executor-Programm relevant.
+  - **Strikte Bezugsvermeidung für den Heizstab** (AP3, der inhaltliche Kern): Der
+    Überschusssensor ist einspeisungsbasiert – der Heizstab senkte beim Einschalten
+    seinen eigenen Messwert und taktete dadurch potenziell mit der doppelten
+    Entprellzeit. Neu: `verfügbar = roher Überschuss + (Heizstab an ? P_heizstab : 0)`,
+    macht das Signal invariant gegen die eigene Schalthandlung. `pv_high` bekommt dadurch
+    eine einzige, klare Bedeutung (Nennleistung + Reserve, Default jetzt **1600 W** statt
+    1550 W) und wird laufzeitgeklemmt, falls die Konfiguration das unterschreitet. Neue
+    Optionen `pv_heater_power` (Nennleistung, Default 1500 W) und optional
+    `pv_power_entity` (Geräte-Gesamtleistung, für eine gemessene statt geschätzte
+    Heizstableistung). Zusätzlich **asymmetrische Entprellung**: Einschalten weiter mit
+    voller Entprellzeit (Schutz gegen Sensor-Ausreißer bis 13 kW, real belegt),
+    Ausschalten sofort (ein Poll) – kein Bezug soll entstehen, während der Überschuss
+    schon unter der Schwelle liegt.
+  - **Modusführung ECO/AUTO** (AP4): `base` schreibt jetzt aktiv ECO, `Erhöht`/`Boost`
+    aktiv AUTO (statt sich auf das geräteeigene ECO-Zeitfenster zu verlassen). Harte
+    Invariante: AUTO nur mit Sollwert ≤ 65 °C (oberhalb zieht das Gerät laut Datenblatt
+    selbsttätig den Heizstab) – mit Boost == Erhöht-Ziel konstruktiv erfüllt. Tritt
+    zurück, wenn Legionellen-Schutz oder Notheizung den Modus besitzen.
+  - **ELEC raus aus der PV-Eskalation** (AP5): Reg 1 ist ein Modus-*Wert*, kein Bitfeld –
+    "ELEC als Bit schalten" gibt es nicht. ELEC ist jetzt ausschließlich eine
+    Notfall-Option in `emergency.py` (neue Option `emergency_mode`: `auto` [Standard] |
+    `elec`). Alte `pv_escalation: elec`-Konfigurationen werden automatisch auf `boost`
+    migriert.
+  - **Tagesplan: ein Lauf, Nachtabsenkung, Verdichterschonung** (AP6): Neuer
+    überschussgetriebener **Tages-Kaltstart** (`pv_coldstart`, Default 500 W) ergänzt den
+    fixen Morgen-Start – beide teilen sich ein Tageskontingent (`pv_max_starts`, Default
+    1: "möglichst ein Lauf/Tag"). Der Anti-Takt-Guard gilt jetzt für **jede** Anhebung bei
+    stehender WP, nicht mehr nur für den Morgen-Start. Endet ein Zyklus, fällt der
+    Sollwert **sofort** auf die Basis-Zieltemperatur zurück (auch mitten am Tag) – der
+    Tagesplan bleibt so verbindlich. Neue **Nachtabsenkung** (`pv_night_floor`, Default
+    45 °C): ab dem Rückfall bis zum nächsten Start ein Sollwert-Boden statt der
+    Basis-Zieltemperatur, damit das Gerät nicht mehr ohne Sonne in die Nacht nachheizt
+    (belegt: Nachheizung um 4 Uhr ohne jeden Überschuss). Der harte Boden bleibt
+    unverändert die Notheizung (kritische Temperatur).
+  - **PV-Status kennt nur noch** `off` / `base` / `normal` (Erhöht) / `boost` / `manual` /
+    `held` – `solar_boost` und `high_elec` entfallen, `high_boost` heißt jetzt `boost`.
+
 ## [1.15.0] - 2026-08-11
 - **Stufen folgen jetzt der echten Gerätegrenze (65 °C WP / 75 °C mit Heizstab).**
   Aufbauend auf der in 1.14.1 dokumentierten Datenblatt-Angabe:
