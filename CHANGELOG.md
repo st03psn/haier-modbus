@@ -5,6 +5,137 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.16.1] - 2026-08-12
+- **Morgen-Start heizt nicht mehr aus dem Netz auf Erhöht.** Der fixe Morgen-Start schrieb
+  bedingungslos die Erhöht-Zieltemperatur (65 °C) und schaltete auf AUTO – ohne den
+  Überschuss anzusehen. An trüben Tagen kam damit die gesamte Ladung aus dem Netz.
+  Neu: Der Morgen-Start schreibt die **Basis-Zieltemperatur in ECO** und macht damit eine
+  effiziente Grundladung. Die Anhebung auf Erhöht + AUTO folgt erst bei Überschuss über
+  den bestehenden Piggyback-Zweig – und **ohne** ein weiteres Startkontingent zu
+  verbrauchen, weil die Wärmepumpe dann bereits läuft (kein neuer Verdichterstart).
+  Wirksam ist das Schreiben der Basis, weil die Nachtabsenkung (1.16.0) den Sollwert
+  zuvor auf `pv_night_floor` gedrückt hat.
+- **Temperatur-Diagramm zeigt die Umgebungstemperatur wieder.** Die Y-Achse hatte eine
+  harte Untergrenze von 35 °C – die Umgebungskurve lag damit vollständig unterhalb des
+  sichtbaren Bereichs und stand nur noch in der Legende. Neu sind weiche Grenzen
+  (`~0` bis `~75`): 0–75 °C sind immer sichtbar, die Achse wächst aber mit, wenn Werte
+  darüber oder darunter liegen (z. B. Frost). **Hinweis:** Das Dashboard wird nur
+  **einmalig** angelegt, damit eigene Anpassungen erhalten bleiben – bestehende
+  Dashboards übernehmen die neue Achse nicht automatisch (Karte von Hand anpassen oder
+  das Dashboard löschen, damit es neu erzeugt wird).
+- **Kaltstart-Schwelle `pv_coldstart` auf 600 W** (vorher 500 W) – maximale
+  Verdichteraufnahme mit etwas Puffer. Gemessen wird dabei der Überschuss **ohne**
+  laufende Wärmepumpe, weil der Verdichter beim Kaltstart noch steht.
+- **Manueller Eingriff schützt jetzt auch den Modus, nicht nur den Sollwert.** Ein
+  Eingriff am Display oder in HA umfasst in der Praxis beides in einem Zug (belegt:
+  Sollwert 50→62 und ECO→AUTO in derselben Sekunde). Die Leiter ließ den Sollwert
+  korrekt in Ruhe, zog das von Hand gesetzte AUTO aber wieder auf ECO zurück – der
+  Schutz war damit nur halb wirksam. Die Modus-Schreibzugriffe unterliegen jetzt
+  denselben Sperren wie der Sollwert (`_manual_hold`, `_hold_run`). Der Heizstab bleibt
+  bewusst weiter überschussgeführt, weil er nicht am manuellen Sollwert hängt.
+
+> **Hinweis zum Release `v1.16.0`:** Das GitHub-Release mit diesem Tag wurde versehentlich
+> auf einem älteren Commit (Stand 1.14.0) erzeugt, bevor der zugehörige PR gemergt war –
+> es enthält **nicht** die unten beschriebenen Änderungen und kann übersprungen werden.
+> Der vollständige Stand von 1.16.0 ist in **1.16.1** enthalten.
+
+## [1.16.0] - 2026-08-12
+- **PV-Regelstufen überarbeitet: vier klar getrennte Stufen** (`base` -> `Erhöht` ->
+  `Boost`, ELEC separat als Notfall). Grundlage: Code-Analyse + 10 Tage Verlaufsdaten
+  einer realen HP200M7-F9.
+  - **Solar-Boost-Stufe entfernt** (AP1): In der Praxis-Konfiguration war ihr Ziel
+    identisch mit Erhöht (`min(pv_temp_high, 65) == pv_temp_normal`) – eine wirkungslose
+    Stufe. `CONF_PV_SOLAR_BOOST`/die zugehörige Number-Entität entfallen.
+  - **Boost ist jetzt eine Leistungssenke, keine eigene Temperaturstufe** (AP2): Die
+    Zieltemperatur bei Boost ist dieselbe wie bei Erhöht. `pv_temp_high` bleibt nur noch
+    für das Executor-Programm relevant.
+  - **Strikte Bezugsvermeidung für den Heizstab** (AP3, der inhaltliche Kern): Der
+    Überschusssensor ist einspeisungsbasiert – der Heizstab senkte beim Einschalten
+    seinen eigenen Messwert und taktete dadurch potenziell mit der doppelten
+    Entprellzeit. Neu: `verfügbar = roher Überschuss + (Heizstab an ? P_heizstab : 0)`,
+    macht das Signal invariant gegen die eigene Schalthandlung. `pv_high` bekommt dadurch
+    eine einzige, klare Bedeutung (Nennleistung + Reserve, Default jetzt **1600 W** statt
+    1550 W) und wird laufzeitgeklemmt, falls die Konfiguration das unterschreitet. Neue
+    Optionen `pv_heater_power` (Nennleistung, Default 1500 W) und optional
+    `pv_power_entity` (Geräte-Gesamtleistung, für eine gemessene statt geschätzte
+    Heizstableistung). Zusätzlich **asymmetrische Entprellung**: Einschalten weiter mit
+    voller Entprellzeit (Schutz gegen Sensor-Ausreißer bis 13 kW, real belegt),
+    Ausschalten sofort (ein Poll) – kein Bezug soll entstehen, während der Überschuss
+    schon unter der Schwelle liegt.
+  - **Modusführung ECO/AUTO** (AP4): `base` schreibt jetzt aktiv ECO, `Erhöht`/`Boost`
+    aktiv AUTO (statt sich auf das geräteeigene ECO-Zeitfenster zu verlassen). Harte
+    Invariante: AUTO nur mit Sollwert ≤ 65 °C (oberhalb zieht das Gerät laut Datenblatt
+    selbsttätig den Heizstab) – mit Boost == Erhöht-Ziel konstruktiv erfüllt. Tritt
+    zurück, wenn Legionellen-Schutz oder Notheizung den Modus besitzen.
+  - **ELEC raus aus der PV-Eskalation** (AP5): Reg 1 ist ein Modus-*Wert*, kein Bitfeld –
+    "ELEC als Bit schalten" gibt es nicht. ELEC ist jetzt ausschließlich eine
+    Notfall-Option in `emergency.py` (neue Option `emergency_mode`: `auto` [Standard] |
+    `elec`). Alte `pv_escalation: elec`-Konfigurationen werden automatisch auf `boost`
+    migriert.
+  - **Tagesplan: ein Lauf, Nachtabsenkung, Verdichterschonung** (AP6): Neuer
+    überschussgetriebener **Tages-Kaltstart** (`pv_coldstart`, Default 500 W) ergänzt den
+    fixen Morgen-Start – beide teilen sich ein Tageskontingent (`pv_max_starts`, Default
+    1: "möglichst ein Lauf/Tag"). Der Anti-Takt-Guard gilt jetzt für **jede** Anhebung bei
+    stehender WP, nicht mehr nur für den Morgen-Start. Endet ein Zyklus, fällt der
+    Sollwert **sofort** auf die Basis-Zieltemperatur zurück (auch mitten am Tag) – der
+    Tagesplan bleibt so verbindlich. Neue **Nachtabsenkung** (`pv_night_floor`, Default
+    45 °C): ab dem Rückfall bis zum nächsten Start ein Sollwert-Boden statt der
+    Basis-Zieltemperatur, damit das Gerät nicht mehr ohne Sonne in die Nacht nachheizt
+    (belegt: Nachheizung um 4 Uhr ohne jeden Überschuss). Der harte Boden bleibt
+    unverändert die Notheizung (kritische Temperatur).
+  - **PV-Status kennt nur noch** `off` / `base` / `normal` (Erhöht) / `boost` / `manual` /
+    `held` – `solar_boost` und `high_elec` entfallen, `high_boost` heißt jetzt `boost`.
+
+## [1.15.0] - 2026-08-11
+- **Stufen folgen jetzt der echten Gerätegrenze (65 °C WP / 75 °C mit Heizstab).**
+  Aufbauend auf der in 1.14.1 dokumentierten Datenblatt-Angabe:
+  - **Normal- und Erhöht-Zieltemperatur sind auf 65 °C begrenzt** (Auswahl im Dialog und
+    an den `number`-Entitäten) — diese Stufen muss der **Verdichter allein** erreichen.
+  - **Die Boost-Zieltemperatur bleibt bis 75 °C wählbar** — nur dort hilft der Heizstab.
+  - **Die Solar-Boost-Stufe zielt jetzt auf `min(Boost-Ziel, 65 °C)`** statt stur auf die
+    Boost-Zieltemperatur. Vorher hätte die WP bei einem Boost-Ziel von 75 °C ein Ziel
+    angesteuert, das sie **nie allein erreichen kann**.
+  - Ergebnis ist eine saubere 4-Stufen-Kaskade, z. B. bei **50 / 60 / 75 °C**:
+    `Normal 50 → Erhöht 60 → Solar-Boost 65 (WP allein an der Grenze) → Boost 75
+    (Heizstab schiebt darüber)`. Beim Absenken fällt zuerst der Heizstab weg, dann Stufe
+    für Stufe. Der Heizstab verbraucht damit **keine kWh mehr für eine Spanne, die der
+    Verdichter auch geschafft hätte**.
+- **Plausibilitätsprüfung der Zieltemperaturen:** Der Konfigurationsdialog weist
+  `Erhöht ≤ Normal` und `Boost < Erhöht` jetzt mit einer verständlichen Meldung zurück,
+  statt die Stufen stillschweigend kollabieren zu lassen (die Laufzeit-Klemmung in `pv.py`
+  bleibt als zweites Netz bestehen).
+- **Boost ist wieder das, was der Name sagt: WP + Heizstab gemeinsam.** Die in 1.14.0
+  eingeführte Wartebedingung („Heizstab erst, wenn die WP ihre Grenze erreicht hat")
+  entfällt — ab der Boost-Schwelle wird der deutliche Überschuss **direkt der laufenden
+  WP zugeschaltet**, ohne Verzögerung. Damit ist die Stufenfolge durchgängig:
+  **base** (Standard) → **Erhöht** (leichter Überschuss) → **Solar-Boost** (mehr
+  Überschuss, WP allein bis 65 °C) → **Boost** (deutlicher Überschuss, WP + Heizstab bis
+  75 °C). *Nur Heizstab (ELEC)* bleibt davon getrennt die Schnellaufheiz-/Notfall-Option
+  bei **stehender** WP.
+- **Negativpreis-Sensor mit neuer Rolle:** Ist er „an", greift **Boost bereits ab der
+  Solar-Boost-Schwelle** statt erst ab der Boost-Schwelle (Einspeisung ist im Fenster
+  unvergütet). Neu dokumentierter Vorbehalt: **nur mit dynamischem Stromtarif sinnvoll** —
+  ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis;
+  reicht der Überschuss nicht für den Heizstab (~1500 W), kommt der Rest aus dem Netz.
+
+## [1.14.1] - 2026-08-11
+- **Doku: Gerätegrenzen dokumentiert** (neu: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md)).
+  Kernpunkt: Das Hersteller-Datenblatt der M7-Reihe nennt zwei **getrennte** Zeilen —
+  **Einstellbereich *mit Heizstab* 35–75 °C** gegenüber **max. Temperaturausgabe *nur
+  Wärmepumpe* 65 °C**. Der Bereich 65–75 °C ist also nur mit dem **1500-W-Heizstab**
+  (COP ≈ 1) erreichbar; die geräteeigene Sterilisation heizt 1×/Woche auf 75 °C.
+  Damit ist die **Boost-Zieltemperatur** praktisch auf **65 °C** zu
+  setzen, sonst kann die Solar-Boost-Stufe (Verdichter allein) ihr Ziel nie erreichen.
+  Empfohlene Staffelung **50 / 58–60 / 65 °C**; für den Legionellen-Schutz
+  `legionella_bottom_min` **60 °C** statt 65 (Nachweis an der kältesten Schicht).
+  Enthält außerdem Feldmessungen: 4 Monate Maximum 65 °C, und ein messbarer
+  Kapazitätsabfall von ≈ 6,0 K/h (53→59 °C) auf ≈ 3,9 K/h (60→65 °C).
+  Hinweise dazu jetzt auch im README (DE/EN) und als Kommentar an
+  `DEFAULT_PV_TEMP_HIGH`. **Keine Verhaltensänderung** — reine Dokumentation.
+- **Neu: `CLAUDE.md`** mit Architektur-Überblick, harten Regeln (kein zweiter Bus-Master,
+  nur FC 0x10, eine Quelle der Wahrheit, `LIVE_OPTION_KEYS` statt Reload) und den
+  Regelungs-Fallstricken, die in der Vergangenheit reale Fehler verursacht haben.
+
 ## [1.14.0] - 2026-08-11
 - **Verdichter vor Heizstab („Solar-Boost"):** Der WP-Zyklus (Schicht 1, Coordinator) ist
   jetzt **3-stufig** — Normal → Erhöht → **Solar-Boost**. Über der neuen Schwelle

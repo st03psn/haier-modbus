@@ -53,26 +53,55 @@ PV_MODE_EXECUTOR: Final = "executor"
 DEFAULT_PV_MODE: Final = PV_MODE_OFF
 
 CONF_PV_SENSOR: Final = "pv_sensor"            # Sensor PV-Überschuss in W (roh, ≥0)
-CONF_PV_HIGH: Final = "pv_high"                # Boost-Schwelle Roh-Überschuss (W) -> Heizstab-Schicht
+CONF_PV_HIGH: Final = "pv_high"                # Boost-Schwelle "verfügbar" (W) -> Heizstab-Schicht
 CONF_PV_HOLD: Final = "pv_hold"                # Halte-/Piggyback-Puffer: darüber WP-Zyklus halten (W)
-CONF_PV_SOLAR_BOOST: Final = "pv_solar_boost"  # Solar-Boost-Schwelle (W): WP klettert allein auf die Boost-Zieltemp
 # Optionaler Sensor (binary_sensor/input_boolean), der die aktuelle Viertelstunde als
 # Negativ-/Null-Preis markiert (Solarspitzengesetz/§51 EEG). Ist er an, entfällt der
 # Effizienz-Vorteil des Wartens -> der Heizstab darf schon vor dem Deckel zuschalten.
 CONF_PV_NEGATIVE_PRICE_SENSOR: Final = "pv_negative_price_sensor"
 CONF_PV_MORNING_ENABLED: Final = "pv_morning_enabled"      # fixer Morgen-Start aktiv (bool)
 CONF_PV_MORNING_TIME: Final = "pv_morning_time"            # Uhrzeit Morgen-Start ("HH:MM")
-CONF_PV_TEMP_HIGH: Final = "pv_temp_high"      # Boost-Zieltemp (bei hohem Überschuss)
-CONF_PV_TEMP_NORMAL: Final = "pv_temp_normal"  # Erhöht-Zieltemp (bei normalem Überschuss)
+CONF_PV_TEMP_HIGH: Final = "pv_temp_high"      # Boost-Zieltemp (nur noch Executor-Programm, s. select.py)
+CONF_PV_TEMP_NORMAL: Final = "pv_temp_normal"  # Erhöht-Zieltemp (= Boost-Zieltemp im Coordinator, AP2)
 CONF_PV_TEMP_BASE: Final = "pv_temp_base"      # Normal-Zieltemp (ohne Überschuss)
 CONF_PV_DEBOUNCE: Final = "pv_debounce"        # Entprellzeit (Minuten)
-CONF_PV_MIN_OFF: Final = "pv_min_off"          # Anti-Takt: Mindest-Stillstand vor Neustart (min)
+CONF_PV_MIN_OFF: Final = "pv_min_off"          # Anti-Takt: Mindest-Stillstand vor jeder Anhebung bei stehender WP (min)
 # Eskalation bei hohem Überschuss – gegenseitig ausschließend (ein Dropdown):
-CONF_PV_ESCALATION: Final = "pv_escalation"    # "none" | "boost" | "elec"
+CONF_PV_ESCALATION: Final = "pv_escalation"    # "none" | "boost" (frueher zusaetzlich "elec", s. u.)
 PV_ESC_NONE: Final = "none"
-PV_ESC_BOOST: Final = "boost"                  # Boost: WP + Heizstab gleichzeitig
-PV_ESC_ELEC: Final = "elec"                    # ELEC: nur Heizstab, WP aus
+PV_ESC_BOOST: Final = "boost"                  # Boost: WP + Heizstab gleichzeitig, gleiche Zieltemp wie Erhöht
+# Alt-Wert, nur noch für die einmalige Options-Migration in __init__.py relevant: ELEC ist
+# seit v1.16.0 keine PV-Eskalation mehr, sondern eine Notfall-Option in emergency.py
+# (CONF_EMERGENCY_MODE). Alte "elec"-Konfigurationen werden auf "boost" abgebildet.
+PV_ESC_ELEC: Final = "elec"
 DEFAULT_PV_ESCALATION: Final = PV_ESC_NONE
+
+# --- Strikte Bezugsvermeidung Heizstab (v1.16.0) ----------------------------
+# Normalisierung des Überschusssignals: der Sensor ist einspeisungsbasiert (Eigenaufnahme
+# bereits abgezogen), daher zieht der Heizstab beim Einschalten seinen eigenen Messwert nach
+# unten. "verfügbar" macht das Signal invariant gegen die eigene Schalthandlung:
+#   verfügbar = roher_Überschuss + (Heizstab an ? P_heizstab : 0)
+CONF_PV_HEATER_POWER: Final = "pv_heater_power"      # Nennleistung Heizstab (W, Datenblatt)
+# Optionale Verfeinerung: Geräte-Gesamtleistung (W), um P_heizstab aus dem realen
+# Einschalt-Zuwachs zu bestimmen statt aus dem Nennwert. Nie Voraussetzung.
+CONF_PV_POWER_ENTITY: Final = "pv_power_entity"
+# True + Sensor gesetzt -> Boost nur im Negativpreisfenster; True ohne Sensor -> Boost
+# feuert nie (s. Options-Flow-Hinweis). _negative_price() ist damit ein Gate, kein
+# Schwellensenker mehr.
+CONF_PV_BOOST_ONLY_NEGATIVE_PRICE: Final = "pv_boost_only_negative_price"
+DEFAULT_PV_HEATER_POWER: Final = 1500
+DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE: Final = False
+
+# --- Tagesplan: Kaltstart, Rückfall, Nachtabsenkung (v1.16.0) ---------------
+CONF_PV_COLDSTART: Final = "pv_coldstart"      # Überschuss (W), ab dem tagsüber kalt gestartet wird
+CONF_PV_MAX_STARTS: Final = "pv_max_starts"    # max. von der Leiter ausgelöste Starts/Tag
+CONF_PV_NIGHT_FLOOR: Final = "pv_night_floor"  # Sollwert-Boden im Nachtfenster (°C)
+# 600 W = maximale Verdichteraufnahme mit etwas Puffer (Feldwert). Gemessen wird
+# beim Kaltstart der Überschuss OHNE laufende WP – der Verdichter steht ja noch,
+# seine Aufnahme ist im einspeisungsbasierten Sensor also noch nicht enthalten.
+DEFAULT_PV_COLDSTART: Final = 600
+DEFAULT_PV_MAX_STARTS: Final = 1
+DEFAULT_PV_NIGHT_FLOOR: Final = 45
 
 # Executor: Regelprogramme, die ein HEMS (oder der Nutzer) setzt; die Integration
 # übersetzt das Programm idempotent in die Mechanik (Sollwert/Modus/Boost).
@@ -92,12 +121,19 @@ DEFAULT_PV_MORNING_ENABLED: Final = True
 DEFAULT_PV_MORNING_TIME: Final = "10:00"
 DEFAULT_PV_MIN_OFF: Final = 30
 
-# --- Notfall-Nachheizung (ECO -> AUTO bei kritisch niedriger Temperatur) ----
+# --- Notfall-Nachheizung (ECO -> AUTO/ELEC bei kritisch niedriger Temperatur) ----
 CONF_EMERGENCY_ENABLED: Final = "emergency_enabled"
-CONF_EMERGENCY_CRITICAL: Final = "emergency_critical"   # °C: darunter ECO->AUTO
-CONF_EMERGENCY_RECOVER: Final = "emergency_recover"     # °C: darüber zurück AUTO->ECO
+CONF_EMERGENCY_CRITICAL: Final = "emergency_critical"   # °C: darunter ECO->AUTO/ELEC
+CONF_EMERGENCY_RECOVER: Final = "emergency_recover"     # °C: darüber zurück AUTO/ELEC->ECO
+# Wonach eskaliert wird: "auto" (bisheriges Verhalten, WP-Vorrang) oder "elec" (nur
+# Heizstab, schnellste Aufheizung). Reg 1 ist ein Wert (kein Bitfeld) -> echter
+# Moduswechsel, kein Boost-Bit (s. Plan "Zwei Annahmen, die die Prüfung nicht bestanden").
+CONF_EMERGENCY_MODE: Final = "emergency_mode"
+EMERGENCY_MODE_AUTO: Final = "auto"
+EMERGENCY_MODE_ELEC: Final = "elec"
 DEFAULT_EMERGENCY_CRITICAL: Final = 38
 DEFAULT_EMERGENCY_RECOVER: Final = 48
+DEFAULT_EMERGENCY_MODE: Final = EMERGENCY_MODE_AUTO
 
 # --- Legionellen-Schutz (periodische thermische Desinfektion) --------------
 # Watchdog: erreicht der Speicher nicht innerhalb des Intervalls am Boden
@@ -117,33 +153,45 @@ DEFAULT_LEGIONELLA_HOLD: Final = 30
 DEFAULT_LEGIONELLA_WINDOW_START: Final = "10:00"
 DEFAULT_LEGIONELLA_WINDOW_END: Final = "18:00"
 
-# Schwellen auf den *rohen* PV-Überschuss (sensor.pv_uberschuss_watt, kappt bei 0):
+# Schwellen auf den *rohen* PV-Überschuss (sensor.pv_uberschuss_watt, kappt bei 0), außer
+# wo "verfügbar" (normalisiert, s. o.) angegeben ist:
 #  - Halte/Piggyback 50 W = kleiner Puffer; solange noch Überschuss da ist, WP-Zyklus
 #    halten/auf Erhöht verlängern (die WP läuft eh schon, kostet keine Extra-Leistung)
-#  - Solar-Boost 600 W = die WP klettert allein (ohne Heizstab) bis auf die
-#    Boost-Zieltemperatur. Kein spezifizierter Wert – die Modbus-Schnittstelle liefert
-#    keine Momentanleistung; am besten am externen Zähler (Shelly) den typischen
-#    Verdichter-Verbrauch ablesen und knapp darüber setzen.
-#  - Boost 1550 W = Heizstab-Schwelle (Heizstab ~1500 W + Puffer); mehr wird nie gezogen
-DEFAULT_PV_HIGH: Final = 1550
-DEFAULT_PV_SOLAR_BOOST: Final = 600
-DEFAULT_PV_TEMP_HIGH: Final = 75    # Geräte-Max (Reg 6, 35..75); Boost-Stufe = Überschuss verheizen, i. d. R. mit Boost
+#  - Boost 1600 W = Heizstab-Schwelle auf "verfügbar" (Heizstab 1500 W + 100 W Reserve).
+#    pv_high hat damit genau eine Bedeutung: pv_high = P_heizstab + Reserve, die Reserve
+#    ist zugleich der Export, bei dem abgeschaltet wird (immer > 0, nie Bezug). Die
+#    Laufzeit-Klemme in pv.py hebt einen zu knapp gesetzten Wert notfalls an.
+DEFAULT_PV_HIGH: Final = 1600
+# ACHTUNG Registergrenze != Gerätegrenze. Das Hersteller-Datenblatt der M7-Reihe nennt
+# beides getrennt: "Temperatureinstellbereich MIT HEIZSTAB 35..75 °C" gegenüber
+# "max. Temperaturausgabe NUR WÄRMEPUMPE 65 °C". Der Bereich 65..75 °C ist also nur mit
+# dem 1500-W-Heizstab (COP ~1) erreichbar. Für die Solar-Boost-Stufe (WP allein) daher
+# praktisch 65 °C konfigurieren.
+# Datenblatt-Belege + Feldmessungen: docs/geraete-grenzen.md
+DEFAULT_PV_TEMP_HIGH: Final = 75    # Registermaximum (Reg 6, 35..75) – s. Hinweis oben
 DEFAULT_PV_TEMP_NORMAL: Final = 65
 DEFAULT_PV_TEMP_BASE: Final = 50
 DEFAULT_PV_DEBOUNCE: Final = 5
 
-# Options, die ``pv.py`` bei JEDEM Poll frisch aus ``entry.options`` liest. Eine
-# Änderung braucht daher KEINEN Integration-Reload – im Gegenteil: ein Reload würde
-# In-Memory-Besitzstände verwerfen (Boost-Bit-/ELEC-Ownership in pv.py, manueller
-# Sollwert-Schutz, Notheizung, laufender Legionellen-Lauf) und den Heizstab bzw. den
-# ELEC-Modus dauerhaft anlassen. Siehe ``_async_update_listener`` in __init__.py.
+# Options, die ``pv.py`` bzw. ``emergency.py`` bei JEDEM Poll frisch aus ``entry.options``
+# lesen. Eine Änderung braucht daher KEINEN Integration-Reload – im Gegenteil: ein Reload
+# würde In-Memory-Besitzstände verwerfen (Boost-Bit-Ownership in pv.py, ELEC-Ownership in
+# emergency.py, manueller Sollwert-Schutz, Tagesplan-Zähler außerhalb der Store-Persistenz,
+# laufender Legionellen-Lauf) und den Heizstab bzw. den ELEC-Modus dauerhaft anlassen.
+# Siehe ``_async_update_listener`` in __init__.py.
 LIVE_OPTION_KEYS: Final = frozenset({
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_NORMAL,
     CONF_PV_TEMP_HIGH,
     CONF_PV_HOLD,
-    CONF_PV_SOLAR_BOOST,
     CONF_PV_HIGH,
+    CONF_PV_HEATER_POWER,
+    CONF_PV_POWER_ENTITY,
+    CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
+    CONF_PV_COLDSTART,
+    CONF_PV_MAX_STARTS,
+    CONF_PV_NIGHT_FLOOR,
+    CONF_EMERGENCY_MODE,
 })
 
 # Gerät
@@ -204,6 +252,14 @@ REG_FAULT: Final = 18         # R   Fehlercode 0..64
 
 SET_TEMP_MIN: Final = 35
 SET_TEMP_MAX: Final = 75
+
+# Höchste Wassertemperatur, die der **Verdichter allein** erreicht. Das
+# Hersteller-Datenblatt der M7-Reihe führt beides getrennt:
+#   "Temperatureinstellbereich mit Heizstab"   35..75 °C  (= SET_TEMP_MAX)
+#   "max. Temperaturausgabe nur Wärmepumpe"    65 °C      (= WP_MAX_TEMP)
+# Der Bereich dazwischen ist nur mit dem 1500-W-Heizstab erreichbar.
+# Belege: docs/geraete-grenzen.md
+WP_MAX_TEMP: Final = 65
 
 # --- Energie-/Wärmeregister (kWh) -----------------------------------------
 # Jeder Block: 7 Tageswerte + 12 Monatswerte + 5 Jahreswerte.

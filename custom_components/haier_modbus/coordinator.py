@@ -94,7 +94,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self.energy = EnergyAccumulator(hass, entry.entry_id)
         self.pv = PvController(hass)
         self.legionella = LegionellaController(hass)
-        self._emergency = EmergencyController(hass)
+        self.emergency = EmergencyController(hass)
         self._last_save = None
         self._seed_done = False
         self.link_status: str = LINK_OK   # ok | no_converter | no_device
@@ -219,7 +219,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             # Sollwert/Modus und PV/Notheizung treten zurück.
             await self.legionella.async_evaluate(self, data)
             await self.pv.async_evaluate(self, data)
-            await self._emergency.async_evaluate(self, data)
+            await self.emergency.async_evaluate(self, data)
             return data
         except UpdateFailed:
             # Kurze Modbus-Aussetzer: letzte Werte bis zu _GRACE_S halten, statt
