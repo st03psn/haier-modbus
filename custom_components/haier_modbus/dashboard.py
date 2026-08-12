@@ -234,7 +234,13 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             ("number", "set_temp", "Soll",
              {"type": "line", "curve": "stepline", "group_by": {"func": "max", "duration": "1h"}}),
         ],
-        yaxis=[{"min": 35, "max": 80, "decimals": 0}],
+        # Weiche Grenzen (``~``): 0..75 °C sind IMMER sichtbar, die Achse wächst
+        # aber mit, wenn Werte darüber/darunter liegen (z. B. Umgebung im Frost).
+        # Eine harte Untergrenze von 35 °C hatte die Umgebungstemperatur
+        # vollständig aus dem Diagramm geschnitten – sie stand nur noch in der
+        # Legende. 75 °C ist die Registergrenze (``SET_TEMP_MAX``), also der
+        # höchste Sollwert, der überhaupt auftreten kann.
+        yaxis=[{"min": "~0", "max": "~75", "decimals": 0}],
         all_series_config={"stroke_width": 2},
     )
     # JAZ-Vergleich der letzten ~5 Jahre als Balken. Quelle: das Attribut

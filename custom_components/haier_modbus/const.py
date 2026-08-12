@@ -96,7 +96,10 @@ DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE: Final = False
 CONF_PV_COLDSTART: Final = "pv_coldstart"      # Überschuss (W), ab dem tagsüber kalt gestartet wird
 CONF_PV_MAX_STARTS: Final = "pv_max_starts"    # max. von der Leiter ausgelöste Starts/Tag
 CONF_PV_NIGHT_FLOOR: Final = "pv_night_floor"  # Sollwert-Boden im Nachtfenster (°C)
-DEFAULT_PV_COLDSTART: Final = 500
+# 600 W = maximale Verdichteraufnahme mit etwas Puffer (Feldwert). Gemessen wird
+# beim Kaltstart der Überschuss OHNE laufende WP – der Verdichter steht ja noch,
+# seine Aufnahme ist im einspeisungsbasierten Sensor also noch nicht enthalten.
+DEFAULT_PV_COLDSTART: Final = 600
 DEFAULT_PV_MAX_STARTS: Final = 1
 DEFAULT_PV_NIGHT_FLOOR: Final = 45
 

@@ -15,6 +15,17 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   verbrauchen, weil die Wärmepumpe dann bereits läuft (kein neuer Verdichterstart).
   Wirksam ist das Schreiben der Basis, weil die Nachtabsenkung (1.16.0) den Sollwert
   zuvor auf `pv_night_floor` gedrückt hat.
+- **Temperatur-Diagramm zeigt die Umgebungstemperatur wieder.** Die Y-Achse hatte eine
+  harte Untergrenze von 35 °C – die Umgebungskurve lag damit vollständig unterhalb des
+  sichtbaren Bereichs und stand nur noch in der Legende. Neu sind weiche Grenzen
+  (`~0` bis `~75`): 0–75 °C sind immer sichtbar, die Achse wächst aber mit, wenn Werte
+  darüber oder darunter liegen (z. B. Frost). **Hinweis:** Das Dashboard wird nur
+  **einmalig** angelegt, damit eigene Anpassungen erhalten bleiben – bestehende
+  Dashboards übernehmen die neue Achse nicht automatisch (Karte von Hand anpassen oder
+  das Dashboard löschen, damit es neu erzeugt wird).
+- **Kaltstart-Schwelle `pv_coldstart` auf 600 W** (vorher 500 W) – maximale
+  Verdichteraufnahme mit etwas Puffer. Gemessen wird dabei der Überschuss **ohne**
+  laufende Wärmepumpe, weil der Verdichter beim Kaltstart noch steht.
 
 > **Hinweis zum Release `v1.16.0`:** Das GitHub-Release mit diesem Tag wurde versehentlich
 > auf einem älteren Commit (Stand 1.14.0) erzeugt, bevor der zugehörige PR gemergt war –
