@@ -5,6 +5,22 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.16.2] - 2026-08-12
+- **Nachtabsenkung (`pv_night_floor`) wieder entfernt.** Sie war eine Fehlentscheidung:
+  Der Rückfall auf Basis + ECO nach jedem Zyklus **ist** bereits das Nachtverhalten. Ein
+  zusätzlicher, tieferer Boden brachte PV-seitig nichts — den Fall „Speicher steht
+  morgens auf 50 °C und die Sonne kommt" deckt der Tages-Kaltstart ab — nahm aber die
+  Reserve für ungewöhnlich hohen Warmwasserbedarf. Bei 45 °C Boden und mehreren
+  Duschvorgängen mehr als üblich hätte das Gerät keinen Bedarf gesehen und die
+  Notheizung erst bei 38 °C eingegriffen. Nachts gilt jetzt schlicht die
+  Basis-Zieltemperatur in ECO; fällt die Temperatur darunter, heizt das Gerät regulär
+  nach. Die Option entfällt ersatzlos und wird aus bestehenden Konfigurationen entfernt.
+- **Morgen-Start verbraucht das Tageskontingent nur noch bei echter Anhebung.** Ohne die
+  Nachtabsenkung steht der Sollwert nachts ohnehin schon auf der Basis. Der Morgen-Start
+  hätte dann 50 auf 50 geschrieben — wirkungslos — dabei aber den einen Tagesstart
+  verbraucht, sodass der überschussgetriebene Kaltstart den ganzen Tag nicht mehr zum Zug
+  gekommen wäre. Ein Start wird jetzt nur gezählt, wenn der Sollwert tatsächlich steigt.
+
 ## [1.16.1] - 2026-08-12
 - **Morgen-Start heizt nicht mehr aus dem Netz auf Erhöht.** Der fixe Morgen-Start schrieb
   bedingungslos die Erhöht-Zieltemperatur (65 °C) und schaltete auf AUTO – ohne den
@@ -13,8 +29,8 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   effiziente Grundladung. Die Anhebung auf Erhöht + AUTO folgt erst bei Überschuss über
   den bestehenden Piggyback-Zweig – und **ohne** ein weiteres Startkontingent zu
   verbrauchen, weil die Wärmepumpe dann bereits läuft (kein neuer Verdichterstart).
-  Wirksam ist das Schreiben der Basis, weil die Nachtabsenkung (1.16.0) den Sollwert
-  zuvor auf `pv_night_floor` gedrückt hat.
+  *(Ergänzung 1.16.2: Da die Nachtabsenkung wieder entfallen ist, greift der
+  Morgen-Start nur noch, wenn der Sollwert tatsächlich angehoben wird — siehe unten.)*
 - **Temperatur-Diagramm zeigt die Umgebungstemperatur wieder.** Die Y-Achse hatte eine
   harte Untergrenze von 35 °C – die Umgebungskurve lag damit vollständig unterhalb des
   sichtbaren Bereichs und stand nur noch in der Legende. Neu sind weiche Grenzen

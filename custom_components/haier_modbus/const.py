@@ -92,16 +92,14 @@ CONF_PV_BOOST_ONLY_NEGATIVE_PRICE: Final = "pv_boost_only_negative_price"
 DEFAULT_PV_HEATER_POWER: Final = 1500
 DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE: Final = False
 
-# --- Tagesplan: Kaltstart, Rückfall, Nachtabsenkung (v1.16.0) ---------------
+# --- Tagesplan: Kaltstart + Rückfall auf Basis/ECO (v1.16.0) ----------------
 CONF_PV_COLDSTART: Final = "pv_coldstart"      # Überschuss (W), ab dem tagsüber kalt gestartet wird
 CONF_PV_MAX_STARTS: Final = "pv_max_starts"    # max. von der Leiter ausgelöste Starts/Tag
-CONF_PV_NIGHT_FLOOR: Final = "pv_night_floor"  # Sollwert-Boden im Nachtfenster (°C)
 # 600 W = maximale Verdichteraufnahme mit etwas Puffer (Feldwert). Gemessen wird
 # beim Kaltstart der Überschuss OHNE laufende WP – der Verdichter steht ja noch,
 # seine Aufnahme ist im einspeisungsbasierten Sensor also noch nicht enthalten.
 DEFAULT_PV_COLDSTART: Final = 600
 DEFAULT_PV_MAX_STARTS: Final = 1
-DEFAULT_PV_NIGHT_FLOOR: Final = 45
 
 # Executor: Regelprogramme, die ein HEMS (oder der Nutzer) setzt; die Integration
 # übersetzt das Programm idempotent in die Mechanik (Sollwert/Modus/Boost).
@@ -190,7 +188,6 @@ LIVE_OPTION_KEYS: Final = frozenset({
     CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
     CONF_PV_COLDSTART,
     CONF_PV_MAX_STARTS,
-    CONF_PV_NIGHT_FLOOR,
     CONF_EMERGENCY_MODE,
 })
 

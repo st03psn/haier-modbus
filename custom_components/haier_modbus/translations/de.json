@@ -53,7 +53,6 @@
           "pv_morning_time": "Uhrzeit Morgen-Start",
           "pv_coldstart": "Kaltstart-Schwelle – Überschuss (W)",
           "pv_max_starts": "Max. Starts/Tag (Leiter)",
-          "pv_night_floor": "Sollwert-Boden Nachtfenster (°C)",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_min_off": "Mindest-Stillstand vor Anhebung (min)",
           "pv_escalation": "Eskalation bei hohem Überschuss",
@@ -72,7 +71,6 @@
           "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet. Teilt sich das Tageskontingent (s. u.) mit dem Kaltstart.",
           "pv_coldstart": "Schwelle (verfügbarer Überschuss), ab der tagsüber – zusätzlich zum fixen Morgen-Start – kalt gestartet wird, wenn das Wasser unter der Erhöht-Zieltemperatur liegt. Entprellt mit der vollen Entprellzeit, respektiert denselben Anti-Takt wie der Morgen-Start und dasselbe Tageskontingent.",
           "pv_max_starts": "Wie viele von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart zusammen) pro Tag erlaubt sind – Default 1, für „möglichst ein Lauf pro Tag“ (Verdichterschonung). Geräte-Eigenstarts zählen nicht mit.",
-          "pv_night_floor": "Sollwert, auf den nach einem abgeschlossenen Zyklus bis zum nächsten Start/Morgen-Start abgesenkt wird (statt der Normal-Zieltemperatur) – verhindert Nachheizen in der Nacht ohne Sonne. Muss über der kritischen Notheizungs-Temperatur liegen; der harte Boden bleibt in jedem Fall die Notheizung.",
           "pv_min_off": "Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND Kaltstart): wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber bei bereits laufender WP (Piggyback) bleibt davon unberührt.",
           "pv_escalation": "Was ab der Boost-Schwelle zusätzlich zugeschaltet wird. Keine: nur die Erhöht-Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam**, bei gleicher Zieltemperatur wie Erhöht – eine reine Leistungssenke für deutlichen Überschuss, keine eigene Temperaturstufe.",
           "pv_boost_only_negative_price": "Ist ein Negativpreis-Sensor gewählt (s. u.) und dieser Haken gesetzt, feuert Boost **nur** im Negativpreisfenster. Ohne gewählten Sensor feuert Boost dann **nie** – vorher prüfen, ob der Sensor gesetzt ist.",
@@ -85,8 +83,7 @@
       "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird.",
       "temp_order_normal": "Die Erhöht-Zieltemperatur muss höher sein als die Normal-Zieltemperatur – sonst gibt es keine Zwischenstufe und die Regelstufen fallen zusammen.",
       "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen.",
-      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab.",
-      "night_floor_too_low": "Der Sollwert-Boden im Nachtfenster muss über der kritischen Notheizungs-Temperatur liegen – sonst unterläuft die Nachtabsenkung deren harten Boden."
+      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab."
     },
     "abort": {
       "already_configured": "Diese Wärmepumpe ist bereits eingerichtet."
@@ -153,7 +150,6 @@
           "pv_morning_time": "Uhrzeit Morgen-Start",
           "pv_coldstart": "Kaltstart-Schwelle – Überschuss (W)",
           "pv_max_starts": "Max. Starts/Tag (Leiter)",
-          "pv_night_floor": "Sollwert-Boden Nachtfenster (°C)",
           "pv_debounce": "Entprellzeit (Minuten)",
           "pv_min_off": "Mindest-Stillstand vor Anhebung (min)",
           "pv_escalation": "Eskalation bei hohem Überschuss",
@@ -172,7 +168,6 @@
           "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet. Teilt sich das Tageskontingent (s. u.) mit dem Kaltstart.",
           "pv_coldstart": "Schwelle (verfügbarer Überschuss), ab der tagsüber – zusätzlich zum fixen Morgen-Start – kalt gestartet wird, wenn das Wasser unter der Erhöht-Zieltemperatur liegt. Entprellt mit der vollen Entprellzeit, respektiert denselben Anti-Takt wie der Morgen-Start und dasselbe Tageskontingent.",
           "pv_max_starts": "Wie viele von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart zusammen) pro Tag erlaubt sind – Default 1, für „möglichst ein Lauf pro Tag“ (Verdichterschonung). Geräte-Eigenstarts zählen nicht mit.",
-          "pv_night_floor": "Sollwert, auf den nach einem abgeschlossenen Zyklus bis zum nächsten Start/Morgen-Start abgesenkt wird (statt der Normal-Zieltemperatur) – verhindert Nachheizen in der Nacht ohne Sonne. Muss über der kritischen Notheizungs-Temperatur liegen; der harte Boden bleibt in jedem Fall die Notheizung.",
           "pv_min_off": "Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND Kaltstart): wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber bei bereits laufender WP (Piggyback) bleibt davon unberührt.",
           "pv_escalation": "Was ab der Boost-Schwelle zusätzlich zugeschaltet wird. Keine: nur die Erhöht-Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam**, bei gleicher Zieltemperatur wie Erhöht – eine reine Leistungssenke für deutlichen Überschuss, keine eigene Temperaturstufe.",
           "pv_boost_only_negative_price": "Ist ein Negativpreis-Sensor gewählt (s. u.) und dieser Haken gesetzt, feuert Boost **nur** im Negativpreisfenster. Ohne gewählten Sensor feuert Boost dann **nie** – vorher prüfen, ob der Sensor gesetzt ist.",
@@ -184,8 +179,7 @@
       "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird.",
       "temp_order_normal": "Die Erhöht-Zieltemperatur muss höher sein als die Normal-Zieltemperatur – sonst gibt es keine Zwischenstufe und die Regelstufen fallen zusammen.",
       "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen.",
-      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab.",
-      "night_floor_too_low": "Der Sollwert-Boden im Nachtfenster muss über der kritischen Notheizungs-Temperatur liegen – sonst unterläuft die Nachtabsenkung deren harten Boden."
+      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab."
     }
   },
   "selector": {

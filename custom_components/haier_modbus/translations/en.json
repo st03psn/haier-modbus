@@ -53,7 +53,6 @@
           "pv_morning_time": "Morning start time",
           "pv_coldstart": "Cold-start threshold – surplus (W)",
           "pv_max_starts": "Max. starts/day (ladder)",
-          "pv_night_floor": "Night-window setpoint floor (°C)",
           "pv_debounce": "Debounce time (minutes)",
           "pv_min_off": "Minimum off-time before a raise (min)",
           "pv_escalation": "Escalation at high surplus",
@@ -72,7 +71,6 @@
           "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window. Shares the daily quota (below) with the cold start.",
           "pv_coldstart": "Threshold (available surplus) above which — in addition to the fixed morning start — a cold start happens during the day if the water is below the elevated target. Debounces with the full debounce time, honours the same anti-short-cycle guard as the morning start and the same daily quota.",
           "pv_max_starts": "How many ladder-triggered starts (morning start + cold start together) are allowed per day — default 1, for \"as few compressor cycles as possible\". Device-initiated starts don't count.",
-          "pv_night_floor": "Setpoint the ladder drops to after a completed cycle, until the next start/morning start (instead of the normal target) — prevents reheating overnight without sun. Must be above the critical emergency-reheat temperature; the hard floor always remains the emergency reheat.",
           "pv_min_off": "Anti-short-cycle for EVERY setpoint raise while the pump is off (morning start AND cold start): waits until the compressor has been off at least this long. Daytime raises while already running (piggyback) are unaffected.",
           "pv_escalation": "What gets added once surplus passes the boost threshold. None: just the elevated target (the pump stays at max. 65 °C). Boost: heat pump + heater **together**, at the same target as Elevated — a pure power sink for substantial surplus, not its own temperature tier.",
           "pv_boost_only_negative_price": "If a negative-price sensor is selected (below) and this is checked, Boost fires **only** during the negative-price window. Without a selected sensor Boost then **never** fires — check the sensor is set first.",
@@ -85,8 +83,7 @@
       "pv_sensor_required": "Please select a PV surplus sensor before enabling the control.",
       "temp_order_normal": "The elevated target temperature must be higher than the normal target temperature — otherwise there is no middle tier and the control tiers collapse.",
       "temp_order_high": "The boost target temperature must not be below the elevated target temperature.",
-      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw.",
-      "night_floor_too_low": "The night-window setpoint floor must be above the critical emergency-reheat temperature — otherwise the night setback would undercut its hard floor."
+      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw."
     },
     "abort": {
       "already_configured": "This heat pump is already configured."
@@ -153,7 +150,6 @@
           "pv_morning_time": "Morning start time",
           "pv_coldstart": "Cold-start threshold – surplus (W)",
           "pv_max_starts": "Max. starts/day (ladder)",
-          "pv_night_floor": "Night-window setpoint floor (°C)",
           "pv_debounce": "Debounce time (minutes)",
           "pv_min_off": "Minimum off-time before a raise (min)",
           "pv_escalation": "Escalation at high surplus",
@@ -172,7 +168,6 @@
           "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window. Shares the daily quota (below) with the cold start.",
           "pv_coldstart": "Threshold (available surplus) above which — in addition to the fixed morning start — a cold start happens during the day if the water is below the elevated target. Debounces with the full debounce time, honours the same anti-short-cycle guard as the morning start and the same daily quota.",
           "pv_max_starts": "How many ladder-triggered starts (morning start + cold start together) are allowed per day — default 1, for \"as few compressor cycles as possible\". Device-initiated starts don't count.",
-          "pv_night_floor": "Setpoint the ladder drops to after a completed cycle, until the next start/morning start (instead of the normal target) — prevents reheating overnight without sun. Must be above the critical emergency-reheat temperature; the hard floor always remains the emergency reheat.",
           "pv_min_off": "Anti-short-cycle for EVERY setpoint raise while the pump is off (morning start AND cold start): waits until the compressor has been off at least this long. Daytime raises while already running (piggyback) are unaffected.",
           "pv_escalation": "What gets added once surplus passes the boost threshold. None: just the elevated target (the pump stays at max. 65 °C). Boost: heat pump + heater **together**, at the same target as Elevated — a pure power sink for substantial surplus, not its own temperature tier.",
           "pv_boost_only_negative_price": "If a negative-price sensor is selected (below) and this is checked, Boost fires **only** during the negative-price window. Without a selected sensor Boost then **never** fires — check the sensor is set first.",
@@ -184,8 +179,7 @@
       "pv_sensor_required": "Please select a PV surplus sensor before enabling the control.",
       "temp_order_normal": "The elevated target temperature must be higher than the normal target temperature — otherwise there is no middle tier and the control tiers collapse.",
       "temp_order_high": "The boost target temperature must not be below the elevated target temperature.",
-      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw.",
-      "night_floor_too_low": "The night-window setpoint floor must be above the critical emergency-reheat temperature — otherwise the night setback would undercut its hard floor."
+      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw."
     }
   },
   "selector": {

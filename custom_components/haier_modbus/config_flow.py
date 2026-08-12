@@ -55,7 +55,6 @@ from .const import (
     CONF_PV_MORNING_ENABLED,
     CONF_PV_MORNING_TIME,
     CONF_PV_NEGATIVE_PRICE_SENSOR,
-    CONF_PV_NIGHT_FLOOR,
     CONF_PV_POWER_ENTITY,
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
@@ -88,7 +87,6 @@ from .const import (
     DEFAULT_PV_MODE,
     DEFAULT_PV_MORNING_ENABLED,
     DEFAULT_PV_MORNING_TIME,
-    DEFAULT_PV_NIGHT_FLOOR,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
@@ -264,8 +262,6 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
                              default=o.get(CONF_PV_COLDSTART, DEFAULT_PV_COLDSTART)): _WATT,
                 vol.Optional(CONF_PV_MAX_STARTS,
                              default=o.get(CONF_PV_MAX_STARTS, DEFAULT_PV_MAX_STARTS)): _STARTS,
-                vol.Optional(CONF_PV_NIGHT_FLOOR,
-                             default=o.get(CONF_PV_NIGHT_FLOOR, DEFAULT_PV_NIGHT_FLOOR)): _TEMP_WP,
                 vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
                 vol.Optional(CONF_PV_MIN_OFF, default=o.get(CONF_PV_MIN_OFF, DEFAULT_PV_MIN_OFF)): int,
                 vol.Optional(CONF_PV_ESCALATION,
@@ -308,20 +304,15 @@ def _pv_coordinator_error(merged: dict[str, Any]) -> str | None:
     - ``pv_high`` muss die Heizstab-Nennleistung + 50 W decken – sonst schaltet der
       Heizstab in den Netzbezug hinein ab. Die Laufzeit-Klemme in ``pv.py`` bleibt
       als zweites Netz bestehen (falls die Heizstab-Leistung später geändert wird).
-    - ``pv_night_floor`` muss über der kritischen Notheizungs-Temperatur liegen –
-      sonst unterläuft die Nachtabsenkung deren harten Boden.
     """
     try:
         pv_high = float(merged.get(CONF_PV_HIGH, DEFAULT_PV_HIGH))
         heater_power = float(merged.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER))
-        night_floor = float(merged.get(CONF_PV_NIGHT_FLOOR, DEFAULT_PV_NIGHT_FLOOR))
         critical = float(merged.get(CONF_EMERGENCY_CRITICAL, DEFAULT_EMERGENCY_CRITICAL))
     except (TypeError, ValueError):
         return None
     if pv_high < heater_power + 50:
         return "pv_high_too_low"
-    if night_floor <= critical:
-        return "night_floor_too_low"
     return None
 
 

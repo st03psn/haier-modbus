@@ -21,10 +21,12 @@ Normalisierung.
 - **Rückfall auf Basis + ECO, sobald ein Zyklus endet** (AP6b) – auch mitten am Tag, damit
   der Tagesplan hält. Ein erneutes Anheben muss Anti-Takt und Tageskontingent erneut
   passieren.
-- **Nachtabsenkung** (AP6c): ab dem Rückfall bis zum nächsten Start/Morgen-Start gilt statt
-  der Basis-Zieltemperatur ein niedrigerer Boden (``pv_night_floor``) – das Gerät sieht
-  keinen Bedarf und heizt nicht in die Nacht nach (Beleg: Feldmessung, Nachheizung um 4 Uhr
-  ohne jede Sonne). Der harte Boden bleibt ``emergency.py`` (kritische Temperatur).
+- **Nachts gilt schlicht die Basis-Zieltemperatur in ECO** – es gibt bewusst *keine*
+  zusätzliche Nachtabsenkung. Der Rückfall auf Basis+ECO (oben) ist bereits das
+  Nachtverhalten; ein noch tieferer Boden brächte PV-seitig nichts (den Fall „Speicher
+  morgens voll bei 50 °C, Sonne kommt" deckt der Tages-Kaltstart ab) und nähme nur die
+  Reserve für ungewöhnlich hohen Warmwasserbedarf. Fällt die Temperatur nachts unter die
+  Basis, heizt das Gerät regulär nach; wird es kritisch, eskaliert ``emergency.py``.
 
 **Schicht 2 — Heizstab/Boost, auf dem *normalisierten* Überschuss ("verfügbar"):**
 - Der Überschusssensor ist einspeisungsbasiert (Eigenaufnahme bereits abgezogen) – der
@@ -92,7 +94,6 @@ from .const import (
     CONF_PV_MORNING_ENABLED,
     CONF_PV_MORNING_TIME,
     CONF_PV_NEGATIVE_PRICE_SENSOR,
-    CONF_PV_NIGHT_FLOOR,
     CONF_PV_POWER_ENTITY,
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
@@ -106,7 +107,6 @@ from .const import (
     DEFAULT_PV_MIN_OFF,
     DEFAULT_PV_MORNING_ENABLED,
     DEFAULT_PV_MORNING_TIME,
-    DEFAULT_PV_NIGHT_FLOOR,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_NORMAL,
     DOMAIN,
@@ -173,9 +173,6 @@ class PvController:
         self._coldstart_cand: bool | None = None
         self._coldstart_since = None
         self._coldstart_ready = False
-        # Nachtfenster (AP6c): ab dem Rückfall auf Basis bis zum nächsten Start/
-        # Morgen-Start gilt der Sollwert-Boden statt der Basis-Zieltemperatur.
-        self._night = False
         # Anti-Takt (jetzt für jede Anhebung bei stehender WP relevant, nicht mehr
         # nur für den Morgen-Start).
         self._off_since = None
@@ -277,7 +274,6 @@ class PvController:
         self._coldstart_cand = None
         self._coldstart_since = None
         self._coldstart_ready = False
-        self._night = False
         self._hold_run = False
         # Manuellen Sollwert-Schutz beim Verlassen des Coordinator-Modus lösen.
         self._manual_hold = False
@@ -477,27 +473,18 @@ class PvController:
         p_heater = self._heater_power_watts(o, p_heater_nominal)
         available = surplus + (p_heater if self._heater_on else 0.0)
 
-        # War das Nachtfenster (AP6c) schon VOR diesem Poll aktiv? Wichtig für Schritt 5
-        # unten: der Rückfall-Poll selbst (AP6b) landet explizit auf der Basis-
-        # Zieltemperatur – der niedrigere Boden gilt erst ab dem nächsten Poll, sobald
-        # das Nachtfenster bereits (durchgängig) aktiv ist. Sonst würde derselbe Poll
-        # beide Effekte überlagern und der Sollwert spränge in einem Schritt von der
-        # laufenden Stufe direkt auf den Boden statt sichtbar erst auf die Basis.
-        night_was_active = self._night
-
-        # Stillstand-Zeitstempel pflegen (Anti-Takt) + Tagesplan-Rückfall (AP6b/6c).
+        # Stillstand-Zeitstempel pflegen (Anti-Takt) + Tagesplan-Rückfall (AP6b).
         if running:
             self._off_since = None
         elif self._was_running:
             self._off_since = now
             self._hold_run = False
             # Zyklus abgeschlossen -> Sollwert/Modus zurück auf Basis, auch mitten am
-            # Tag (AP6b); ab jetzt gilt das Nachtfenster (Sollwert-Boden statt Basis),
-            # bis der nächste Start/Morgen-Start es wieder aufhebt (AP6c).
+            # Tag (AP6b). Damit gilt nachts die Basis-Zieltemperatur in ECO – bewusst
+            # ohne zusätzliche Absenkung, s. Modul-Docstring.
             self._wp_target = t_base
             self._wp_cand = None
             self._wp_since = None
-            self._night = True
         self._was_running = running
 
         # WP-Zyklus-Ziel aus dem Ist ableiten, falls noch nicht bekannt (frischer
@@ -531,23 +518,25 @@ class PvController:
             self._manual_hold = False
             self._manual_day = None
             self._last_written = None
-            if (water < t_base and current < t_normal
+            # Der Morgen-Start ist der GARANTIERTE Tagesstart, keine Überschuss-Reaktion:
+            # deshalb Basis-Zieltemperatur in ECO (nicht Erhöht/AUTO). Sonst lüde er an
+            # trüben Tagen den vollen Speicher aus dem Netz. Die Anhebung auf Erhöht +
+            # AUTO passiert danach von selbst über den Piggyback-Zweig in Schicht 1 –
+            # OHNE erneutes ``_register_start()`` (die WP läuft dann bereits).
+            #
+            # WICHTIG – ``int(current) != target``: Seit die Nachtabsenkung entfallen
+            # ist, steht der Sollwert nachts ohnehin schon auf der Basis. Ohne diese
+            # Prüfung schriebe der Morgen-Start 50 auf 50 (wirkungslos), verbrauchte
+            # dabei aber das Tageskontingent – und der überschussgetriebene Kaltstart
+            # käme den ganzen Tag nicht mehr zum Zug. Ein Start wird deshalb nur
+            # gezählt, wenn der Sollwert tatsächlich angehoben wird.
+            target = int(min(max(int(t_base), SET_TEMP_MIN), SET_TEMP_MAX))
+            if (water < t_base and current < t_normal and int(current) != target
                     and self._starts_today(now.date()) < max_starts
                     and self._start_allowed(o, running, now)):
-                # Der Morgen-Start ist der GARANTIERTE Tagesstart, keine Überschuss-
-                # Reaktion: deshalb Basis-Zieltemperatur in ECO (nicht Erhöht/AUTO).
-                # Sonst lüde er an trüben Tagen den vollen Speicher aus dem Netz.
-                # Die Anhebung auf Erhöht + AUTO passiert danach von selbst über den
-                # Piggyback-Zweig in Schicht 1 – und zwar OHNE erneutes
-                # ``_register_start()``, verbraucht also kein weiteres Tageskontingent
-                # (die WP läuft dann bereits, es ist kein neuer Verdichterstart).
-                # Wirksam ist das Schreiben der Basis nur, weil die Nachtabsenkung den
-                # Sollwert zuvor auf ``pv_night_floor`` gedrückt hat.
                 self._wp_target = t_base
-                target = int(min(max(int(t_base), SET_TEMP_MIN), SET_TEMP_MAX))
                 await self._write_setpoint(coordinator, target)
                 await self._register_start(now.date())
-                self._night = False
                 await self._apply_mode(coordinator, data, MODE_ECO, target)
                 _LOGGER.debug("PV: Morgen-Start Soll -> %d (ECO, Überschuss %.0f W)", target, surplus)
                 self._announce(coordinator, target, surplus, up=True)
@@ -587,7 +576,6 @@ class PvController:
             target = int(min(max(int(t_normal), SET_TEMP_MIN), SET_TEMP_MAX))
             await self._write_setpoint(coordinator, target)
             await self._register_start(now.date())
-            self._night = False
             await self._apply_mode(coordinator, data, MODE_AUTO, target)
             _LOGGER.debug("PV: Kaltstart Soll -> %d (Überschuss %.0f W)", target, surplus)
             self._announce(coordinator, target, surplus, up=True)
@@ -644,15 +632,6 @@ class PvController:
                               int(current))
 
         effective = self._wp_target
-        if night_was_active and effective <= t_base + 0.5:
-            # AP6c: Nachtfenster – Boden statt Basis, solange noch keine neue Anhebung
-            # erfolgt ist. ``night_was_active`` (Stand vor diesem Poll) statt
-            # ``self._night``: der Rückfall-Poll selbst (AP6b, oben) landet sichtbar auf
-            # der Basis-Zieltemperatur, der Boden greift erst ab dem nächsten Poll, in
-            # dem das Nachtfenster bereits durchgängig aktiv ist. Nie höher als die
-            # Basis-Zieltemperatur ansetzen.
-            night_floor = float(o.get(CONF_PV_NIGHT_FLOOR, DEFAULT_PV_NIGHT_FLOOR))
-            effective = min(effective, night_floor)
         target = int(min(max(int(effective), SET_TEMP_MIN), SET_TEMP_MAX))
 
         # Halte-Sperre (siehe Bootstrap oben): ein beim Reload bereits laufender
