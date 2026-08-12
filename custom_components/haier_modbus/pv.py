@@ -671,13 +671,22 @@ class PvController:
 
         # 7) Modus ECO/AUTO nach WP-Zyklus-Stufe (AP4) – s. _apply_mode für Rangfolge
         #    und die harte Invariante.
-        if self._wp_target >= t_normal - 0.5:       # Erhöht (bzw. Boost, gleiche Zieltemp)
-            want_mode = MODE_AUTO
-        elif self._wp_target <= t_base + 0.5:       # Basis
-            want_mode = MODE_ECO
-        else:                                        # Bootstrap-Zwischenwert: konservativ ECO
-            want_mode = MODE_ECO
-        await self._apply_mode(coordinator, data, want_mode, target)
+        #    WICHTIG: dieselben Sperren wie beim Sollwert oben. Ein manueller Eingriff
+        #    umfasst in der Praxis Sollwert UND Modus (am Display/in HA in einem Zug
+        #    gesetzt); würde die Leiter hier weiterschreiben, zöge sie ein von Hand
+        #    gesetztes AUTO wieder auf ECO zurück, während sie den Sollwert brav in Ruhe
+        #    lässt – der Schutz wäre nur halb wirksam. Ebenso beim gehaltenen Zyklus
+        #    (``_hold_run``): ein laufender Zyklus wird nicht mitten drin umgestellt.
+        #    Der Heizstab (Schritt 6) bleibt bewusst aktiv – er ist überschussgeführt und
+        #    hängt nicht am manuell gesetzten Sollwert.
+        if not self._manual_hold and not self._hold_run:
+            if self._wp_target >= t_normal - 0.5:   # Erhöht (bzw. Boost, gleiche Zieltemp)
+                want_mode = MODE_AUTO
+            elif self._wp_target <= t_base + 0.5:   # Basis
+                want_mode = MODE_ECO
+            else:                                    # Bootstrap-Zwischenwert: konservativ ECO
+                want_mode = MODE_ECO
+            await self._apply_mode(coordinator, data, want_mode, target)
 
         # 8) Live-Status für den Diagnose-Sensor ableiten.
         if self._manual_hold:

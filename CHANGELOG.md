@@ -26,6 +26,13 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 - **Kaltstart-Schwelle `pv_coldstart` auf 600 W** (vorher 500 W) – maximale
   Verdichteraufnahme mit etwas Puffer. Gemessen wird dabei der Überschuss **ohne**
   laufende Wärmepumpe, weil der Verdichter beim Kaltstart noch steht.
+- **Manueller Eingriff schützt jetzt auch den Modus, nicht nur den Sollwert.** Ein
+  Eingriff am Display oder in HA umfasst in der Praxis beides in einem Zug (belegt:
+  Sollwert 50→62 und ECO→AUTO in derselben Sekunde). Die Leiter ließ den Sollwert
+  korrekt in Ruhe, zog das von Hand gesetzte AUTO aber wieder auf ECO zurück – der
+  Schutz war damit nur halb wirksam. Die Modus-Schreibzugriffe unterliegen jetzt
+  denselben Sperren wie der Sollwert (`_manual_hold`, `_hold_run`). Der Heizstab bleibt
+  bewusst weiter überschussgeführt, weil er nicht am manuellen Sollwert hängt.
 
 > **Hinweis zum Release `v1.16.0`:** Das GitHub-Release mit diesem Tag wurde versehentlich
 > auf einem älteren Commit (Stand 1.14.0) erzeugt, bevor der zugehörige PR gemergt war –
