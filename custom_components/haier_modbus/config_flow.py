@@ -44,6 +44,8 @@ from .const import (
     CONF_PORT,
     CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
     CONF_PV_COLDSTART,
+    CONF_PV_COLDSTART_DELTA,
+    CONF_PV_ABORT_DEBOUNCE,
     CONF_PV_DEBOUNCE,
     CONF_PV_ESCALATION,
     CONF_PV_HEATER_POWER,
@@ -77,6 +79,8 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE,
     DEFAULT_PV_COLDSTART,
+    DEFAULT_PV_COLDSTART_DELTA,
+    DEFAULT_PV_ABORT_DEBOUNCE,
     DEFAULT_PV_DEBOUNCE,
     DEFAULT_PV_ESCALATION,
     DEFAULT_PV_HEATER_POWER,
@@ -183,6 +187,10 @@ _MINUTES = selector.NumberSelector(
                                   unit_of_measurement="min", mode=selector.NumberSelectorMode.BOX)
 )
 # Tageskontingent für von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart, AP6a).
+_KELVIN = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=0, max=30, step=1, unit_of_measurement="K",
+                                  mode=selector.NumberSelectorMode.SLIDER)
+)
 _STARTS = selector.NumberSelector(
     selector.NumberSelectorConfig(min=1, max=5, step=1, mode=selector.NumberSelectorMode.BOX)
 )
@@ -260,6 +268,10 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
                              default=o.get(CONF_PV_MORNING_TIME, DEFAULT_PV_MORNING_TIME)): _TIME,
                 vol.Optional(CONF_PV_COLDSTART,
                              default=o.get(CONF_PV_COLDSTART, DEFAULT_PV_COLDSTART)): _WATT,
+                vol.Optional(CONF_PV_COLDSTART_DELTA,
+                             default=o.get(CONF_PV_COLDSTART_DELTA, DEFAULT_PV_COLDSTART_DELTA)): _KELVIN,
+                vol.Optional(CONF_PV_ABORT_DEBOUNCE,
+                             default=o.get(CONF_PV_ABORT_DEBOUNCE, DEFAULT_PV_ABORT_DEBOUNCE)): _MINUTES,
                 vol.Optional(CONF_PV_MAX_STARTS,
                              default=o.get(CONF_PV_MAX_STARTS, DEFAULT_PV_MAX_STARTS)): _STARTS,
                 vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,

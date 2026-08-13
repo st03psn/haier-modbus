@@ -12,12 +12,16 @@ Normalisierung.
   Erhöht/AUTO: der Morgen-Start ist der garantierte Tagesstart, keine Überschuss-Reaktion
   (sonst käme an trüben Tagen die volle Ladung aus dem Netz). Die Anhebung auf Erhöht +
   AUTO folgt bei Überschuss über den Piggyback-Zweig – ohne neues Startkontingent.
-- **Tages-Kaltstart (neu, AP6a):** überschussgetrieben, aber streng verriegelt – Wasser <
-  Erhöht-Ziel, voll entprellter Überschuss ≥ ``pv_coldstart``, Anti-Takt erfüllt UND das
-  Tageskontingent (``pv_max_starts``, Default 1) noch nicht ausgeschöpft. Morgen-Start und
-  Kaltstart teilen sich dasselbe Kontingent – zusammen i. d. R. **ein Lauf/Tag**
-  (Verdichterschonung).
+- **Tages-Kaltstart:** überschussgetrieben, mit **Mindestdefizit** – Wasser ≤
+  ``Erhöht-Ziel − pv_coldstart_delta`` (Default 10 K), voll entprellter Überschuss ≥
+  ``pv_coldstart``, Anti-Takt erfüllt UND das Tageskontingent (``pv_max_starts``,
+  Default 3) noch nicht ausgeschöpft. Das Defizit verhindert Starts für wenige Grad im
+  schlechtesten Teil der Kennlinie; das Kontingent ist nur noch Notbremse, denn die
+  eigentliche Taktbremse ist ``pv_min_off``.
 - **Anheben Normal->Erhöht nur bei LAUFENDER WP** (Piggyback) + Überschuss ≥ Halte-Puffer.
+- **Abbruch eines laufenden Zyklus ist träge** (``pv_abort_debounce``, Default 20 min statt
+  ``pv_debounce``): Läuft der Verdichter, ist sein Start bezahlt – eine durchziehende Wolke
+  darf ihn nicht abwürgen. Gegenstück zur Heizstab-Asymmetrie in Schicht 2.
 - **Rückfall auf Basis + ECO, sobald ein Zyklus endet** (AP6b) – auch mitten am Tag, damit
   der Tagesplan hält. Ein erneutes Anheben muss Anti-Takt und Tageskontingent erneut
   passieren.
@@ -81,8 +85,10 @@ import homeassistant.util.dt as dt_util
 
 from .const import (
     BIT_BOOST,
+    CONF_PV_ABORT_DEBOUNCE,
     CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
     CONF_PV_COLDSTART,
+    CONF_PV_COLDSTART_DELTA,
     CONF_PV_DEBOUNCE,
     CONF_PV_ESCALATION,
     CONF_PV_HEATER_POWER,
@@ -98,7 +104,9 @@ from .const import (
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_NORMAL,
+    DEFAULT_PV_ABORT_DEBOUNCE,
     DEFAULT_PV_COLDSTART,
+    DEFAULT_PV_COLDSTART_DELTA,
     DEFAULT_PV_DEBOUNCE,
     DEFAULT_PV_HEATER_POWER,
     DEFAULT_PV_HIGH,
@@ -543,13 +551,24 @@ class PvController:
                 self._set_status("base", surplus, target, running, False)
                 return
 
-        # 2) Tages-Kaltstart (AP6a): überschussgetrieben, aber streng verriegelt – teilt
-        #    sich das Tageskontingent mit dem Morgen-Start (zusammen i. d. R. 1 Lauf/Tag,
-        #    Verdichterschonung). Nutzt bewusst denselben Anti-Takt-Guard wie der
-        #    Morgen-Start (``_start_allowed`` gilt jetzt für jede Anhebung bei stehender WP).
+        # 2) Tages-Kaltstart (AP6a): überschussgetrieben, mit MINDESTDEFIZIT.
+        #    Nutzt denselben Anti-Takt-Guard wie der Morgen-Start (``_start_allowed``
+        #    gilt für jede Anhebung bei stehender WP).
+        #
+        #    Warum ein Mindestdefizit (v1.16.3): Die frühere Bedingung ``water < t_normal``
+        #    war fast immer wahr, weil ``t_normal`` typischerweise auf der Verdichtergrenze
+        #    (65 °C) steht und der Speicher nie exakt dort liegt – er verliert ständig
+        #    Wärme. Real belegt am 12.08.: Bei Wasser 61 °C und Ziel 65 °C wurde der
+        #    Verdichter für **4 K** angeworfen. Das ist die schlechteste Wärme des Tages:
+        #    oberhalb 60 °C fällt die Aufheizrate laut Feldmessung von 6,0 auf 3,9 K/h
+        #    (schlechtester COP), die obersten Grad haben den höchsten Stillstandsverlust,
+        #    und die Anlaufverluste verteilen sich auf sehr wenig gewonnene Wärme.
+        #    Der Kaltstart soll einen *spürbar entleerten* Speicher laden, nicht die
+        #    letzten Grad nachpolieren.
         coldstart_w = float(o.get(CONF_PV_COLDSTART, DEFAULT_PV_COLDSTART))
+        coldstart_delta = float(o.get(CONF_PV_COLDSTART_DELTA, DEFAULT_PV_COLDSTART_DELTA))
         coldstart_eligible = (
-            not running and water < t_normal
+            not running and water <= t_normal - coldstart_delta
             and self._starts_today(now.date()) < max_starts
         )
         coldstart_want = (
@@ -593,8 +612,31 @@ class PvController:
             wp_want = t_normal if (running and surplus >= hold) else t_base
         else:                                        # Bootstrap-Zwischenwert (kein Kaltstart!)
             wp_want = t_normal if (running and surplus >= hold) else t_base
+
+        # Abbruch eines LAUFENDEN Zyklus braucht deutlich länger als eine normale
+        # Stufenänderung (v1.16.3). Real belegt am 13.08.: Kaltstart 10:53, WP läuft
+        # 10:56, um 11:00 bricht der Überschuss von 10 kW auf null ein (Wolke), nach
+        # 5 min Entprellung fällt der Sollwert auf Basis (50) unter die Wassertemperatur
+        # (60) -> Zyklus nach 10 Minuten abgewürgt. Ab 11:05 lag der Überschuss wieder
+        # bei 2700 W im Mittel – die beste Stunde des Tages blieb ungenutzt.
+        #
+        # Läuft der Verdichter, ist sein Start bereits bezahlt; ihn wegen einer
+        # durchziehenden Wolke abzubrechen verschenkt genau diese Investition und
+        # kostet sie beim Neustart erneut. Deshalb: Abbrechen träge (Default 20 min),
+        # alles andere unverändert schnell. Gegenstück zur Heizstab-Asymmetrie in
+        # Schicht 2 – dort ist Ausschalten sofort (Netzbezug vermeiden), hier ist
+        # Abbrechen bewusst langsam (Start nicht verschenken).
+        aborting_running_cycle = (
+            running
+            and self._wp_target >= t_normal - 0.5
+            and wp_want <= t_base + 0.5
+        )
+        eff_debounce_s = (
+            o.get(CONF_PV_ABORT_DEBOUNCE, DEFAULT_PV_ABORT_DEBOUNCE) * 60
+            if aborting_running_cycle else debounce_s
+        )
         self._wp_target = self._debounced(
-            "_wp_cand", "_wp_since", wp_want, now, debounce_s, self, self._wp_target
+            "_wp_cand", "_wp_since", wp_want, now, eff_debounce_s, self, self._wp_target
         )
 
         # 4) Schicht 2 – Heizstab/Boost, asymmetrisch entprellt (Ein = volle Zeit, Aus =
