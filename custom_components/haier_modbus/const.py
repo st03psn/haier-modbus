@@ -97,6 +97,11 @@ CONF_PV_COLDSTART: Final = "pv_coldstart"      # Überschuss (W), ab dem tagsüb
 CONF_PV_MAX_STARTS: Final = "pv_max_starts"    # max. von der Leiter ausgelöste Starts/Tag
 # Mindestdefizit (K) unter der Erhöht-Zieltemperatur, ab dem der Kaltstart feuern darf.
 CONF_PV_COLDSTART_DELTA: Final = "pv_coldstart_delta"
+# Entprellzeit (min) speziell fuer den ABBRUCH eines laufenden Zyklus. Bewusst viel
+# laenger als pv_debounce: Laeuft der Verdichter, ist sein Start bereits bezahlt -
+# eine durchziehende Wolke soll ihn nicht abwuergen (Beleg: 13.08., Zyklus nach
+# 10 min beendet, danach 2700 W Mittel ungenutzt).
+CONF_PV_ABORT_DEBOUNCE: Final = "pv_abort_debounce"
 # 600 W = maximale Verdichteraufnahme mit etwas Puffer (Feldwert). Gemessen wird
 # beim Kaltstart der Überschuss OHNE laufende WP – der Verdichter steht ja noch,
 # seine Aufnahme ist im einspeisungsbasierten Sensor also noch nicht enthalten.
@@ -110,6 +115,7 @@ DEFAULT_PV_COLDSTART_DELTA: Final = 10
 # begrenzende Größe – schädlich ist Takten (viele Starts je Stunde), und davor schützt
 # ``pv_min_off``. Der Zähler bleibt als Notbremse gegen Fehlkonfiguration.
 DEFAULT_PV_MAX_STARTS: Final = 3
+DEFAULT_PV_ABORT_DEBOUNCE: Final = 20
 
 # Executor: Regelprogramme, die ein HEMS (oder der Nutzer) setzt; die Integration
 # übersetzt das Programm idempotent in die Mechanik (Sollwert/Modus/Boost).
@@ -199,6 +205,7 @@ LIVE_OPTION_KEYS: Final = frozenset({
     CONF_PV_COLDSTART,
     CONF_PV_MAX_STARTS,
     CONF_PV_COLDSTART_DELTA,
+    CONF_PV_ABORT_DEBOUNCE,
     CONF_EMERGENCY_MODE,
 })
 

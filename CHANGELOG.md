@@ -16,6 +16,18 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   haben den höchsten Stillstandsverlust, und die Anlaufverluste verteilen sich auf sehr
   wenig Ertrag. Mit 10 K liegt die Auslöseschwelle bei 55 °C; der Fall, für den der
   Kaltstart gedacht ist (Speicher mittags halbleer, Sonne da), bleibt abgedeckt.
+- **Eine durchziehende Wolke bricht keinen laufenden Zyklus mehr ab** (neue Option
+  `pv_abort_debounce`, Default **20 min**). **Real belegt am 13.08.:** Kaltstart um 10:53,
+  Wärmepumpe läuft ab 10:56 – um 11:00 bricht der Überschuss von 10 kW auf null ein. Nach
+  der normalen Entprellzeit von 5 Minuten fiel der Sollwert auf die Basis (50 °C) unter die
+  Wassertemperatur (60 °C), und der Zyklus war nach zehn Minuten beendet. Ab 11:05 lag der
+  Überschuss wieder bei 2 700 W im Mittel – die **beste Stunde des Tages** blieb ungenutzt,
+  weil das Startkontingent bereits verbraucht war. Läuft der Verdichter, ist sein Start
+  bereits bezahlt; ihn wegen einer Wolke abzubrechen verschenkt genau diese Investition.
+  Der Abbruch eines laufenden Zyklus braucht deshalb jetzt eine eigene, viel längere
+  Wartezeit – ein echter Sonnenuntergang beendet ihn weiterhin. Gegenstück zur
+  Heizstab-Asymmetrie: dort ist Ausschalten sofort (Netzbezug vermeiden), hier ist
+  Abbrechen bewusst träge (Start nicht verschenken).
 - **`pv_max_starts` von 1 auf 3 angehoben.** Die Begrenzung auf einen Lauf pro Tag war zu
   streng begründet: Bei wenigen langen Zyklen täglich ist die Verdichterlebensdauer nicht
   die begrenzende Größe – schädlich ist **Takten** (viele Starts je Stunde), und davor

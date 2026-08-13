@@ -19,6 +19,9 @@ Normalisierung.
   schlechtesten Teil der Kennlinie; das Kontingent ist nur noch Notbremse, denn die
   eigentliche Taktbremse ist ``pv_min_off``.
 - **Anheben Normal->Erhöht nur bei LAUFENDER WP** (Piggyback) + Überschuss ≥ Halte-Puffer.
+- **Abbruch eines laufenden Zyklus ist träge** (``pv_abort_debounce``, Default 20 min statt
+  ``pv_debounce``): Läuft der Verdichter, ist sein Start bezahlt – eine durchziehende Wolke
+  darf ihn nicht abwürgen. Gegenstück zur Heizstab-Asymmetrie in Schicht 2.
 - **Rückfall auf Basis + ECO, sobald ein Zyklus endet** (AP6b) – auch mitten am Tag, damit
   der Tagesplan hält. Ein erneutes Anheben muss Anti-Takt und Tageskontingent erneut
   passieren.
@@ -82,6 +85,7 @@ import homeassistant.util.dt as dt_util
 
 from .const import (
     BIT_BOOST,
+    CONF_PV_ABORT_DEBOUNCE,
     CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
     CONF_PV_COLDSTART,
     CONF_PV_COLDSTART_DELTA,
@@ -100,6 +104,7 @@ from .const import (
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_NORMAL,
+    DEFAULT_PV_ABORT_DEBOUNCE,
     DEFAULT_PV_COLDSTART,
     DEFAULT_PV_COLDSTART_DELTA,
     DEFAULT_PV_DEBOUNCE,
@@ -607,8 +612,31 @@ class PvController:
             wp_want = t_normal if (running and surplus >= hold) else t_base
         else:                                        # Bootstrap-Zwischenwert (kein Kaltstart!)
             wp_want = t_normal if (running and surplus >= hold) else t_base
+
+        # Abbruch eines LAUFENDEN Zyklus braucht deutlich länger als eine normale
+        # Stufenänderung (v1.16.3). Real belegt am 13.08.: Kaltstart 10:53, WP läuft
+        # 10:56, um 11:00 bricht der Überschuss von 10 kW auf null ein (Wolke), nach
+        # 5 min Entprellung fällt der Sollwert auf Basis (50) unter die Wassertemperatur
+        # (60) -> Zyklus nach 10 Minuten abgewürgt. Ab 11:05 lag der Überschuss wieder
+        # bei 2700 W im Mittel – die beste Stunde des Tages blieb ungenutzt.
+        #
+        # Läuft der Verdichter, ist sein Start bereits bezahlt; ihn wegen einer
+        # durchziehenden Wolke abzubrechen verschenkt genau diese Investition und
+        # kostet sie beim Neustart erneut. Deshalb: Abbrechen träge (Default 20 min),
+        # alles andere unverändert schnell. Gegenstück zur Heizstab-Asymmetrie in
+        # Schicht 2 – dort ist Ausschalten sofort (Netzbezug vermeiden), hier ist
+        # Abbrechen bewusst langsam (Start nicht verschenken).
+        aborting_running_cycle = (
+            running
+            and self._wp_target >= t_normal - 0.5
+            and wp_want <= t_base + 0.5
+        )
+        eff_debounce_s = (
+            o.get(CONF_PV_ABORT_DEBOUNCE, DEFAULT_PV_ABORT_DEBOUNCE) * 60
+            if aborting_running_cycle else debounce_s
+        )
         self._wp_target = self._debounced(
-            "_wp_cand", "_wp_since", wp_want, now, debounce_s, self, self._wp_target
+            "_wp_cand", "_wp_since", wp_want, now, eff_debounce_s, self, self._wp_target
         )
 
         # 4) Schicht 2 – Heizstab/Boost, asymmetrisch entprellt (Ein = volle Zeit, Aus =
