@@ -95,11 +95,21 @@ DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE: Final = False
 # --- Tagesplan: Kaltstart + Rückfall auf Basis/ECO (v1.16.0) ----------------
 CONF_PV_COLDSTART: Final = "pv_coldstart"      # Überschuss (W), ab dem tagsüber kalt gestartet wird
 CONF_PV_MAX_STARTS: Final = "pv_max_starts"    # max. von der Leiter ausgelöste Starts/Tag
+# Mindestdefizit (K) unter der Erhöht-Zieltemperatur, ab dem der Kaltstart feuern darf.
+CONF_PV_COLDSTART_DELTA: Final = "pv_coldstart_delta"
 # 600 W = maximale Verdichteraufnahme mit etwas Puffer (Feldwert). Gemessen wird
 # beim Kaltstart der Überschuss OHNE laufende WP – der Verdichter steht ja noch,
 # seine Aufnahme ist im einspeisungsbasierten Sensor also noch nicht enthalten.
 DEFAULT_PV_COLDSTART: Final = 600
-DEFAULT_PV_MAX_STARTS: Final = 1
+# 10 K: Der Kaltstart soll einen spürbar entleerten Speicher laden, nicht die letzten
+# Grad nachpolieren. Bei 200 l sind 10 K rund 2,3 kWh Wärme; 4 K wären nur 0,9 kWh –
+# und die im schlechtesten Teil der Kennlinie (oberhalb 60 °C nur noch 3,9 statt
+# 6,0 K/h, s. docs/geraete-grenzen.md) mit dem höchsten Stillstandsverlust.
+DEFAULT_PV_COLDSTART_DELTA: Final = 10
+# 3 statt 1: Verdichterlebensdauer ist bei wenigen langen Zyklen pro Tag NICHT die
+# begrenzende Größe – schädlich ist Takten (viele Starts je Stunde), und davor schützt
+# ``pv_min_off``. Der Zähler bleibt als Notbremse gegen Fehlkonfiguration.
+DEFAULT_PV_MAX_STARTS: Final = 3
 
 # Executor: Regelprogramme, die ein HEMS (oder der Nutzer) setzt; die Integration
 # übersetzt das Programm idempotent in die Mechanik (Sollwert/Modus/Boost).
@@ -188,6 +198,7 @@ LIVE_OPTION_KEYS: Final = frozenset({
     CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
     CONF_PV_COLDSTART,
     CONF_PV_MAX_STARTS,
+    CONF_PV_COLDSTART_DELTA,
     CONF_EMERGENCY_MODE,
 })
 
