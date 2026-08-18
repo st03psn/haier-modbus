@@ -97,25 +97,27 @@ CONF_PV_COLDSTART: Final = "pv_coldstart"      # Überschuss (W), ab dem tagsüb
 CONF_PV_MAX_STARTS: Final = "pv_max_starts"    # max. von der Leiter ausgelöste Starts/Tag
 # Mindestdefizit (K) unter der Erhöht-Zieltemperatur, ab dem der Kaltstart feuern darf.
 CONF_PV_COLDSTART_DELTA: Final = "pv_coldstart_delta"
-# Entprellzeit (min) speziell fuer den ABBRUCH eines laufenden Zyklus. Bewusst viel
-# laenger als pv_debounce: Laeuft der Verdichter, ist sein Start bereits bezahlt -
-# eine durchziehende Wolke soll ihn nicht abwuergen (Beleg: 13.08., Zyklus nach
-# 10 min beendet, danach 2700 W Mittel ungenutzt).
-CONF_PV_ABORT_DEBOUNCE: Final = "pv_abort_debounce"
+# Mindestlaufzeit (min): ein einmal gestarteter Zyklus wird garantiert so lange
+# gehalten, unabhängig vom Überschuss (v1.16.4, ersetzt die Abbruch-Entprellung aus
+# 1.16.3 – zwei einfache, symmetrische Zeiten statt einer verlängerten Entprellung).
+# Läuft der Verdichter, ist sein Start bereits bezahlt; eine durchziehende Wolke soll
+# ihn nicht abwürgen (Beleg: 13.08., Zyklus nach 10 min beendet, danach 2700 W Mittel
+# ungenutzt). Symmetrisch zu ``pv_min_off`` (Mindest-Stillstand vor dem nächsten Start).
+CONF_PV_MIN_RUN: Final = "pv_min_run"
 # 600 W = maximale Verdichteraufnahme mit etwas Puffer (Feldwert). Gemessen wird
 # beim Kaltstart der Überschuss OHNE laufende WP – der Verdichter steht ja noch,
 # seine Aufnahme ist im einspeisungsbasierten Sensor also noch nicht enthalten.
 DEFAULT_PV_COLDSTART: Final = 600
-# 10 K: Der Kaltstart soll einen spürbar entleerten Speicher laden, nicht die letzten
-# Grad nachpolieren. Bei 200 l sind 10 K rund 2,3 kWh Wärme; 4 K wären nur 0,9 kWh –
+# 7 K: Der Kaltstart soll einen spürbar entleerten Speicher laden, nicht die letzten
+# Grad nachpolieren. Bei 200 l sind 7 K rund 1,6 kWh Wärme; 4 K wären nur 0,9 kWh –
 # und die im schlechtesten Teil der Kennlinie (oberhalb 60 °C nur noch 3,9 statt
 # 6,0 K/h, s. docs/geraete-grenzen.md) mit dem höchsten Stillstandsverlust.
-DEFAULT_PV_COLDSTART_DELTA: Final = 10
+DEFAULT_PV_COLDSTART_DELTA: Final = 7
 # 3 statt 1: Verdichterlebensdauer ist bei wenigen langen Zyklen pro Tag NICHT die
 # begrenzende Größe – schädlich ist Takten (viele Starts je Stunde), und davor schützt
 # ``pv_min_off``. Der Zähler bleibt als Notbremse gegen Fehlkonfiguration.
 DEFAULT_PV_MAX_STARTS: Final = 3
-DEFAULT_PV_ABORT_DEBOUNCE: Final = 20
+DEFAULT_PV_MIN_RUN: Final = 30
 
 # Executor: Regelprogramme, die ein HEMS (oder der Nutzer) setzt; die Integration
 # übersetzt das Programm idempotent in die Mechanik (Sollwert/Modus/Boost).
@@ -205,7 +207,7 @@ LIVE_OPTION_KEYS: Final = frozenset({
     CONF_PV_COLDSTART,
     CONF_PV_MAX_STARTS,
     CONF_PV_COLDSTART_DELTA,
-    CONF_PV_ABORT_DEBOUNCE,
+    CONF_PV_MIN_RUN,
     CONF_EMERGENCY_MODE,
 })
 

@@ -5,6 +5,24 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.16.4] - 2026-08-14
+- **Mindestlaufzeit ersetzt die Abbruch-Entprellung aus 1.16.3.** `pv_abort_debounce`
+  entfällt, neu **`pv_min_run`** (Default **30 min**): ein einmal gestarteter Zyklus wird
+  garantiert so lange gehalten, unabhängig vom Überschuss. Symmetrisch zu `pv_min_off`
+  (Mindest-Stillstand vor dem nächsten Start) – zwei einfache, klar benannte Zeiten statt
+  einer verlängerten Entprellung. **Erneut real belegt am 14.08.:** derselbe Ablauf wie am
+  13.08. (Kaltstart, Wolke nach wenigen Minuten, Abbruch) – weil das Release zu diesem
+  Zeitpunkt noch den 1.16.2-Stand auslieferte (s. u.), griff der 1.16.3-Fix nicht.
+- **Kaltstart-Mindestdefizit `pv_coldstart_delta` von 10 auf 7 K gesenkt.** Bei Ziel 65 °C
+  liegt die Schwelle jetzt bei 58 °C statt 55 °C – mehr vom Speicherbereich zwischen Basis
+  und Erhöht-Ziel wird für den überschussgetriebenen Kaltstart nutzbar, auf Kosten von
+  etwas näher an die schlechteste Kennlinie heranreichenden Nachladungen.
+
+> **Hinweis zu `v1.16.3`:** Auch dieses Release wurde vor dem Merge des zugehörigen PRs
+> getaggt und enthielt bis zur Korrektur nur den Stand von **1.16.2** – Mindestdefizit,
+> Wolkenschutz und das gelockerte Startkontingent fehlten. Wer `v1.16.3` bereits installiert
+> hat, sollte auf **1.16.4** aktualisieren.
+
 ## [1.16.3] - 2026-08-13
 - **Kaltstart braucht jetzt ein Mindestdefizit** (neue Option `pv_coldstart_delta`,
   Default **10 K**). Die bisherige Bedingung `Wasser < Erhöht-Ziel` war fast immer wahr,
