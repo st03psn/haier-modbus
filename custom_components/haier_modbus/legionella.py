@@ -136,23 +136,38 @@ class LegionellaController:
             return MODE_ECO
         return MODE_AUTO
 
-    async def _restore(self, coordinator) -> None:
-        """Vorherigen Sollwert/Modus wiederherstellen (idempotent)."""
+    async def _restore(self, coordinator) -> bool:
+        """Vorherigen Sollwert/Modus wiederherstellen (idempotent).
+
+        Gibt True zurück, wenn **beide** Schreibzugriffe durchgingen. Der Aufrufer gibt
+        den Lauf erst dann frei – sonst bliebe der Speicher auf dem 65-°C-Sollwert
+        stehen, und die PV-Leiter würde diesen fremden Sollwert als manuellen Eingriff
+        werten und sich zurückziehen.
+        """
+        ok = True
         if self._saved_mode is not None:
-            await coordinator.write_value(REG_MODE, int(self._saved_mode))
+            ok &= await coordinator.write_value(REG_MODE, int(self._saved_mode))
         if self._saved_setpoint is not None:
-            await coordinator.write_value(REG_SET_TEMP, int(self._saved_setpoint))
+            ok &= await coordinator.write_value(REG_SET_TEMP, int(self._saved_setpoint))
+        return bool(ok)
 
     async def async_evaluate(self, coordinator, data: dict[int, int]) -> None:
         o = coordinator.entry.options
         if not o.get(CONF_LEGIONELLA_ENABLED, False):
             if self.active:
-                # Feature während eines Laufs abgeschaltet -> sauber freigeben.
-                await self._restore(coordinator)
+                # Feature während eines Laufs abgeschaltet -> sauber freigeben. Gelingt
+                # das Zurückschreiben nicht, bleibt der Lauf als aktiv markiert, damit der
+                # nächste Poll es erneut versucht – dasselbe Prinzip wie beim
+                # ``_releasing``-Handshake weiter unten. Den Speicher auf 65 °C stehen zu
+                # lassen wäre die schlechtere Alternative.
+                if not await self._restore(coordinator):
+                    return  # Status bleibt "running" – der Lauf ist noch nicht freigegeben
             self.active = False
             self._releasing = False
             self._run_started = None
             self._bottom_since = None
+            self._saved_setpoint = None
+            self._saved_mode = None
             self.status = {"state": "off"}
             return
 

@@ -1,6 +1,6 @@
 """Optionale PV-Überschuss-Steuerung (Coordinator-Modus) innerhalb der Integration.
 
-Seit v1.16.0 **vier Stufen** (``base`` -> ``Erhöht`` -> ``Boost``, ELEC ist keine
+Seit v1.16.0 **drei Stufen** (``base`` -> ``Erhöht`` -> ``Boost``, ELEC ist keine
 PV-Eskalation mehr, s. u.), geregelt nach PV-Überschuss (``sensor.pv_uberschuss_watt``,
 kappt bei 0):
 
@@ -292,16 +292,24 @@ class PvController:
         self._manual_day = None
         self._last_written = None
 
-    async def _write_setpoint(self, coordinator, target: int) -> None:
+    async def _write_setpoint(self, coordinator, target: int) -> bool:
         """Sollwert schreiben und als zuletzt SELBST geschriebenen Wert merken.
 
         Nur über diesen Pfad geschriebene Werte aktualisieren ``_last_written``;
         User-Wege (Number-/Water-Heater-Entity) laufen über
         ``coordinator.async_write_register`` und fassen ihn nicht an – so lässt
         sich ein fremder (manueller) Eingriff sicher unterscheiden.
+
+        ``_last_written`` wird **nur bei erfolgreichem Schreiben** fortgeschrieben:
+        Bei einem abgelehnten Zugriff bliebe sonst der alte Registerwert stehen,
+        während ``_last_written`` schon den neuen Zielwert trüge – die nächste
+        Auswertung hielte die Abweichung für einen manuellen Eingriff und die
+        Leiter würde sich für den Rest des Tages zurückziehen.
         """
-        await coordinator.write_value(REG_SET_TEMP, target)
-        self._last_written = target
+        ok = await coordinator.write_value(REG_SET_TEMP, target)
+        if ok:
+            self._last_written = target
+        return ok
 
     def _announce(self, coordinator, target: int, surplus: float, up: bool) -> None:
         """Sollwert-Wechsel ins HA-Logbuch (Dedup auf den Zielwert -> wenige Einträge)."""
@@ -440,8 +448,7 @@ class PvController:
             return
         if want_mode == MODE_AUTO:
             assert target <= WP_MAX_TEMP, "PV: AUTO nur mit Sollwert <= WP_MAX_TEMP (Invariante AP4)"
-        if mode != want_mode:
-            await coordinator.write_value(REG_MODE, want_mode)
+        if mode != want_mode and await coordinator.write_value(REG_MODE, want_mode):
             _LOGGER.debug("PV: Modus -> %s", "AUTO" if want_mode == MODE_AUTO else "ECO")
 
     async def async_evaluate(self, coordinator, data: dict[int, int]) -> None:
@@ -749,11 +756,17 @@ class PvController:
         if func is None:
             return
         on = bool(func & BIT_BOOST)
+        # Besitz-Merker nur bei erfolgreichem Schreiben umschalten: Bliebe er nach einem
+        # abgelehnten Zugriff falsch stehen, würde die Leiter entweder ein Bit löschen,
+        # das sie nie gesetzt hat, oder – schlimmer – vergessen, dass sie den Heizstab
+        # eingeschaltet hat, und ihn nie wieder ausschalten. Ein Fehlversuch wird beim
+        # nächsten Poll ohnehin wiederholt, weil sich weder ``on`` noch ``_heater_on``
+        # geändert haben.
         if self._heater_on and not on:
-            await coordinator.write_value(REG_FUNCTION, func | BIT_BOOST)
-            self._boost_applied = True
-            _LOGGER.debug("PV: Boost an (Überschuss %.0f W)", surplus)
+            if await coordinator.write_value(REG_FUNCTION, func | BIT_BOOST):
+                self._boost_applied = True
+                _LOGGER.debug("PV: Boost an (Überschuss %.0f W)", surplus)
         elif not self._heater_on and on and self._boost_applied:
-            await coordinator.write_value(REG_FUNCTION, func & ~BIT_BOOST)
-            self._boost_applied = False
-            _LOGGER.debug("PV: Boost aus")
+            if await coordinator.write_value(REG_FUNCTION, func & ~BIT_BOOST):
+                self._boost_applied = False
+                _LOGGER.debug("PV: Boost aus")

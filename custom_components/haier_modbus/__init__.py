@@ -229,6 +229,9 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
        Nachts gilt schlicht die Basis-Zieltemperatur in ECO – ein tieferer Boden
        brächte PV-seitig nichts (das deckt der Tages-Kaltstart ab) und nähme nur die
        Reserve für ungewöhnlich hohen Warmwasserbedarf.
+    4c. Abbruch-Entprellung entfernt (ab v1.16.4): ``pv_abort_debounce`` (in v1.16.3
+       eingeführt) entfällt ersatzlos, ersetzt durch das symmetrische Paar
+       ``pv_min_run``/``pv_min_off``.
     5. PV-Eskalation ``elec`` entfällt (ab v1.16.0, AP5): ELEC ist keine
        PV-Eskalation mehr, sondern eine Notfall-Option in ``emergency.py``
        (``CONF_EMERGENCY_MODE``). Alte ``pv_escalation: elec`` wird auf ``boost``
@@ -267,7 +270,7 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
         changed = True
     for legacy in ("pv_bwwp_sensor", "pv_normal", "pv_hysteresis",
                    "pv_reraise_threshold", "pv_reraise_enabled",
-                   "pv_solar_boost", "pv_night_floor"):
+                   "pv_solar_boost", "pv_night_floor", "pv_abort_debounce"):
         if legacy in o:
             del o[legacy]
             changed = True

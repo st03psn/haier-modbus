@@ -24,6 +24,27 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   verhindern soll (Boost-Bit-Ownership, manueller Sollwert-Schutz u. a. gehen beim Reload
   verloren). Nachgetragen; betrifft auch, wer diese Werte bislang nur über den Dialog
   änderte, nicht nur die neuen Entities.
+- **Dieselbe Lücke bestand vollständig für `emergency.py` (3 von 4 Keys fehlten) und
+  `legionella.py` (alle 7 Keys fehlten).** Ein Reload während einer forcierten
+  Notheizung oder eines laufenden Legionellen-Desinfektionslaufs verwarf den jeweiligen
+  Besitz-Merker (`_forced`, `_saved_setpoint`/`_saved_mode`) – das Gerät blieb dauerhaft in
+  AUTO/ELEC bzw. auf dem 65-°C-Desinfektionssollwert stehen, ohne dass eine Rückgabe
+  erfolgte. Alle elf fehlenden Keys sind jetzt in `LIVE_OPTION_KEYS` ergänzt.
+- **`coordinator.write_value()` wertet jetzt den Schreib-Erfolg aus** (`resp.isError()`)
+  und gibt ihn als `bool` zurück, statt Fehler stillschweigend zu verschlucken. Alle drei
+  Controller setzen ihre Besitz-Merker (`_forced`, `_boost_applied`, `_last_written`,
+  Legionellen-Freigabe) jetzt nur noch nach **erfolgreichem** Schreiben – ein abgelehnter
+  Zugriff (z. B. kurzer Modbus-Aussetzer) führt sonst dazu, dass In-Memory-Zustand und
+  Gerätezustand auseinanderlaufen. Ein fehlgeschlagener Versuch wird beim nächsten Poll
+  automatisch wiederholt; der Poll selbst bricht dabei nicht ab.
+- **README (DE + EN) auf den v1.16.0-Stand gebracht:** Der Architekturabschnitt zur
+  PV-Regelung beschrieb noch die vor v1.16.0 gültige 3-stufige Leiter mit „Solar-Boost"
+  als eigener Temperaturstufe und ELEC als PV-Eskalation. Neu gefasst entlang des
+  `pv.py`-Docstrings: 2-stufige Leiter (Normal → Erhöht), Tages-Kaltstart mit
+  Mindestdefizit und Tageskontingent, Mindestlaufzeit, sofortiger Rückfall auf
+  Normal+ECO bei Zyklusende, Boost als Leistungssenke ohne eigene Zieltemperatur,
+  Negativpreis-Sensor als Gate statt Schwellensenker, korrekter `pv_high`-Default
+  (1600 statt 1550 W) und die aktuelle Statuswert-Liste.
 
 ## [1.16.4] - 2026-08-14
 - **Mindestlaufzeit ersetzt die Abbruch-Entprellung aus 1.16.3.** `pv_abort_debounce`

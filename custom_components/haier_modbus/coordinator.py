@@ -384,15 +384,40 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         finally:
             await self.async_request_refresh()
 
-    async def write_value(self, address: int, value: int) -> None:
-        """Beliebiges Register schreiben – für die interne PV-Steuerung.
+    async def write_value(self, address: int, value: int) -> bool:
+        """Beliebiges Register schreiben – für die internen Controller.
 
         Bewusst ohne anschließenden Refresh-Request (wird ohnehin im selben
         Lesezyklus aufgerufen), um keine Rekursion auszulösen.
+
+        Gibt **True bei Erfolg** zurück und wirft nie: Ein abgelehnter oder
+        fehlgeschlagener Schreibzugriff darf den laufenden Poll nicht abbrechen –
+        sonst reißt ein einzelnes verweigertes Register die Auswertung der übrigen
+        Controller mit. Stattdessen wird protokolliert und der Aufrufer entscheidet.
+
+        Warum der Rückgabewert zwingend auszuwerten ist: Die Controller merken sich
+        in eigenen Feldern, was sie geschrieben *haben* (``_last_written``,
+        ``_boost_applied``, ``_forced``). Wird so ein Merker gesetzt, obwohl das
+        Schreiben scheiterte, laufen Merker und Gerät auseinander – die PV-Leiter
+        hielte den unveränderten Registerwert dann z. B. für einen manuellen Eingriff.
         """
-        if not self._client.connected:
-            await self._client.connect()
-        await self._write_holding(address, int(value))
+        try:
+            if not self._client.connected:
+                await self._client.connect()
+            resp = await self._write_holding(address, int(value))
+            if resp.isError():
+                _LOGGER.warning(
+                    "Schreibzugriff auf Register %d (Wert %d) abgelehnt: %s",
+                    address, int(value), resp,
+                )
+                return False
+            return True
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning(
+                "Schreibzugriff auf Register %d (Wert %d) fehlgeschlagen: %s",
+                address, int(value), err,
+            )
+            return False
 
     async def write_setpoint(self, value: int) -> None:
         """Solltemperatur (Reg 6) setzen – für die interne PV-Steuerung."""

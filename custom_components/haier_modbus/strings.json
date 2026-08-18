@@ -64,7 +64,7 @@
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
           "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
-          "pv_temp_base": "Normal target temperature (no surplus) — also the reference point for the night setback.",
+          "pv_temp_base": "Normal target temperature (no surplus) — also the setpoint the controller falls back to when a cycle ends.",
           "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated.",
           "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and Boost is off.",
           "pv_high": "Boost threshold on the **normalized** surplus (\"available\" = raw surplus + heater power while Boost is running — makes the signal invariant to its own switching action). Must be at least the heater's rated power + 50 W, otherwise the heater would switch off into grid draw (auto-raised otherwise). Turning on debounces for the full time, turning off is immediate (one poll) — strict grid-draw avoidance.",
@@ -165,7 +165,7 @@
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
           "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
-          "pv_temp_base": "Normal target temperature (no surplus) — also the reference point for the night setback.",
+          "pv_temp_base": "Normal target temperature (no surplus) — also the setpoint the controller falls back to when a cycle ends.",
           "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated.",
           "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and Boost is off.",
           "pv_high": "Boost threshold on the **normalized** surplus (\"available\" = raw surplus + heater power while Boost is running — makes the signal invariant to its own switching action). Must be at least the heater's rated power + 50 W, otherwise the heater would switch off into grid draw (auto-raised otherwise). Turning on debounces for the full time, turning off is immediate (one poll) — strict grid-draw avoidance.",

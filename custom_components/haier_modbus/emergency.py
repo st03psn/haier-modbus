@@ -93,22 +93,28 @@ class EmergencyController:
         setpoint = data.get(REG_SET_TEMP)
         recover_at = recover if setpoint is None else max(recover, setpoint)
 
+        # ``_forced`` ist der Besitz-Merker: nur wer forciert hat, darf zurückschalten.
+        # Er wird deshalb ausschließlich nach einem **erfolgreichen** Schreibzugriff
+        # umgelegt. Andernfalls liefen Merker und Gerät auseinander – im schlimmsten
+        # Fall bliebe das Gerät in AUTO/ELEC stehen, ohne dass sich noch jemand dafür
+        # zuständig fühlt. Ein Fehlversuch wiederholt sich beim nächsten Poll von selbst,
+        # weil die Bedingungen unverändert gelten.
         if not self._forced:
             if mode == MODE_ECO and water <= critical:
-                await coordinator.write_value(REG_MODE, forced_mode)
-                self._forced = True
-                _LOGGER.info(
-                    "Notfall-Nachheizung: ECO -> %s (Wasser %.0f °C ≤ %s)",
-                    "ELEC" if forced_mode == MODE_ELEC else "AUTO", water, critical,
-                )
+                if await coordinator.write_value(REG_MODE, forced_mode):
+                    self._forced = True
+                    _LOGGER.info(
+                        "Notfall-Nachheizung: ECO -> %s (Wasser %.0f °C ≤ %s)",
+                        "ELEC" if forced_mode == MODE_ELEC else "AUTO", water, critical,
+                    )
         else:
             if mode != forced_mode:
                 # Nutzer/Logik hat den Modus geändert -> nicht mehr unsere Sache.
                 self._forced = False
             elif water >= recover_at:
-                await coordinator.write_value(REG_MODE, MODE_ECO)
-                self._forced = False
-                _LOGGER.info(
-                    "Notfall-Nachheizung beendet: %s -> ECO (Wasser %.0f °C ≥ %s)",
-                    "ELEC" if forced_mode == MODE_ELEC else "AUTO", water, recover_at,
-                )
+                if await coordinator.write_value(REG_MODE, MODE_ECO):
+                    self._forced = False
+                    _LOGGER.info(
+                        "Notfall-Nachheizung beendet: %s -> ECO (Wasser %.0f °C ≥ %s)",
+                        "ELEC" if forced_mode == MODE_ELEC else "AUTO", water, recover_at,
+                    )

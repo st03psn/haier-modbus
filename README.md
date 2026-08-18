@@ -116,10 +116,11 @@ Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 > **max. Temperaturausgabe *nur Wärmepumpe* 65 °C**. Der Bereich 65–75 °C ist also nur mit
 > dem **1500-W-Heizstab** (COP ≈ 1) erreichbar. Die Integration setzt das um: **Normal**
 > und **Erhöht** sind auf **65 °C** begrenzt (Verdichter allein), nur die
-> **Boost-Zieltemperatur** darf bis **75 °C** (mit Heizstab). Die Solar-Boost-Stufe zielt
-> automatisch auf `min(Boost-Ziel, 65 °C)` — die WP bis an ihre Grenze, der Heizstab
-> übernimmt nur darüber. Empfohlen: **50 / 60 / 75 °C**. Belege, Feldmessungen und
-> Hinweise zum Legionellen-Schutz: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).
+> **Boost-Zieltemperatur** darf bis **75 °C** (mit Heizstab) — allerdings nur noch im
+> **Executor**-Programm „Boost"; im Coordinator-Modus ist Boost eine reine Leistungssenke
+> ohne eigene Zieltemperatur und nutzt dieselbe Zieltemperatur wie Erhöht (≤ 65 °C).
+> Empfohlen: **50 / 60 / 75 °C**. Belege, Feldmessungen und Hinweise zum
+> Legionellen-Schutz: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).
 
 Statt eines Bool-Hakens gibt es ein **Dropdown „PV-Modus"** (Setup-Schritt 3 oder
 „Konfigurieren"). Es regelt immer nur **ein** Gehirn — kein Doppelregler:
@@ -139,42 +140,57 @@ Nach **rohem** Überschuss, in **zwei aufeinander abgestimmten Schichten** — b
 gebaut, dass die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts) und dass der
 **Verdichter immer Vorrang vor dem Heizstab** hat:
 
-**Schicht 1 — WP-Zyklus, 3-stufig (Normal → Erhöht → Solar-Boost):**
-- **Morgen-Start (fix):** einmal/Tag zur konfigurierten Uhrzeit (Default 10:00 =
-  ECO-Fensterstart) ein Kick auf Erhöht, wenn das Wasser noch unter der Normal-Temperatur
-  liegt — der **einzige Kaltstart** des Tages.
-- **Anheben auf Erhöht nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
-  (Default 50 W) → kein Tages-Kaltstart, kein Takten.
-- **Weiter auf Solar-Boost** (= `min(Boost-Zieltemperatur, **65 °C**)`) ebenfalls nur bei
-  laufender WP, über der **Solar-Boost-Schwelle** (Default 600 W): Der Verdichter klettert
-  **allein bis an seine Grenze** — mit COP i. d. R. 3–4× besser als der Heizstab, und der
-  nicht gezogene Überschuss bleibt (vergütet) einspeisbar.
-- **Absenken** schrittweise über die mittlere Stufe (Solar-Boost → Erhöht → Normal), jeder
-  Schritt einzeln entprellt (Default 5 min).
+**Schicht 1 — WP-Zyklus, 2-stufig (Normal → Erhöht), auf dem *rohen* Überschuss:**
+- **Morgen-Start (fix, 1×/Tag):** zur konfigurierten Uhrzeit (Default 10:00 =
+  ECO-Fensterstart), wenn das Wasser noch unter der Normal-Temperatur liegt, Sollwert auf
+  **Normal** in **ECO** — eine effiziente Grundladung. Bewusst *nicht* Erhöht/AUTO: der
+  Morgen-Start ist der garantierte Tagesstart, keine Überschuss-Reaktion (sonst käme an
+  trüben Tagen die volle Ladung aus dem Netz). Die Anhebung auf Erhöht folgt bei
+  Überschuss über den Piggyback-Zweig unten — ohne neues Startkontingent.
+- **Tages-Kaltstart:** überschussgetrieben, mit **Mindestdefizit** — Wasser liegt
+  mindestens `pv_coldstart_delta` (Default 10 K) unter der Erhöht-Zieltemperatur, der voll
+  entprellte Überschuss erreicht `pv_coldstart` (Default 600 W), Anti-Takt-Zeit
+  (`pv_min_off`) ist erfüllt und das **Tageskontingent** (`pv_max_starts`, Default 3) ist
+  noch nicht ausgeschöpft. Das Mindestdefizit verhindert Starts für wenige Grad; das
+  Kontingent ist die Notbremse, die eigentliche Taktbremse ist `pv_min_off`.
+- **Anheben Normal → Erhöht nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
+  (Default 50 W) — kein zusätzlicher Kaltstart, kein Takten.
+- **Mindestlaufzeit** (`pv_min_run`, Default 30 min): ein einmal gestarteter Zyklus wird
+  so lange gehalten, unabhängig vom Überschuss — eine durchziehende Wolke darf ihn nicht
+  abwürgen. Symmetrisch zu `pv_min_off` (Mindest-Stillstand vor dem nächsten Start).
+- **Rückfall auf Normal + ECO, sobald ein Zyklus endet** — auch mitten am Tag, damit der
+  Tagesplan hält. Ein erneutes Anheben muss Anti-Takt und Tageskontingent erneut passieren.
+- **Keine separate Nachtabsenkung:** Der Rückfall auf Normal+ECO ist bereits das
+  Nachtverhalten. Fällt die Temperatur nachts unter Normal, heizt das Gerät regulär nach;
+  wird es kritisch, eskaliert die Notheizung (s. u.).
 
-**Schicht 2 — Heizstab (ad-hoc Zusatz, stoppt nie die WP):** ab der **Boost-Schwelle**
-(Default 1550 W = Heizstab ~1500 W + Puffer):
-- **Boost** (WP + Heizstab) heißt, was der Name sagt: **beide gemeinsam**. Ab der
-  Boost-Schwelle wird der deutliche Überschuss direkt der **laufenden** WP zugeschaltet;
-  der Sollwert geht dabei auf die Boost-Zieltemperatur (bis 75 °C — den Bereich über
-  65 °C erreicht ohnehin nur der Heizstab).
-- **Heizstab (ELEC)** **nur bei stehender** WP (ELEC würde die WP sonst stoppen) — dumpt
-  sofort, z. B. um nach dem Tageszyklus Überschuss zu verheizen; danach zurück auf ECO +
-  Normal-Temperatur. Hier gibt es **kein** Deckel-Gate (anderes Szenario).
-- **Optionaler Negativpreis-Sensor:** Ist er „an" (Viertelstunde mit negativem/0-Ct-Preis,
-  Solarspitzengesetz/§51 EEG), greift Boost bereits ab der **Solar-Boost-Schwelle** statt
-  erst ab der Boost-Schwelle — Einspeisung ist in dem Fenster ohnehin unvergütet.
-  *Nur sinnvoll mit dynamischem Stromtarif:* Ein negativer Börsenpreis senkt den
-  Einspeiseerlös, nicht automatisch den Bezugspreis.
+**Schicht 2 — Heizstab/Boost, auf dem *normalisierten* Überschuss ("verfügbar"):**
+- Der Überschusssensor ist einspeisungsbasiert (Eigenaufnahme bereits abgezogen) — der
+  Heizstab würde beim Einschalten seinen eigenen Messwert senken. Das normalisierte Signal
+  `verfügbar = roher Überschuss + (Heizstab an ? Heizstableistung : 0)` macht die Schwelle
+  invariant gegen die eigene Schalthandlung.
+- **Boost** (WP + Heizstab, Reg 2 Bit 1) heißt, was der Name sagt: **beide gemeinsam**, nur
+  bei bereits laufender WP. Boost ist eine **Leistungssenke, keine eigene Temperaturstufe**
+  — die Zieltemperatur bleibt die der Erhöht-Stufe (≤ 65 °C).
+- **Ein/Aus über eine einzige Schwelle** `pv_high` (Default **1600 W** = Heizstab-Nennwert
+  1500 W + 100 W Reserve) auf `verfügbar`: **Ein** entprellt (volle Zeit, schützt gegen
+  Sensor-Ausreißer), **Aus sofort** (ein Poll) — asymmetrisch, weil Netzbezug beim Heizstab
+  strikt vermieden werden soll.
+- **Optionaler Negativpreis-Sensor** als **Gate**, kein Schwellensenker: Ist
+  `pv_boost_only_negative_price` gesetzt, feuert Boost nur, wenn der Sensor eine
+  Negativpreis-Viertelstunde meldet — er verschiebt die Schwelle selbst nicht.
+- Fällt der Überschuss unter die Schwelle: **nur der Heizstab** geht weg; die WP läuft
+  unverändert weiter (Schicht 1 unberührt).
 
-Fällt der Überschuss weg, geht **nur der Heizstab** weg; die WP läuft unverändert weiter.
-Solange der Heizstab an ist, hält Schicht 1 ihre Stufe.
+ELEC (nur Heizstab, WP steht) ist **keine PV-Eskalation mehr** — dafür gibt es die
+Notheizung (`emergency.py`), die bei kritisch niedriger Temperatur wahlweise nach AUTO oder
+ELEC eskaliert, unabhängig vom Überschuss.
 
 Den aktuellen Zustand zeigt der Diagnose-Sensor **„PV-Regelung Status"**
-(`sensor.haier_hwhp_pv_status`: Aus / Normal / Erhöht / Solar-Boost / Boost / Boost (ELEC),
-dazu Manueller Eingriff und „Laufender Zyklus gehalten", mit Überschuss/Sollwert/WP/Heizstab
-als Attributen); das mitgelieferte Dashboard hat dafür eine eigene **PV-Sektion**
-(Status-Kachel + Logbuch-Verlauf).
+(`sensor.haier_hwhp_pv_status`: Aus / Normal / Erhöht / Boost, dazu Manueller Eingriff und
+„Laufender Zyklus gehalten", mit Überschuss/Sollwert/WP/Heizstab als Attributen); das
+mitgelieferte Dashboard hat dafür eine eigene **PV-Sektion** (Status-Kachel +
+Logbuch-Verlauf).
 
 Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar. Die
 **Zieltemperaturen, Überschuss-Schwellen und Tagesplan-Kennzahlen** (Kaltstart-Schwelle/
@@ -296,10 +312,11 @@ exposes **code + description** attributes. Full table:
 > temperature output *heat pump only* 65 °C**. The 65–75 °C band is therefore only
 > reachable with the **1500 W electric heater** (COP ≈ 1). The integration enforces this:
 > **normal** and **elevated** are capped at **65 °C** (compressor alone), only the **boost
-> target** may go up to **75 °C** (with the heater). The solar-boost tier automatically
-> aims at `min(boost target, 65 °C)` — the pump up to its limit, the heater only beyond.
-> Recommended: **50 / 60 / 75 °C**. Evidence, field measurements and legionella-protection
-> notes: [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).
+> target** may go up to **75 °C** (with the heater) — but only for the **Executor**
+> program "boost"; in Coordinator mode Boost is a pure power sink with no target
+> temperature of its own and uses the same target as elevated (≤ 65 °C). Recommended:
+> **50 / 60 / 75 °C**. Evidence, field measurements and legionella-protection notes:
+> [`docs/geraete-grenzen.md`](docs/geraete-grenzen.md).
 
 Instead of a checkbox there is a **"PV mode" dropdown** (setup step 3 / *Configure*).
 Only **one** brain ever regulates — no double controller:
@@ -314,29 +331,55 @@ The **control entities** (`number.haier_hwhp_set_temp`, `select.haier_hwhp_mode`
 switch) stay writable in every mode. The **38 °C guard** is a separate option and stays
 active as a local hot-water safety net.
 
-**Coordinator** regulates from the **raw** surplus in **two coordinated layers**,
-deliberately built so the heat pump does not **short-cycle** and so the **compressor
-always takes precedence over the electric heater**:
+**Coordinator** regulates from the surplus in **two coordinated layers**, deliberately
+built so the heat pump does not **short-cycle** and so the **compressor always takes
+precedence over the electric heater**:
 
-- *Layer 1 — heat-pump cycle, 3 tiers (base → normal → solar boost):* a fixed once-a-day
-  **morning start** (default 10:00) kicks to normal if the water is still below base — the
-  **only cold start** of the day. During the day the setpoint is raised to normal **only
-  while the pump is already running** (piggyback, above the **hold threshold**, default
-  50 W). Above the **solar-boost threshold** (default 600 W) — again only while running —
-  it keeps climbing to the **boost target** (default 75 °C) on the **compressor alone**
-  (COP typically 3–4× better than the heater, and the surplus it doesn't draw stays
-  exportable). It steps back down one tier at a time (solar boost → normal → base), each
-  step individually debounced (5 min).
-- *Layer 2 — electric heater (ad-hoc add-on that never stops the pump):* **Boost** means
-  what the name says — pump **and** heater together. Above the **high threshold**
-  (default 1550 W ≈ heater power + margin) the substantial surplus is fed directly to the
-  **running** pump, with the setpoint moving to the boost target (up to 75 °C — the band
-  above 65 °C is heater-only anyway). **ELEC** (heater only) applies while the pump is off
-  — the separate fast-heat/emergency option, e.g. to dump surplus after the daily cycle;
-  afterwards back to ECO + base setpoint. An optional **negative-price sensor**
-  (zero/negative feed-in quarter-hour) makes Boost engage already at the solar-boost
-  threshold, since exporting is unpaid in that window — *only sensible with a dynamic
-  tariff.* If the surplus disappears, only the heater drops out; the pump keeps running.
+*Layer 1 — heat-pump cycle, 2 tiers (normal → elevated), on the **raw** surplus:*
+- **Fixed once-a-day morning start:** at the configured time (default 10:00 = ECO window
+  start), if the water is still below normal, setpoint goes to **normal** in **ECO** — an
+  efficient base charge. Deliberately *not* elevated/AUTO: the morning start is the
+  guaranteed daily start, not a surplus reaction (otherwise a cloudy day would pull the
+  full charge from the grid). The rise to elevated follows on surplus via the piggyback
+  branch below — without spending a start allowance.
+- **Daily cold start:** surplus-driven, with a **minimum deficit** — the water sits at
+  least `pv_coldstart_delta` (default 10 K) below the elevated target, the fully debounced
+  surplus reaches `pv_coldstart` (default 600 W), the anti-cycling time (`pv_min_off`) is
+  satisfied, and the **daily start allowance** (`pv_max_starts`, default 3) isn't spent
+  yet. The minimum deficit blocks starts for a few degrees; the allowance is the backstop,
+  the actual anti-cycling guard is `pv_min_off`.
+- **Raising normal → elevated only while the pump is already running** (piggyback), above
+  the **hold threshold** (default 50 W) — no extra cold start, no cycling.
+- **Minimum run time** (`pv_min_run`, default 30 min): once a cycle starts it is held for
+  at least this long regardless of surplus — a passing cloud must not abort it. Symmetric
+  to `pv_min_off` (minimum standstill before the next start).
+- **Falls back to normal + ECO as soon as a cycle ends** — even mid-day, to keep the daily
+  plan intact. Raising it again must pass the anti-cycling guard and the daily allowance.
+- **No separate night setback:** the fallback to normal+ECO above already is the night
+  behaviour. If the temperature drops below normal overnight the device reheats normally;
+  if it gets critical, the emergency reheat escalates (see below).
+
+*Layer 2 — electric heater/boost, on the **normalized** surplus ("available"):*
+- The surplus sensor is feed-in based (self-consumption already subtracted) — the heater
+  would lower its own reading the moment it switches on. The normalized signal
+  `available = raw surplus + (heater on ? heater power : 0)` makes the threshold invariant
+  against its own switching action.
+- **Boost** (pump + heater, Reg 2 bit 1) means what the name says — **both together**,
+  only while the pump is already running. Boost is a **power sink, not its own temperature
+  tier** — the target stays the elevated target (≤ 65 °C).
+- **A single on/off threshold** `pv_high` (default **1600 W** = heater nominal power
+  1500 W + 100 W margin) on `available`: **on** is debounced (the full time, to guard
+  against sensor outliers), **off is immediate** (one poll) — asymmetric, because grid
+  draw for the heater must be strictly avoided.
+- **Optional negative-price sensor as a gate**, not a threshold-lowerer: if
+  `pv_boost_only_negative_price` is set, Boost only fires while the sensor reports a
+  negative-price quarter-hour — it does not shift the threshold itself.
+- If the surplus drops below the threshold: **only the heater** drops out; the pump keeps
+  running unchanged (layer 1 unaffected).
+
+ELEC (heater only, pump off) is **no longer part of the PV escalation** — that's now the
+emergency reheat (`emergency.py`), which escalates to AUTO or ELEC on critically low
+temperature, independent of surplus.
 
 The diagnostic sensor **“PV control status”** (`sensor.haier_hwhp_pv_status`) shows the
 live state (off / base / normal / boost, plus manual override and “active cycle held”,
