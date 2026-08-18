@@ -345,6 +345,9 @@
       },
       "sterilize": {
         "name": "Sterilisation"
+      },
+      "pv_boost_only_negative_price": {
+        "name": "PV Boost nur bei Negativpreis"
       }
     },
     "number": {
@@ -365,6 +368,18 @@
       },
       "pv_high": {
         "name": "PV Boost-Schwelle"
+      },
+      "pv_coldstart": {
+        "name": "PV Kaltstart-Schwelle"
+      },
+      "pv_coldstart_delta": {
+        "name": "PV Kaltstart-Mindestdefizit"
+      },
+      "pv_max_starts": {
+        "name": "PV Tageskontingent"
+      },
+      "pv_min_run": {
+        "name": "PV Mindestlaufzeit"
       }
     }
   },

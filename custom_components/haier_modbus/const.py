@@ -209,6 +209,15 @@ LIVE_OPTION_KEYS: Final = frozenset({
     CONF_PV_COLDSTART_DELTA,
     CONF_PV_MIN_RUN,
     CONF_EMERGENCY_MODE,
+    # Nachtrag v1.16.5: fünf Keys, die pv.py schon seit Längerem bei JEDEM Poll frisch
+    # liest (o.get(...) in async_evaluate), aber hier fehlten – eine Änderung über den
+    # Options-Dialog löste dadurch bislang einen unnötigen Reload aus, mit demselben
+    # Besitzstand-Verlust-Risiko wie oben beschrieben.
+    CONF_PV_DEBOUNCE,
+    CONF_PV_MIN_OFF,
+    CONF_PV_MORNING_ENABLED,
+    CONF_PV_MORNING_TIME,
+    CONF_PV_ESCALATION,
 })
 
 # Gerät

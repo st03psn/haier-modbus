@@ -23,14 +23,22 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    CONF_PV_COLDSTART,
+    CONF_PV_COLDSTART_DELTA,
     CONF_PV_HIGH,
     CONF_PV_HOLD,
+    CONF_PV_MAX_STARTS,
+    CONF_PV_MIN_RUN,
     CONF_PV_MODE,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
     CONF_PV_TEMP_NORMAL,
+    DEFAULT_PV_COLDSTART,
+    DEFAULT_PV_COLDSTART_DELTA,
     DEFAULT_PV_HIGH,
     DEFAULT_PV_HOLD,
+    DEFAULT_PV_MAX_STARTS,
+    DEFAULT_PV_MIN_RUN,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
@@ -90,6 +98,23 @@ PV_WATT_NUMBERS: tuple[OptionNumber, ...] = (
                  min_value=0, max_value=10000, step=50, unit="W", icon="mdi:radiator"),
 )
 
+# Tagesplan-Kennzahlen (v1.16.4): Kaltstart-Schwelle/-Defizit, Tageskontingent,
+# Mindestlaufzeit. Nur im **Coordinator**-Modus relevant – der Executor überlässt den
+# Tagesplan dem HEMS. Bewusst als eigene Entities (statt nur im Options-Dialog), weil
+# sie im Betrieb erfahrungsgemäß häufiger nachjustiert werden als die Basiswerte.
+# Grenzen identisch zu den Selectors im Options-Flow (config_flow.py: _WATT/_KELVIN/
+# _STARTS/_MINUTES), damit beide Wege dieselben Werte zulassen.
+PV_TAGESPLAN_NUMBERS: tuple[OptionNumber, ...] = (
+    OptionNumber(key=CONF_PV_COLDSTART, default=DEFAULT_PV_COLDSTART,
+                 min_value=0, max_value=10000, step=50, unit="W", icon="mdi:weather-sunny"),
+    OptionNumber(key=CONF_PV_COLDSTART_DELTA, default=DEFAULT_PV_COLDSTART_DELTA,
+                 min_value=0, max_value=30, step=1, unit="K", icon="mdi:thermometer-minus"),
+    OptionNumber(key=CONF_PV_MAX_STARTS, default=DEFAULT_PV_MAX_STARTS,
+                 min_value=1, max_value=5, step=1, icon="mdi:counter"),
+    OptionNumber(key=CONF_PV_MIN_RUN, default=DEFAULT_PV_MIN_RUN,
+                 min_value=1, max_value=180, step=1, unit="min", icon="mdi:timer-play-outline"),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -104,6 +129,7 @@ async def async_setup_entry(
         entities.append(HaierPvOptionNumber(coordinator, PV_TEMP_HIGH_NUMBER))
     if mode == PV_MODE_COORDINATOR:
         entities += [HaierPvOptionNumber(coordinator, d) for d in PV_WATT_NUMBERS]
+        entities += [HaierPvOptionNumber(coordinator, d) for d in PV_TAGESPLAN_NUMBERS]
 
     async_add_entities(entities)
 

@@ -345,6 +345,9 @@
       },
       "sterilize": {
         "name": "Sterilize"
+      },
+      "pv_boost_only_negative_price": {
+        "name": "PV boost only on negative price"
       }
     },
     "number": {
@@ -365,6 +368,18 @@
       },
       "pv_high": {
         "name": "PV boost threshold"
+      },
+      "pv_coldstart": {
+        "name": "PV cold-start threshold"
+      },
+      "pv_coldstart_delta": {
+        "name": "PV cold-start minimum deficit"
+      },
+      "pv_max_starts": {
+        "name": "PV daily start allowance"
+      },
+      "pv_min_run": {
+        "name": "PV minimum run time"
       }
     }
   },

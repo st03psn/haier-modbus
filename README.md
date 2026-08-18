@@ -177,9 +177,11 @@ als Attributen); das mitgelieferte Dashboard hat dafür eine eigene **PV-Sektion
 (Status-Kachel + Logbuch-Verlauf).
 
 Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar. Die
-**Zieltemperaturen und Überschuss-Schwellen** stehen zusätzlich als eigene Entitäten direkt
-auf der Geräteseite (`number.haier_hwhp_pv_*`, Kategorie *Konfiguration*) — dieselbe Quelle,
-nur bequemer erreichbar; ein Ändern dort löst **keinen** Reload aus und unterbricht damit
+**Zieltemperaturen, Überschuss-Schwellen und Tagesplan-Kennzahlen** (Kaltstart-Schwelle/
+-Defizit, Tageskontingent, Mindestlaufzeit) stehen zusätzlich als eigene Entitäten direkt
+auf der Geräteseite (`number.haier_hwhp_pv_*`, `switch.haier_hwhp_pv_boost_only_negative_price`,
+Kategorie *Konfiguration*) — dieselbe Quelle, nur bequemer erreichbar; ein Ändern dort löst
+**keinen** Reload aus und unterbricht damit
 auch keinen laufenden Zyklus.
 
 ### Executor (HEMS-Client, z. B. evcc)
@@ -337,13 +339,15 @@ always takes precedence over the electric heater**:
   tariff.* If the surplus disappears, only the heater drops out; the pump keeps running.
 
 The diagnostic sensor **“PV control status”** (`sensor.haier_hwhp_pv_status`) shows the
-live state (off / base / normal / solar boost / high + Boost / high + ELEC, plus manual
-override and “active cycle held”, with surplus/setpoint/pump/heater attributes); the
-bundled dashboard has a dedicated PV section for it. All thresholds, target temps and
-timings are editable in the Configure dialog; the **target temperatures and surplus
-thresholds** are additionally exposed as entities on the device page
-(`number.haier_hwhp_pv_*`, *config* category) — same single source of truth, just easier to
-reach, and changing them there triggers **no** reload, so a running cycle is not disturbed.
+live state (off / base / normal / boost, plus manual override and “active cycle held”,
+with surplus/setpoint/pump/heater attributes); the bundled dashboard has a dedicated PV
+section for it. All thresholds, target temps and timings are editable in the Configure
+dialog; the **target temperatures, surplus thresholds and daily-plan figures**
+(cold-start threshold/deficit, daily start allowance, minimum run time) are additionally
+exposed as entities on the device page (`number.haier_hwhp_pv_*`,
+`switch.haier_hwhp_pv_boost_only_negative_price`, *config* category) — same single
+source of truth, just easier to reach, and changing them there triggers **no** reload,
+so a running cycle is not disturbed.
 
 **Executor** does not regulate; it exposes `select.haier_hwhp_pv_program`
 (`aus`/`grund`/`ueberschuss`/`boost`) that an external HEMS (or you) sets — the

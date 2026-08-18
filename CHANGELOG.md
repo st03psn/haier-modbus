@@ -5,6 +5,26 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.17.0] - 2026-08-18
+- **Vier Tagesplan-Kennzahlen als Number-Entities auf der Geräteseite:**
+  Kaltstart-Schwelle (`pv_coldstart`), Kaltstart-Mindestdefizit (`pv_coldstart_delta`),
+  Tageskontingent (`pv_max_starts`) und Mindestlaufzeit (`pv_min_run`) – bislang nur über
+  den mehrstufigen Options-Dialog erreichbar, jetzt direkt auf der Geräteseite änderbar
+  (Kategorie *Konfiguration*), analog zu den bereits vorhandenen Number-Entities für
+  Zieltemperaturen und Überschuss-Schwellen. Kein Reload beim Ändern – alle vier Keys
+  waren bereits in `LIVE_OPTION_KEYS`.
+- **Neuer Switch `pv_boost_only_negative_price`:** schaltet das Negativpreis-Gate für
+  Boost direkt um, ohne den Options-Dialog. Ohne konfigurierten Negativpreis-Sensor
+  bleibt der Schalter wirkungslos, wenn aktiviert – das ist kein Fehler, sondern folgt
+  aus dem bestehenden Gate in `pv.py`.
+- **Fünf Optionen fehlten in `LIVE_OPTION_KEYS`, obwohl `pv.py` sie längst bei jedem Poll
+  frisch liest:** `pv_debounce`, `pv_min_off`, `pv_morning_enabled`, `pv_morning_time`,
+  `pv_escalation`. Eine Änderung dieser Werte über den Options-Dialog löste dadurch bisher
+  einen **unnötigen Reload** aus – mit demselben Risiko, das `LIVE_OPTION_KEYS` eigentlich
+  verhindern soll (Boost-Bit-Ownership, manueller Sollwert-Schutz u. a. gehen beim Reload
+  verloren). Nachgetragen; betrifft auch, wer diese Werte bislang nur über den Dialog
+  änderte, nicht nur die neuen Entities.
+
 ## [1.16.4] - 2026-08-14
 - **Mindestlaufzeit ersetzt die Abbruch-Entprellung aus 1.16.3.** `pv_abort_debounce`
   entfällt, neu **`pv_min_run`** (Default **30 min**): ein einmal gestarteter Zyklus wird
