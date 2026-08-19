@@ -8,6 +8,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -59,9 +60,12 @@ class HaierStatusBit(HaierModbusEntity, BinarySensorEntity):
 
 
 class HaierConnection(HaierModbusEntity, BinarySensorEntity):
+    # C3: ``_attr_entity_category = None`` war ein No-op (das ist ohnehin der
+    # Default) - CONNECTIVITY gehört per HA-Konvention nach DIAGNOSTIC, analog
+    # ``sensor.link_status``, das dasselbe beschreibt.
     _attr_translation_key = "connection"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-    _attr_entity_category = None
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)

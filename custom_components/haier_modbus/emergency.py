@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 
 from .const import (
     CONF_EMERGENCY_CRITICAL,
@@ -35,6 +36,7 @@ from .const import (
     DEFAULT_EMERGENCY_CRITICAL,
     DEFAULT_EMERGENCY_MODE,
     DEFAULT_EMERGENCY_RECOVER,
+    DOMAIN,
     EMERGENCY_MODE_ELEC,
     MODE_AUTO,
     MODE_ECO,
@@ -46,13 +48,45 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_STORAGE_VERSION = 1
+
 
 class EmergencyController:
     """ECO->AUTO/ELEC bei kritischer Temperatur, zurück bei Erholung (zustandsbehaftet)."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, store_factory=Store) -> None:
         self.hass = hass
+        self._store_factory = store_factory
         self._forced = False  # haben wir ECO->AUTO/ELEC geschaltet?
+        self._store: Store | None = None
+        self._loaded = False
+        # Live-Status (vom Diagnose-Sensor gelesen, T4/C12): bislang war ``_forced``
+        # nirgends sichtbar – ein in ELEC hängendes Gerät (K1) fiel nur an der
+        # Stromrechnung auf.
+        self.status: dict = {"state": "idle", "forced_mode": None, "water": None}
+
+    async def _ensure_loaded(self, coordinator) -> None:
+        """Besitz-Merker aus der Statusdatei laden (K1): ohne das überlebt ein
+        forcierter Lauf keinen HA-Neustart – Reg 1 bleibt dann dauerhaft in
+        AUTO/ELEC hängen, weil weder der Arm-Zweig (verlangt MODE_ECO) noch der
+        Rückgabe-Zweig (verlangt ``_forced``) je wieder greift."""
+        if self._loaded:
+            return
+        self._loaded = True
+        self._store = self._store_factory(
+            self.hass, _STORAGE_VERSION, f"{DOMAIN}_emergency_{coordinator.entry.entry_id}"
+        )
+        try:
+            data = await self._store.async_load()
+        except Exception:  # noqa: BLE001
+            data = None
+        if data:
+            self._forced = bool(data.get("forced", False))
+
+    async def _save_store(self) -> None:
+        if self._store is None:
+            return
+        await self._store.async_save({"forced": self._forced})
 
     @property
     def active(self) -> bool:
@@ -63,16 +97,38 @@ class EmergencyController:
         """
         return self._forced
 
+    def _set_status(self, state, forced_mode=None, water=None) -> None:
+        self.status = {
+            "state": state,
+            "forced_mode": forced_mode,
+            "water": None if water is None else round(float(water), 1),
+        }
+
     async def async_evaluate(self, coordinator, data: dict[int, int]) -> None:
         o = coordinator.entry.options
+        await self._ensure_loaded(coordinator)
+
         if not o.get(CONF_EMERGENCY_ENABLED, False):
-            self._forced = False
+            if self._forced:
+                # K5: Abschalten mitten in einem forcierten Lauf darf das Gerät nicht
+                # in AUTO/ELEC zurücklassen – Vorlage ist der ``_restore()``-Handshake
+                # in legionella.py (inkl. Retry im Folgepoll bei Schreibfehler statt
+                # den Merker blind zu löschen).
+                if not await coordinator.write_value(REG_MODE, MODE_ECO):
+                    self._set_status("forced")
+                    return
+                self._forced = False
+                await self._save_store()
+            self._set_status("disabled")
             return
 
         # Läuft die Legionellen-Desinfektion, heizt sie ohnehin auf 65 °C und
         # besitzt den Modus – die Notheizung tritt zurück (kein Modus-Konflikt).
         if coordinator.legionella.active:
-            self._forced = False
+            if self._forced:
+                self._forced = False
+                await self._save_store()
+            self._set_status("idle")
             return
 
         mode = data.get(REG_MODE)
@@ -93,22 +149,37 @@ class EmergencyController:
         setpoint = data.get(REG_SET_TEMP)
         recover_at = recover if setpoint is None else max(recover, setpoint)
 
+        # ``_forced`` ist der Besitz-Merker: nur wer forciert hat, darf zurückschalten.
+        # Er wird deshalb ausschließlich nach einem **erfolgreichen** Schreibzugriff
+        # umgelegt. Andernfalls liefen Merker und Gerät auseinander – im schlimmsten
+        # Fall bliebe das Gerät in AUTO/ELEC stehen, ohne dass sich noch jemand dafür
+        # zuständig fühlt. Ein Fehlversuch wiederholt sich beim nächsten Poll von selbst,
+        # weil die Bedingungen unverändert gelten.
         if not self._forced:
             if mode == MODE_ECO and water <= critical:
-                await coordinator.write_value(REG_MODE, forced_mode)
-                self._forced = True
-                _LOGGER.info(
-                    "Notfall-Nachheizung: ECO -> %s (Wasser %.0f °C ≤ %s)",
-                    "ELEC" if forced_mode == MODE_ELEC else "AUTO", water, critical,
-                )
+                if await coordinator.write_value(REG_MODE, forced_mode):
+                    self._forced = True
+                    await self._save_store()
+                    _LOGGER.info(
+                        "Notfall-Nachheizung: ECO -> %s (Wasser %.0f °C ≤ %s)",
+                        "ELEC" if forced_mode == MODE_ELEC else "AUTO", water, critical,
+                    )
         else:
             if mode != forced_mode:
                 # Nutzer/Logik hat den Modus geändert -> nicht mehr unsere Sache.
                 self._forced = False
+                await self._save_store()
             elif water >= recover_at:
-                await coordinator.write_value(REG_MODE, MODE_ECO)
-                self._forced = False
-                _LOGGER.info(
-                    "Notfall-Nachheizung beendet: %s -> ECO (Wasser %.0f °C ≥ %s)",
-                    "ELEC" if forced_mode == MODE_ELEC else "AUTO", water, recover_at,
-                )
+                if await coordinator.write_value(REG_MODE, MODE_ECO):
+                    self._forced = False
+                    await self._save_store()
+                    _LOGGER.info(
+                        "Notfall-Nachheizung beendet: %s -> ECO (Wasser %.0f °C ≥ %s)",
+                        "ELEC" if forced_mode == MODE_ELEC else "AUTO", water, recover_at,
+                    )
+
+        self._set_status(
+            "forced" if self._forced else "idle",
+            forced_mode="ELEC" if forced_mode == MODE_ELEC else "AUTO",
+            water=water,
+        )

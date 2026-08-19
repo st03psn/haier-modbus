@@ -64,7 +64,7 @@
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
           "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
-          "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für die Nachtabsenkung.",
+          "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für den nächtlichen Rückfall bei Zyklusende.",
           "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht.",
           "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und Boost aus ist.",
           "pv_high": "Boost-Schwelle auf den **normalisierten** Überschuss („verfügbar“ = roher Überschuss + Heizstab-Leistung, solange Boost läuft – macht das Signal invariant gegen die eigene Schalthandlung). Muss mindestens Heizstab-Nennleistung + 50 W betragen, sonst schaltet der Heizstab in den Netzbezug hinein ab (wird sonst automatisch hochgeklemmt). Einschalten entprellt mit der vollen Entprellzeit, Ausschalten sofort (ein Poll) – strikte Bezugsvermeidung.",
@@ -165,7 +165,7 @@
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
           "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
-          "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für die Nachtabsenkung.",
+          "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für den nächtlichen Rückfall bei Zyklusende.",
           "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht.",
           "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und Boost aus ist.",
           "pv_high": "Boost-Schwelle auf den **normalisierten** Überschuss („verfügbar“ = roher Überschuss + Heizstab-Leistung, solange Boost läuft – macht das Signal invariant gegen die eigene Schalthandlung). Muss mindestens Heizstab-Nennleistung + 50 W betragen, sonst schaltet der Heizstab in den Netzbezug hinein ab (wird sonst automatisch hochgeklemmt). Einschalten entprellt mit der vollen Entprellzeit, Ausschalten sofort (ein Poll) – strikte Bezugsvermeidung.",
@@ -300,6 +300,14 @@
           "running": "Desinfektion läuft",
           "holding": "Haltephase"
         }
+      },
+      "emergency_status": {
+        "name": "Notheizung-Status",
+        "state": {
+          "disabled": "Deaktiviert",
+          "idle": "Bereit",
+          "forced": "Aktiv"
+        }
       }
     },
     "binary_sensor": {
@@ -345,6 +353,9 @@
       },
       "sterilize": {
         "name": "Sterilisation"
+      },
+      "pv_boost_only_negative_price": {
+        "name": "PV Boost nur bei Negativpreis"
       }
     },
     "number": {
@@ -365,6 +376,18 @@
       },
       "pv_high": {
         "name": "PV Boost-Schwelle"
+      },
+      "pv_coldstart": {
+        "name": "PV Kaltstart-Schwelle"
+      },
+      "pv_coldstart_delta": {
+        "name": "PV Kaltstart-Mindestdefizit"
+      },
+      "pv_max_starts": {
+        "name": "PV Tageskontingent"
+      },
+      "pv_min_run": {
+        "name": "PV Mindestlaufzeit"
       }
     }
   },

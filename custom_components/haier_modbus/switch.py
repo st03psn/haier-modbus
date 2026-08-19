@@ -1,10 +1,18 @@
-"""Switches: einzelne Bits im Funktionsregister (Register 2, RW)."""
+"""Switches: einzelne Bits im Funktionsregister (Register 2, RW) + PV-Option als
+Bedien-Fassade (v1.16.5, analog zu ``HaierPvOptionNumber`` in ``number.py``).
+
+Wichtig: Ein Schreibzugriff auf die Options-Fassade löst **keinen** Integration-Reload
+aus – der Update-Listener überspringt die Keys aus ``LIVE_OPTION_KEYS`` bewusst (siehe
+``__init__.py``), weil ``pv.py`` sie ohnehin bei jedem Poll frisch liest.
+"""
 
 from __future__ import annotations
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -12,7 +20,11 @@ from .const import (
     BIT_BOOST,
     BIT_MUTE,
     BIT_STERILIZE,
+    CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
+    CONF_PV_MODE,
+    DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE,
     DOMAIN,
+    PV_MODE_COORDINATOR,
     REG_FUNCTION,
 )
 from .entity import HaierModbusEntity
@@ -22,14 +34,17 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [
-            HaierBitSwitch(coordinator, "active", BIT_ACTIVE, "mdi:power"),
-            HaierBitSwitch(coordinator, "boost", BIT_BOOST, "mdi:rocket-launch"),
-            HaierBitSwitch(coordinator, "mute", BIT_MUTE, "mdi:volume-mute"),
-            HaierBitSwitch(coordinator, "sterilize", BIT_STERILIZE, "mdi:bacteria"),
-        ]
-    )
+    entities: list[SwitchEntity] = [
+        HaierBitSwitch(coordinator, "active", BIT_ACTIVE, "mdi:power"),
+        HaierBitSwitch(coordinator, "boost", BIT_BOOST, "mdi:rocket-launch"),
+        HaierBitSwitch(coordinator, "mute", BIT_MUTE, "mdi:volume-mute"),
+        HaierBitSwitch(coordinator, "sterilize", BIT_STERILIZE, "mdi:bacteria"),
+    ]
+    # Nur im Coordinator-Modus relevant – der Executor überlässt Boost/Preis-Logik
+    # dem externen HEMS (gleicher Split wie die PV-Number-Entities).
+    if entry.options.get(CONF_PV_MODE) == PV_MODE_COORDINATOR:
+        entities.append(HaierPvBoostOnlyNegativePriceSwitch(coordinator))
+    async_add_entities(entities)
 
 
 class HaierBitSwitch(HaierModbusEntity, SwitchEntity):
@@ -48,9 +63,63 @@ class HaierBitSwitch(HaierModbusEntity, SwitchEntity):
         return None if raw is None else bool(raw & self._bitmask)
 
     async def async_turn_on(self, **kwargs) -> None:
-        current = self._regs.get(REG_FUNCTION, 0)
+        # W9: ohne bislang erfolgreichen Block-Read ist ``REG_FUNCTION`` unbekannt -
+        # ein Fallback auf 0 würde beim Schreiben ALLE fremden Bits löschen
+        # (BIT_ACTIVE/BIT_MUTE/BIT_STERILIZE), das Gerät ginge aus. Vorlage:
+        # ``pv._apply_heater`` verweigert unter derselben Bedingung ebenfalls.
+        current = self._regs.get(REG_FUNCTION)
+        if current is None:
+            raise HomeAssistantError(
+                "Funktionsregister noch nicht gelesen - Schalten aktuell nicht möglich"
+            )
         await self.coordinator.async_write_register(REG_FUNCTION, current | self._bitmask)
 
     async def async_turn_off(self, **kwargs) -> None:
-        current = self._regs.get(REG_FUNCTION, 0)
+        current = self._regs.get(REG_FUNCTION)
+        if current is None:
+            raise HomeAssistantError(
+                "Funktionsregister noch nicht gelesen - Schalten aktuell nicht möglich"
+            )
         await self.coordinator.async_write_register(REG_FUNCTION, current & ~self._bitmask)
+
+
+class HaierPvBoostOnlyNegativePriceSwitch(HaierModbusEntity, SwitchEntity):
+    """Bedien-Fassade auf ``pv_boost_only_negative_price`` in ``entry.options``.
+
+    Ohne konfigurierten Negativpreis-Sensor (``pv_negative_price_sensor``) bleibt der
+    Schalter wirkungslos – ``pv.py`` wertet das Gate nur aus, wenn beides gesetzt ist
+    (s. Modul-Docstring dort). Kein Fehler, nur ein Hinweis für den Nutzer.
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "pv_boost_only_negative_price"
+    _attr_icon = "mdi:currency-eur-off"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_pv_boost_only_negative_price"
+
+    @property
+    def available(self) -> bool:
+        """Config-Entity: auch bei Modbus-Störung einsehbar/änderbar."""
+        return True
+
+    @property
+    def is_on(self) -> bool | None:
+        return self.coordinator.entry.options.get(
+            CONF_PV_BOOST_ONLY_NEGATIVE_PRICE, DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE
+        )
+
+    async def _set(self, value: bool) -> None:
+        entry = self.coordinator.entry
+        self.hass.config_entries.async_update_entry(
+            entry, options={**entry.options, CONF_PV_BOOST_ONLY_NEGATIVE_PRICE: value}
+        )
+        # Ohne Reload bleibt diese Entität bestehen -> Zustand selbst nachziehen.
+        self.async_write_ha_state()
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self._set(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self._set(False)

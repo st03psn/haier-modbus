@@ -215,11 +215,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             self._auto_enable_sources(data)
             await self._maybe_seed(data)
             await self._accumulate_energy(data)
-            # Legionellen-Schutz zuerst: hat er einen Lauf aktiv, besitzt er
-            # Sollwert/Modus und PV/Notheizung treten zurück.
-            await self.legionella.async_evaluate(self, data)
-            await self.pv.async_evaluate(self, data)
-            await self.emergency.async_evaluate(self, data)
+            await self._run_controllers(data)
             return data
         except UpdateFailed:
             # Kurze Modbus-Aussetzer: letzte Werte bis zu _GRACE_S halten, statt
@@ -239,18 +235,47 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         except Exception as err:  # noqa: BLE001
             raise UpdateFailed(str(err)) from err
 
+    async def _run_controllers(self, data: dict[int, int], now=None) -> None:
+        """Legionellen-Schutz, PV-Leiter, Notheizung – in dieser Rangfolge (AP4).
+
+        Hat Legionellen einen Lauf aktiv, besitzt sie Sollwert/Modus und PV/
+        Notheizung treten zurück. Ein einzelnes ``now`` für den gesamten Poll
+        (statt jeder Controller ruft ``dt_util.now()`` selbst auf): sonst könnten
+        die drei Controller an einer Tagesgrenze unterschiedliche Zeitpunkte sehen.
+        Eigene Methode (T3), damit die Rangfolge isoliert von Modbus-Read/Energie-
+        Buchhaltung simulierbar ist – bislang nur über den ganzen Coordinator
+        erreichbar.
+        """
+        now = now or dt_util.now()
+        await self.legionella.async_evaluate(self, data, now)
+        await self.pv.async_evaluate(self, data, now)
+        await self.emergency.async_evaluate(self, data)
+
     def _ref_date(self, data: dict[int, int]):
         """(Bezugsdatum, Signatur) – manuelles Override oder Auto-Erkennung.
 
         Manuelles ``cop_ref_date`` (Options) hat Vorrang; sonst erster Monat des
-        Jahres mit Wärme. Die Signatur dient dem Re-Seed-Erkennen bei Änderung.
+        Jahres mit Wärme. Die Signatur dient dem Re-Seed-Erkennen bei Änderung –
+        seit W7 zusätzlich um die beiden COP-Quellen-Entities erweitert: wechselt
+        der Nutzer ``cop_elec_entity``/``cop_heat_entity``, muss das denselben
+        Re-Seed auslösen wie ein geändertes Bezugsdatum. Sonst bleiben
+        ``prev_heat``/``prev_elec`` aus der ALTEN Quelle im Store stehen, und der
+        nächste Delta-Sprung (z. B. Modbus-Register 1200 kWh -> externer
+        Lebenszähler 45000 kWh) wird als 43800 kWh Einzelverbrauch in die
+        Langzeitstatistik gebucht.
         """
         ref_str = self.entry.options.get(CONF_COP_REF_DATE)
         if ref_str:
             d = dt_util.parse_date(ref_str)
-            return d, (ref_str if d else None)
-        d = self._auto_ref_date(data)
-        return d, (f"auto:{d.isoformat()}" if d else None)
+            base = ref_str if d else None
+        else:
+            d = self._auto_ref_date(data)
+            base = f"auto:{d.isoformat()}" if d else None
+        if base is None:
+            return d, None
+        heat_ent = self.entry.options.get(CONF_COP_HEAT_ENTITY) or ""
+        elec_ent = self.entry.options.get(CONF_COP_ELEC_ENTITY) or ""
+        return d, f"{base}|{heat_ent}|{elec_ent}"
 
     async def _maybe_seed(self, data: dict[int, int]) -> None:
         """Monats-/Jahres-/Gesamt-Eimer seeden; Re-Seed bei Versions- oder
@@ -384,15 +409,40 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         finally:
             await self.async_request_refresh()
 
-    async def write_value(self, address: int, value: int) -> None:
-        """Beliebiges Register schreiben – für die interne PV-Steuerung.
+    async def write_value(self, address: int, value: int) -> bool:
+        """Beliebiges Register schreiben – für die internen Controller.
 
         Bewusst ohne anschließenden Refresh-Request (wird ohnehin im selben
         Lesezyklus aufgerufen), um keine Rekursion auszulösen.
+
+        Gibt **True bei Erfolg** zurück und wirft nie: Ein abgelehnter oder
+        fehlgeschlagener Schreibzugriff darf den laufenden Poll nicht abbrechen –
+        sonst reißt ein einzelnes verweigertes Register die Auswertung der übrigen
+        Controller mit. Stattdessen wird protokolliert und der Aufrufer entscheidet.
+
+        Warum der Rückgabewert zwingend auszuwerten ist: Die Controller merken sich
+        in eigenen Feldern, was sie geschrieben *haben* (``_last_written``,
+        ``_boost_applied``, ``_forced``). Wird so ein Merker gesetzt, obwohl das
+        Schreiben scheiterte, laufen Merker und Gerät auseinander – die PV-Leiter
+        hielte den unveränderten Registerwert dann z. B. für einen manuellen Eingriff.
         """
-        if not self._client.connected:
-            await self._client.connect()
-        await self._write_holding(address, int(value))
+        try:
+            if not self._client.connected:
+                await self._client.connect()
+            resp = await self._write_holding(address, int(value))
+            if resp.isError():
+                _LOGGER.warning(
+                    "Schreibzugriff auf Register %d (Wert %d) abgelehnt: %s",
+                    address, int(value), resp,
+                )
+                return False
+            return True
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning(
+                "Schreibzugriff auf Register %d (Wert %d) fehlgeschlagen: %s",
+                address, int(value), err,
+            )
+            return False
 
     async def write_setpoint(self, value: int) -> None:
         """Solltemperatur (Reg 6) setzen – für die interne PV-Steuerung."""

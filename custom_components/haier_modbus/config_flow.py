@@ -288,13 +288,15 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
 
 
 def _temp_order_error(merged: dict[str, Any]) -> str | None:
-    """Plausibilität der PV-Zieltemperaturen: Normal < Erhöht ≤ Boost.
+    """Plausibilität der PV-Zieltemperaturen: Normal < Erhöht ≤ Boost-Zieltemperatur.
 
     Ohne echte Staffelung kollabieren die Regelstufen: Ist Erhöht nicht höher als
-    Normal, gibt es keine Zwischenstufe mehr, und die Solar-Boost-Stufe (Verdichter
-    allein) kann nicht mehr von der Normalstufe unterschieden werden. ``pv.py`` klemmt
-    verdrehte Werte zwar zur Laufzeit ab, aber ein Hinweis beim Speichern ist ehrlicher
-    als eine stillschweigende Korrektur.
+    Normal, gibt es keine Zwischenstufe mehr. Die Boost-Zieltemperatur (``pv_temp_high``)
+    ist seit v1.16.0 nur noch für das Executor-Programm „Boost" relevant – im
+    Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht, die Reihenfolge
+    bleibt aber auch dort sinnvoll (verhindert eine verdrehte Konfiguration beim
+    Moduswechsel). ``pv.py`` klemmt verdrehte Werte zwar zur Laufzeit ab, aber ein
+    Hinweis beim Speichern ist ehrlicher als eine stillschweigende Korrektur.
     """
     base = merged.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)
     normal = merged.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)
@@ -320,7 +322,6 @@ def _pv_coordinator_error(merged: dict[str, Any]) -> str | None:
     try:
         pv_high = float(merged.get(CONF_PV_HIGH, DEFAULT_PV_HIGH))
         heater_power = float(merged.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER))
-        critical = float(merged.get(CONF_EMERGENCY_CRITICAL, DEFAULT_EMERGENCY_CRITICAL))
     except (TypeError, ValueError):
         return None
     if pv_high < heater_power + 50:
@@ -492,8 +493,13 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         legionella = {
             vol.Optional(CONF_LEGIONELLA_ENABLED,
                          default=cur(CONF_LEGIONELLA_ENABLED, False)): bool,
+            # W3: Verdichtergrenze (_TEMP_WP, max WP_MAX_TEMP), nicht die Registergrenze
+            # (_TEMP, max 75) - der Lauf eskaliert auf AUTO (reine WP), ein Ziel oberhalb
+            # WP_MAX_TEMP wäre dort nie erreichbar (stundenlanger Heizstabbetrieb bei
+            # COP ≈ 1 bis zum unerreichbaren Ziel; das eigentliche Abbruchkriterium ist
+            # ohnehin ``bottom_min``).
             vol.Optional(CONF_LEGIONELLA_TARGET,
-                         default=cur(CONF_LEGIONELLA_TARGET, DEFAULT_LEGIONELLA_TARGET)): _TEMP,
+                         default=cur(CONF_LEGIONELLA_TARGET, DEFAULT_LEGIONELLA_TARGET)): _TEMP_WP,
             vol.Optional(CONF_LEGIONELLA_INTERVAL,
                          default=cur(CONF_LEGIONELLA_INTERVAL, DEFAULT_LEGIONELLA_INTERVAL)): _DAYS,
             vol.Optional(CONF_LEGIONELLA_BOTTOM,

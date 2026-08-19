@@ -1,6 +1,6 @@
 """Optionale PV-Überschuss-Steuerung (Coordinator-Modus) innerhalb der Integration.
 
-Seit v1.16.0 **vier Stufen** (``base`` -> ``Erhöht`` -> ``Boost``, ELEC ist keine
+Seit v1.16.0 **drei Stufen** (``base`` -> ``Erhöht`` -> ``Boost``, ELEC ist keine
 PV-Eskalation mehr, s. u.), geregelt nach PV-Überschuss (``sensor.pv_uberschuss_watt``,
 kappt bei 0):
 
@@ -163,8 +163,9 @@ def _parse_time(raw) -> time:
 class PvController:
     """Coordinator-Modus: WP-Zyklus (Schicht 1) + Heizstab/Boost (Schicht 2)."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, store_factory=Store) -> None:
         self.hass = hass
+        self._store_factory = store_factory
         # Schicht 1 (WP-Zyklus): entprellter Ziel-Zustand (Basis/Erhöht).
         self._wp_target: float | None = None   # aktueller WP-Zyklus-Sollwert (Basis/Erhöht)
         self._wp_cand: float | None = None      # entprellter Kandidat
@@ -214,6 +215,8 @@ class PvController:
         self.status: dict = {
             "state": "off", "surplus": None, "setpoint": None,
             "running": None, "heater": False,
+            "wp_target": None, "manual_hold": False, "boost_owned": False,
+            "starts_today": 0,
         }
 
     def _set_status(self, state, surplus, setpoint, running, heater) -> None:
@@ -223,6 +226,12 @@ class PvController:
             "setpoint": None if setpoint is None else int(setpoint),
             "running": running,
             "heater": heater,
+            # T4: für die Simulation/Diagnose direkt einsehbare Besitzstände
+            # (sonst nur über private Attribute prüfbar).
+            "wp_target": self._wp_target,
+            "manual_hold": self._manual_hold,
+            "boost_owned": self._boost_applied,
+            "starts_today": self._starts_today(self._starts_day) if self._starts_day else 0,
         }
 
     async def _ensure_loaded(self, coordinator) -> None:
@@ -236,7 +245,7 @@ class PvController:
         if self._loaded:
             return
         self._loaded = True
-        self._store = Store(
+        self._store = self._store_factory(
             self.hass, _STORAGE_VERSION, f"{DOMAIN}_pv_{coordinator.entry.entry_id}"
         )
         try:
@@ -249,6 +258,13 @@ class PvController:
             if data.get("starts_day"):
                 self._starts_day = dt_util.parse_date(data["starts_day"])
             self._starts_count = int(data.get("starts_count") or 0)
+            # K2: Boost-Bit-Besitz laden, BEVOR irgendein früher Rückzugspfad
+            # (pv_mode != coordinator, Legionellenlauf) greift - sonst kann ein
+            # frisch instanziierter Controller (Neustart/Reload) einen von ihm
+            # selbst gesetzten Heizstab-Bit nie wieder erkennen und aufräumen.
+            self._boost_applied = bool(data.get("boost_applied", False))
+            # C13: sonst wiederholt sich die pv_high-Warnung nach jedem Neustart.
+            self._pv_high_clamped_warned = bool(data.get("pv_high_clamped_warned", False))
 
     async def _save_store(self) -> None:
         if self._store is None:
@@ -257,6 +273,8 @@ class PvController:
             "last_kick_day": self._last_kick_day.isoformat() if self._last_kick_day else None,
             "starts_day": self._starts_day.isoformat() if self._starts_day else None,
             "starts_count": self._starts_count,
+            "boost_applied": self._boost_applied,
+            "pv_high_clamped_warned": self._pv_high_clamped_warned,
         })
 
     async def _mark_kicked(self, day) -> None:
@@ -292,16 +310,24 @@ class PvController:
         self._manual_day = None
         self._last_written = None
 
-    async def _write_setpoint(self, coordinator, target: int) -> None:
+    async def _write_setpoint(self, coordinator, target: int) -> bool:
         """Sollwert schreiben und als zuletzt SELBST geschriebenen Wert merken.
 
         Nur über diesen Pfad geschriebene Werte aktualisieren ``_last_written``;
         User-Wege (Number-/Water-Heater-Entity) laufen über
         ``coordinator.async_write_register`` und fassen ihn nicht an – so lässt
         sich ein fremder (manueller) Eingriff sicher unterscheiden.
+
+        ``_last_written`` wird **nur bei erfolgreichem Schreiben** fortgeschrieben:
+        Bei einem abgelehnten Zugriff bliebe sonst der alte Registerwert stehen,
+        während ``_last_written`` schon den neuen Zielwert trüge – die nächste
+        Auswertung hielte die Abweichung für einen manuellen Eingriff und die
+        Leiter würde sich für den Rest des Tages zurückziehen.
         """
-        await coordinator.write_value(REG_SET_TEMP, target)
-        self._last_written = target
+        ok = await coordinator.write_value(REG_SET_TEMP, target)
+        if ok:
+            self._last_written = target
+        return ok
 
     def _announce(self, coordinator, target: int, surplus: float, up: bool) -> None:
         """Sollwert-Wechsel ins HA-Logbuch (Dedup auf den Zielwert -> wenige Einträge)."""
@@ -329,18 +355,24 @@ class PvController:
         Leistungssenke, keine eigene Temperaturstufe) und muss daher unabhängig von
         ``pv_temp_high`` (nur noch für den Executor relevant) auf ``WP_MAX_TEMP``
         begrenzt werden – das ist die harte Invariante aus AP4.
+
+        C11: beide Stufen fährt der Verdichter allein (Regel 3) - vorher klemmte
+        nur ``t_normal``, ``t_base`` kam ungeklemmt zurück (asymmetrisch zur
+        eigenen Begründung oben). Beide gehören auf ``WP_MAX_TEMP``.
         """
         t_normal = float(o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL))
         t_base = float(o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE))
+        t_base = min(max(t_base, float(SET_TEMP_MIN)), float(WP_MAX_TEMP))
         t_normal = min(max(t_normal, t_base), float(WP_MAX_TEMP))
         return t_normal, t_base
 
-    def _clamp_pv_high(self, hoch: float, p_heater_nominal: float) -> float:
+    async def _clamp_pv_high(self, hoch: float, p_heater_nominal: float) -> float:
         """``pv_high`` gegen die Heizstab-Nennleistung klemmen (AP3, Sicherheitsventil).
 
         Verletzt die Konfiguration ``pv_high >= P_heizstab + 50``, schaltet der Heizstab
         in den Netzbezug hinein ab (die Reserve wird negativ). Hochklemmen + einmalig
-        warnen statt stillschweigend takten lassen.
+        warnen statt stillschweigend takten lassen. Die Warn-Flagge ist persistiert
+        (C13) - sonst wiederholt sie sich nach jedem Neustart.
         """
         min_hoch = p_heater_nominal + 50
         if hoch >= min_hoch:
@@ -353,6 +385,7 @@ class PvController:
                 hoch, min_hoch, min_hoch,
             )
             self._pv_high_clamped_warned = True
+            await self._save_store()
         return min_hoch
 
     def _heater_power_watts(self, o: dict, nominal: float) -> float:
@@ -431,62 +464,52 @@ class PvController:
         Harte Invariante: AUTO nur, wenn der Sollwert ≤ ``WP_MAX_TEMP`` ist – oberhalb
         zieht das Gerät laut Datenblatt selbsttätig den Heizstab (unbelegter Teil der
         Nutzerannahme, s. Plan). Mit Boost == Erhöht-Ziel (AP2) ist das konstruktiv
-        erfüllt; die Assertion sichert das gegen künftige Änderungen ab.
+        erfüllt.
+
+        W1: eine Verletzung wird geklemmt + geloggt, NICHT mehr per ``assert``
+        geworfen. Eine ``AssertionError`` hier flog bis ``coordinator._async_update_data``
+        durch (``UpdateFailed`` -> alle Entitäten „nicht verfügbar") und – schlimmer –
+        verhinderte im selben Poll auch die Auswertung der Notheizung, die danach
+        aufgerufen wird. Eine Invariantenverletzung in der PV-Leiter darf die
+        Notheizung nicht mit abschalten. Zusätzlich ist ``assert`` unter ``python -O``
+        wirkungslos und taugt ohnehin nicht als Laufzeit-Guard.
         """
         if coordinator.emergency.active:
             return
         mode = data.get(REG_MODE)
         if mode is None or mode not in (MODE_ECO, MODE_AUTO):
             return
-        if want_mode == MODE_AUTO:
-            assert target <= WP_MAX_TEMP, "PV: AUTO nur mit Sollwert <= WP_MAX_TEMP (Invariante AP4)"
-        if mode != want_mode:
-            await coordinator.write_value(REG_MODE, want_mode)
+        if want_mode == MODE_AUTO and target > WP_MAX_TEMP:
+            _LOGGER.error(
+                "PV: AUTO mit Sollwert %d > WP_MAX_TEMP (%d) verweigert (Invariante AP4 "
+                "verletzt) - Modus bleibt unverändert, nächster Poll wird neu bewertet",
+                target, WP_MAX_TEMP,
+            )
+            return
+        if mode != want_mode and await coordinator.write_value(REG_MODE, want_mode):
             _LOGGER.debug("PV: Modus -> %s", "AUTO" if want_mode == MODE_AUTO else "ECO")
 
-    async def async_evaluate(self, coordinator, data: dict[int, int]) -> None:
-        o = coordinator.entry.options
-        if o.get(CONF_PV_MODE) != PV_MODE_COORDINATOR:
-            self._reset()
-            self._set_status("off", None, None, None, False)
-            return
+    async def _release_heater(self, coordinator, data: dict[int, int]) -> None:
+        """Heizstab-Bit (Boost) einmalig ausräumen, unabhängig vom Überschuss (K6/K7).
 
-        # Läuft gerade die Legionellen-Desinfektion, besitzt sie Sollwert/Modus
-        # (65 °C). Die PV-Sollwert-Regelung pausiert, damit sie nicht dagegen
-        # schreibt (bzw. den 65-°C-Sollwert als manuellen Eingriff fehldeutet).
-        if coordinator.legionella.active:
-            return
+        Idempotent über ``_apply_heater``: schreibt nur, wenn wir das Bit laut
+        ``_boost_applied`` selbst besitzen und es laut Register noch gesetzt ist.
+        """
+        self._heater_on = False
+        self._heater_cand = None
+        self._heater_since = None
+        await self._apply_heater(coordinator, data, 0.0)
 
-        await self._ensure_loaded(coordinator)
+    def _track_running(self, data: dict[int, int], now, t_base: float) -> bool:
+        """Anti-Takt-/Mindestlaufzeit-Zeitstempel pflegen (AP6b), UNABHÄNGIG von
+        einer Legionellen-/Notheizungs-Pause (W6).
 
-        surplus = state_float(self.hass, o.get(CONF_PV_SENSOR))
-        if surplus is None:
-            return
-
-        now = dt_util.now()
+        Vorher lag diese Buchführung hinter dem Legionellen-Guard: über einen
+        mehrstündigen Lauf alterte ``_off_since`` weiter, obwohl der Verdichter
+        lief -> ``_start_allowed`` gab danach sofort frei, der Mindest-Stillstand
+        war umgangen.
+        """
         running = bool((data.get(REG_STATUS) or 0) & STATUS_HEATPUMP)
-
-        current = data.get(REG_SET_TEMP)
-        if current is None:
-            return
-        current = float(current)
-        water = float(data.get(REG_WATER_TEMP) or 0)
-
-        t_normal, t_base = self._temps(o)
-        hold = float(o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD))
-        p_heater_nominal = float(o.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER))
-        hoch = self._clamp_pv_high(float(o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)), p_heater_nominal)
-        choice = o.get(CONF_PV_ESCALATION, PV_ESC_NONE)
-        debounce_s = o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE) * 60
-
-        # Normalisierung (AP3): "verfügbar" ist invariant gegen die eigene
-        # Heizstab-Schalthandlung – Grundlage für Schicht 2 (nicht für Schicht 1, das
-        # Anheben des Sollwerts erzeugt keine Zusatzlast).
-        p_heater = self._heater_power_watts(o, p_heater_nominal)
-        available = surplus + (p_heater if self._heater_on else 0.0)
-
-        # Stillstand-Zeitstempel pflegen (Anti-Takt) + Tagesplan-Rückfall (AP6b) +
-        # Laufzeit-Zeitstempel für die Mindestlaufzeit (v1.16.4, s. u.).
         if running:
             self._off_since = None
             if not self._was_running:
@@ -502,6 +525,77 @@ class PvController:
             self._wp_cand = None
             self._wp_since = None
         self._was_running = running
+        return running
+
+    async def async_evaluate(self, coordinator, data: dict[int, int], now=None) -> None:
+        o = coordinator.entry.options
+        # K2/K7: Boost-Besitz (``_boost_applied``) VOR jedem frühen Rückzugspfad
+        # laden - sonst kann ein frisch instanziierter Controller (Neustart/
+        # Reload) sein eigenes gesetztes Bit unten nicht erkennen und aufräumen.
+        await self._ensure_loaded(coordinator)
+        now = now or dt_util.now()
+
+        if o.get(CONF_PV_MODE) != PV_MODE_COORDINATOR:
+            # K7: ein noch gesetztes Boost-Bit vor dem Rücktritt räumen - ``_reset()``
+            # fasst ``_heater_on``/``_boost_applied`` bewusst nicht an (Sollwert-Schutz
+            # ist etwas anderes), und ein Reload (``CONF_PV_MODE`` ist bewusst nicht in
+            # ``LIVE_OPTION_KEYS``) würde den Heizstab sonst endgültig verwaist lassen.
+            if self._boost_applied:
+                await self._release_heater(coordinator, data)
+            self._reset()
+            self._set_status("off", None, None, None, False)
+            return
+
+        t_normal, t_base = self._temps(o)
+
+        # Läuft gerade die Legionellen-Desinfektion, besitzt sie Sollwert/Modus
+        # (65 °C). Die PV-Sollwert-Regelung pausiert, damit sie nicht dagegen
+        # schreibt (bzw. den 65-°C-Sollwert als manuellen Eingriff fehldeutet).
+        if coordinator.legionella.active:
+            self._track_running(data, now, t_base)   # W6: Zeitstempel laufen weiter
+            # K6: lief der Heizstab beim Start des Laufs, muss das Bit SOFORT (ein
+            # Poll) geräumt werden - sonst bleibt es für die gesamte, ausdrücklich
+            # timeoutlose Laufdauer stehen (verletzt die eigene Zusicherung
+            # "Aus sofort", s. Modul-Docstring AP3).
+            if self._boost_applied:
+                await self._release_heater(coordinator, data)
+            return
+
+        # W5: die Notheizung besitzt Sollwert UND Modus, solange sie aktiv ist (s.
+        # Modul-Docstring "Rangfolge") - bislang prüfte das nur ``_apply_mode`` für
+        # den Modus. Ohne diesen Guard konnte z. B. ein überschussgetriebener
+        # Kaltstart trotzdem 65 °C schreiben, während das Gerät gerade wegen
+        # kritischer Temperatur auf ELEC forciert ist: ``emergency.py`` hält
+        # ``recover_at = max(recover, Sollwert)`` - der frische 65-°C-Sollwert
+        # verlängert den ELEC-Lauf, obwohl die WP dabei aus bleibt (COP ≈ 1 bis
+        # zu einem Ziel, das nur der Heizstab erreicht).
+        if coordinator.emergency.active:
+            self._track_running(data, now, t_base)   # W6: Zeitstempel laufen weiter
+            return
+
+        surplus = state_float(self.hass, o.get(CONF_PV_SENSOR))
+        if surplus is None:
+            return
+
+        running = self._track_running(data, now, t_base)
+
+        current = data.get(REG_SET_TEMP)
+        if current is None:
+            return
+        current = float(current)
+        water = float(data.get(REG_WATER_TEMP) or 0)
+
+        hold = float(o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD))
+        p_heater_nominal = float(o.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER))
+        hoch = await self._clamp_pv_high(float(o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)), p_heater_nominal)
+        choice = o.get(CONF_PV_ESCALATION, PV_ESC_NONE)
+        debounce_s = o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE) * 60
+
+        # Normalisierung (AP3): "verfügbar" ist invariant gegen die eigene
+        # Heizstab-Schalthandlung – Grundlage für Schicht 2 (nicht für Schicht 1, das
+        # Anheben des Sollwerts erzeugt keine Zusatzlast).
+        p_heater = self._heater_power_watts(o, p_heater_nominal)
+        available = surplus + (p_heater if self._heater_on else 0.0)
 
         # WP-Zyklus-Ziel aus dem Ist ableiten, falls noch nicht bekannt (frischer
         # Start/Reload). Bewusst der *unveränderte* Register-Sollwert, nicht anhand der
@@ -749,11 +843,19 @@ class PvController:
         if func is None:
             return
         on = bool(func & BIT_BOOST)
+        # Besitz-Merker nur bei erfolgreichem Schreiben umschalten: Bliebe er nach einem
+        # abgelehnten Zugriff falsch stehen, würde die Leiter entweder ein Bit löschen,
+        # das sie nie gesetzt hat, oder – schlimmer – vergessen, dass sie den Heizstab
+        # eingeschaltet hat, und ihn nie wieder ausschalten. Ein Fehlversuch wird beim
+        # nächsten Poll ohnehin wiederholt, weil sich weder ``on`` noch ``_heater_on``
+        # geändert haben.
         if self._heater_on and not on:
-            await coordinator.write_value(REG_FUNCTION, func | BIT_BOOST)
-            self._boost_applied = True
-            _LOGGER.debug("PV: Boost an (Überschuss %.0f W)", surplus)
+            if await coordinator.write_value(REG_FUNCTION, func | BIT_BOOST):
+                self._boost_applied = True
+                await self._save_store()   # K2: Besitz überlebt einen Neustart
+                _LOGGER.debug("PV: Boost an (Überschuss %.0f W)", surplus)
         elif not self._heater_on and on and self._boost_applied:
-            await coordinator.write_value(REG_FUNCTION, func & ~BIT_BOOST)
-            self._boost_applied = False
-            _LOGGER.debug("PV: Boost aus")
+            if await coordinator.write_value(REG_FUNCTION, func & ~BIT_BOOST):
+                self._boost_applied = False
+                await self._save_store()
+                _LOGGER.debug("PV: Boost aus")

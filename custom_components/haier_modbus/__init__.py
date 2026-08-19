@@ -117,6 +117,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 SERVICE_RESET_ENERGY_STATS = "reset_energy_statistics"
 
 
+# W12: Zähler, deren Langzeitstatistik ein einmaliger Ausreißer verankern kann und
+# die der Reparaturdienst deshalb mit zurücksetzen muss. Die drei geräteseitigen
+# ``ENERGY_SENSORS`` (sensor.py) sind ebenfalls ``TOTAL_INCREASING`` und skaliert
+# mit ``CONF_ENERGY_SCALE`` (sensor.py:_scale) – ändert der Nutzer die Skalierung
+# (z. B. 0.1 -> 1.0), springt der Zählerstand um den Faktor, und ``TOTAL_INCREASING``
+# wertet den Sprung nach oben als echten Verbrauch. Ursprünglich deckte dieser
+# Dienst nur die integrationseigenen Gesamt-Zähler (``_total_heat``/``_total_elec``)
+# ab; ein Skalierungswechsel blieb damit unreparierbar liegen.
+_RESETTABLE_SUFFIXES: tuple[str, ...] = (
+    "_total_heat", "_total_elec", "_hp_elec_year", "_heater_elec_year", "_heat_year",
+)
+
+
 def _async_register_services(hass: HomeAssistant) -> None:
     """Dienst zum Zurücksetzen der Energie-Langzeitstatistik (einmalig registriert).
 
@@ -124,8 +137,9 @@ def _async_register_services(hass: HomeAssistant) -> None:
     einmalig auf den Lebenswert der Quelle springen; als ``total_increasing``
     trägt die Langzeitstatistik diesen Sprung als einmaligen Ausreißer mit.
     HA bietet dafür keinen eingebauten Dienst – dieser löscht gezielt die
-    Langzeitstatistik der integrationseigenen Gesamt-Zähler (Wärme/Strom),
-    danach baut der Recorder sie ab dem aktuellen (sauberen) Wert neu auf.
+    Langzeitstatistik der betroffenen Zähler (Gesamt- UND geräteseitige
+    Jahreszähler, s. ``_RESETTABLE_SUFFIXES``), danach baut der Recorder sie ab
+    dem aktuellen (sauberen) Wert neu auf.
     """
     if hass.services.has_service(DOMAIN, SERVICE_RESET_ENERGY_STATS):
         return
@@ -135,8 +149,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         stat_ids = [
             e.entity_id
             for e in reg.entities.values()
-            if e.platform == DOMAIN
-            and (e.unique_id.endswith("_total_heat") or e.unique_id.endswith("_total_elec"))
+            if e.platform == DOMAIN and (e.unique_id or "").endswith(_RESETTABLE_SUFFIXES)
         ]
         if not stat_ids:
             _LOGGER.warning("Reset-Energie-Statistik: keine Gesamt-Zähler gefunden")
@@ -229,6 +242,9 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
        Nachts gilt schlicht die Basis-Zieltemperatur in ECO – ein tieferer Boden
        brächte PV-seitig nichts (das deckt der Tages-Kaltstart ab) und nähme nur die
        Reserve für ungewöhnlich hohen Warmwasserbedarf.
+    4c. Abbruch-Entprellung entfernt (ab v1.16.4): ``pv_abort_debounce`` (in v1.16.3
+       eingeführt) entfällt ersatzlos, ersetzt durch das symmetrische Paar
+       ``pv_min_run``/``pv_min_off``.
     5. PV-Eskalation ``elec`` entfällt (ab v1.16.0, AP5): ELEC ist keine
        PV-Eskalation mehr, sondern eine Notfall-Option in ``emergency.py``
        (``CONF_EMERGENCY_MODE``). Alte ``pv_escalation: elec`` wird auf ``boost``
@@ -267,7 +283,7 @@ def _migrate_legacy_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
         changed = True
     for legacy in ("pv_bwwp_sensor", "pv_normal", "pv_hysteresis",
                    "pv_reraise_threshold", "pv_reraise_enabled",
-                   "pv_solar_boost", "pv_night_floor"):
+                   "pv_solar_boost", "pv_night_floor", "pv_abort_debounce"):
         if legacy in o:
             del o[legacy]
             changed = True

@@ -53,8 +53,8 @@ from .const import (
     REG_MODE,
     REG_SET_TEMP,
     REG_TANK_BOTTOM,
-    SET_TEMP_MAX,
     SET_TEMP_MIN,
+    WP_MAX_TEMP,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -79,8 +79,9 @@ def _parse_time(raw) -> time:
 class LegionellaController:
     """Watchdog auf die letzte Volldurchheizung; erzwingt bei Bedarf 65 °C."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, store_factory=Store) -> None:
         self.hass = hass
+        self._store_factory = store_factory
         self.active = False                     # läuft gerade ein Desinfektionslauf?
         self._last_success = None               # datetime der letzten Volldurchheizung
         self._run_started = None                # datetime des aktuellen Laufs
@@ -93,23 +94,50 @@ class LegionellaController:
         self.status: dict = {"state": "off"}
 
     async def _ensure_loaded(self, coordinator) -> None:
+        """Watchdog-Datum UND laufenden Desinfektionslauf laden (K3).
+
+        Ohne den zweiten Teil überlebt ein aktiver Lauf keinen HA-Neustart/Reload:
+        ``_saved_setpoint``/``_saved_mode`` gehen verloren, ``_restore()`` wird nie
+        aufgerufen, der Speicher bleibt auf dem 65-°C-Sollwert stehen (bei
+        ``pv_mode: off``/``executor`` schreibt niemand zurück).
+        """
         if self._loaded:
             return
         self._loaded = True
-        self._store = Store(
+        self._store = self._store_factory(
             self.hass, _STORAGE_VERSION, f"{DOMAIN}_legionella_{coordinator.entry.entry_id}"
         )
         try:
             data = await self._store.async_load()
         except Exception:  # noqa: BLE001
             data = None
-        if data and data.get("last_success"):
-            self._last_success = dt_util.parse_datetime(data["last_success"])
+        if data:
+            if data.get("last_success"):
+                self._last_success = dt_util.parse_datetime(data["last_success"])
+            self.active = bool(data.get("active", False))
+            self._releasing = bool(data.get("releasing", False))
+            if data.get("saved_setpoint") is not None:
+                self._saved_setpoint = int(data["saved_setpoint"])
+            if data.get("saved_mode") is not None:
+                self._saved_mode = int(data["saved_mode"])
+            if data.get("run_started"):
+                self._run_started = dt_util.parse_datetime(data["run_started"])
+
+    async def _save_store(self) -> None:
+        if self._store is None:
+            return
+        await self._store.async_save({
+            "last_success": self._last_success.isoformat() if self._last_success else None,
+            "active": self.active,
+            "releasing": self._releasing,
+            "saved_setpoint": self._saved_setpoint,
+            "saved_mode": self._saved_mode,
+            "run_started": self._run_started.isoformat() if self._run_started else None,
+        })
 
     async def _mark_success(self, when) -> None:
         self._last_success = when
-        if self._store is not None:
-            await self._store.async_save({"last_success": when.isoformat()})
+        await self._save_store()
 
     def _in_window(self, o: dict, now) -> bool:
         start = _parse_time(o.get(CONF_LEGIONELLA_WINDOW_START, DEFAULT_LEGIONELLA_WINDOW_START))
@@ -136,29 +164,45 @@ class LegionellaController:
             return MODE_ECO
         return MODE_AUTO
 
-    async def _restore(self, coordinator) -> None:
-        """Vorherigen Sollwert/Modus wiederherstellen (idempotent)."""
-        if self._saved_mode is not None:
-            await coordinator.write_value(REG_MODE, int(self._saved_mode))
-        if self._saved_setpoint is not None:
-            await coordinator.write_value(REG_SET_TEMP, int(self._saved_setpoint))
+    async def _restore(self, coordinator) -> bool:
+        """Vorherigen Sollwert/Modus wiederherstellen (idempotent).
 
-    async def async_evaluate(self, coordinator, data: dict[int, int]) -> None:
+        Gibt True zurück, wenn **beide** Schreibzugriffe durchgingen. Der Aufrufer gibt
+        den Lauf erst dann frei – sonst bliebe der Speicher auf dem 65-°C-Sollwert
+        stehen, und die PV-Leiter würde diesen fremden Sollwert als manuellen Eingriff
+        werten und sich zurückziehen.
+        """
+        ok = True
+        if self._saved_mode is not None:
+            ok &= await coordinator.write_value(REG_MODE, int(self._saved_mode))
+        if self._saved_setpoint is not None:
+            ok &= await coordinator.write_value(REG_SET_TEMP, int(self._saved_setpoint))
+        return bool(ok)
+
+    async def async_evaluate(self, coordinator, data: dict[int, int], now=None) -> None:
         o = coordinator.entry.options
+        await self._ensure_loaded(coordinator)
+
         if not o.get(CONF_LEGIONELLA_ENABLED, False):
             if self.active:
-                # Feature während eines Laufs abgeschaltet -> sauber freigeben.
-                await self._restore(coordinator)
+                # Feature während eines Laufs abgeschaltet -> sauber freigeben. Gelingt
+                # das Zurückschreiben nicht, bleibt der Lauf als aktiv markiert, damit der
+                # nächste Poll es erneut versucht – dasselbe Prinzip wie beim
+                # ``_releasing``-Handshake weiter unten. Den Speicher auf 65 °C stehen zu
+                # lassen wäre die schlechtere Alternative.
+                if not await self._restore(coordinator):
+                    return  # Status bleibt "running" – der Lauf ist noch nicht freigegeben
             self.active = False
             self._releasing = False
             self._run_started = None
             self._bottom_since = None
+            self._saved_setpoint = None
+            self._saved_mode = None
+            await self._save_store()
             self.status = {"state": "off"}
             return
 
-        await self._ensure_loaded(coordinator)
-
-        now = dt_util.now()
+        now = now or dt_util.now()
         interval = int(o.get(CONF_LEGIONELLA_INTERVAL, DEFAULT_LEGIONELLA_INTERVAL))
         target = _clamp(int(o.get(CONF_LEGIONELLA_TARGET, DEFAULT_LEGIONELLA_TARGET)))
         bottom_min = int(o.get(CONF_LEGIONELLA_BOTTOM, DEFAULT_LEGIONELLA_BOTTOM))
@@ -180,6 +224,7 @@ class LegionellaController:
                 self._saved_setpoint = None
                 self._saved_mode = None
                 self._run_started = None
+                await self._save_store()
             else:
                 await self._restore(coordinator)
             self._snapshot("idle" if not self.active else "running", now, bottom, target, interval)
@@ -212,6 +257,7 @@ class LegionellaController:
                 )
                 await self._restore(coordinator)
                 self._releasing = True     # Freigabe erst, wenn Sollwert zurückgelesen
+                await self._save_store()
             self._snapshot("running" if self.active else "idle", now, bottom, target, interval)
             return
 
@@ -219,7 +265,19 @@ class LegionellaController:
             self.active = True
             self._run_started = now
             self._saved_setpoint = int(setpoint)
-            self._saved_mode = int(mode)
+            # K4: Läuft die Notheizung gerade forciert (AUTO/ELEC), ist DAS nicht der
+            # wahre Ausgangszustand, sondern ihr eigener Eingriff. Würden wir den
+            # rohen Registerwert sichern, käme beim Restore genau dieser erzwungene
+            # Modus zurück – die Notheizung hat ihren Besitz aber schon beim
+            # Zurücktreten für diesen Lauf aufgegeben (``emergency.py``: tritt
+            # zurück, sobald ``legionella.active`` gilt) und würde ihn nie wieder
+            # übernehmen (Reg 1 steht dann auf AUTO/ELEC, der Arm-Zweig verlangt
+            # aber MODE_ECO). Der wahre Ausgangszustand ist ECO.
+            emergency = getattr(coordinator, "emergency", None)
+            self._saved_mode = (
+                MODE_ECO if emergency is not None and emergency.active else int(mode)
+            )
+            await self._save_store()
             _LOGGER.info(
                 "Legionellen-Desinfektion gestartet (Ziel %d °C, Tank unten ≥ %d °C)",
                 target, bottom_min,
@@ -254,4 +312,6 @@ class LegionellaController:
 
 
 def _clamp(value: int) -> int:
-    return min(max(value, SET_TEMP_MIN), SET_TEMP_MAX)
+    # W3: Verdichtergrenze, nicht die Registergrenze (75) - der Lauf eskaliert auf
+    # AUTO (reine WP), ein Ziel oberhalb WP_MAX_TEMP wäre dort nie erreichbar.
+    return min(max(value, SET_TEMP_MIN), WP_MAX_TEMP)

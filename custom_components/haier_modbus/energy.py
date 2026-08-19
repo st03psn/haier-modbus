@@ -130,8 +130,11 @@ async def consumption_since(
 class EnergyAccumulator:
     """Akkumuliert Wärme/Strom in Monats-, Jahres- und Gesamt-Eimer."""
 
-    def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
-        self._store: Store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry_id}.energy")
+    def __init__(self, hass: HomeAssistant, entry_id: str, store_factory=Store) -> None:
+        self._hass = hass
+        self._entry_id = entry_id
+        self._store_factory = store_factory
+        self._store: Store | None = None       # lazy (T2): kein HA-Storage-Stub im Ctor nötig
         self._data: dict | None = None
         self._dirty = False
 
@@ -149,8 +152,15 @@ class EnergyAccumulator:
         """Signatur des zuletzt verwendeten Bezugsdatums (für Re-Seed bei Änderung)."""
         return (self._data or {}).get("seed_ref")
 
+    def _ensure_store(self) -> Store:
+        if self._store is None:
+            self._store = self._store_factory(
+                self._hass, STORE_VERSION, f"{DOMAIN}.{self._entry_id}.energy"
+            )
+        return self._store
+
     async def async_load(self) -> None:
-        self._data = await self._store.async_load() or _empty()
+        self._data = await self._ensure_store().async_load() or _empty()
 
     def _roll(self, now) -> None:
         d = self._data
@@ -250,7 +260,7 @@ class EnergyAccumulator:
 
     async def async_save(self) -> None:
         if self._data is not None and self._dirty:
-            await self._store.async_save(self._data)
+            await self._ensure_store().async_save(self._data)
             self._dirty = False
 
     # --- Zugriff für Sensoren -------------------------------------------------
