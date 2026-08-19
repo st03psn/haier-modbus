@@ -33,6 +33,16 @@ Reihenfolge** je Poll ausgewertet: Legionellen zuerst (besitzt bei aktivem Lauf 
 Modus), dann PV, dann Notheizung. Wer schreibt, tritt zurück, wenn ein höher priorisierter
 Controller aktiv ist.
 
+**Auswertungsreihenfolge ≠ Rangfolge für Reg 1 (Modus).** Für den geschriebenen Wert gilt
+`legionella > emergency > pv` — Notheizung wird zwar zuletzt ausgewertet, hat damit aber
+je Poll das letzte Wort über Reg 1: `pv._apply_mode` tritt zurück, wenn `emergency.active`
+gilt, `emergency` selbst kennt PV dagegen nicht und schreibt unabhängig vom PV-Zyklus,
+sobald die Kritisch-Schwelle unterschritten ist. Bewusst so belassen (Entscheidung
+09/2026, s. `docs/`-Review v1.18.0): kritische Wassertemperatur schlägt PV-Optimierung.
+Ein Kaltstart-Sollwert während eines aktiven Notheizungslaufs wird seit v1.18.0 (W5)
+zusätzlich unterdrückt, damit die Notheizung den Rückschalt-Zielwert nicht ungewollt
+selbst anhebt (`recover_at = max(recover, Sollwert)`).
+
 ## Harte Regeln
 
 1. **Kein zweiter Bus-Master.** Alles läuft über den Coordinator; niemals parallel per YAML

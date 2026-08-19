@@ -22,11 +22,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
+    CONF_PV_MODE,
     CONF_PV_SENSOR,
     DASHBOARD_ICON,
     DASHBOARD_LEGACY_URL_PATH,
     DASHBOARD_URL_PATH,
     DOMAIN,
+    PV_MODE_EXECUTOR,
     localized_title,
 )
 
@@ -104,10 +106,19 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             "navigation_path": f"/config/integrations/integration/{DOMAIN}",
         },
     }
+    # C9: im Executor-Modus ist das PV-Programm-Select (select.py) das zentrale
+    # Bedienelement für ein HEMS/den Nutzer - bislang tauchte es auf dem Dashboard
+    # nirgends auf, weil ``pv_tile``/``pv_status_section`` unten an ``CONF_PV_SENSOR``
+    # hängen, der im Executor-Modus nie abgefragt wird (config_flow.py).
+    pv_program_tile = (
+        tile("select", "pv_program", "PV-Programm", features=[{"type": "select-options"}])
+        if entry.options.get(CONF_PV_MODE) == PV_MODE_EXECUTOR else None
+    )
     steuerung = section("Steuerung", [
         tile("water_heater", "water_heater", "Brauchwasser",
              features=[{"type": "target-temperature"}]),
         tile("select", "mode", "Modus", features=[{"type": "select-options"}]),
+        pv_program_tile,
         grid([
             tile("switch", "active", "Betrieb", features=[{"type": "toggle"}]),
             tile("switch", "boost", "Boost", features=[{"type": "toggle"}]),
@@ -182,7 +193,12 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         pv_status_section["visibility"] = _pv_vis
 
     # "Erfasst seit …"-Hinweis (dynamisches Datum aus dem 'seit'-Attribut).
-    _heat_eid = eid("sensor", "heat_total")
+    # W11: die unique_id lautet "total_heat" (sensor.py: HaierAccEnergy(coordinator,
+    # "total_heat", "heat_total") - erstes Argument = unique_id, zweites nur der
+    # translation_key). Der Tippfehler "heat_total" ließ eid() stillschweigend None
+    # liefern (grid()/section() filtern None-Karten OHNE Fehlermeldung) - Kachel
+    # "Wärmemenge (gesamt)" und der "Erfasst seit …"-Hinweis fehlten komplett.
+    _heat_eid = eid("sensor", "total_heat")
     seit_md = {
         "type": "markdown",
         "content": (
@@ -196,7 +212,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         tile("sensor", "cop_month", "COP (Monat)", color="green"),
         tile("sensor", "cop_year", "JAZ (Jahr)"),
         tile("sensor", "cop_prev_year", "JAZ (Vorjahr)"),
-        tile("sensor", "heat_total", "Wärmemenge (gesamt)"),
+        tile("sensor", "total_heat", "Wärmemenge (gesamt)"),
         tile("sensor", "total_elec", "Strom gesamt"),
         tile("sensor", "heat_year", "Wärmemenge (akt. Jahr)"),
         tile("sensor", "hp_elec_year", "WP-Strom (Jahr)"),

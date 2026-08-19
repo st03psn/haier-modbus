@@ -121,7 +121,8 @@ DEFAULT_PV_MIN_RUN: Final = 30
 
 # Executor: Regelprogramme, die ein HEMS (oder der Nutzer) setzt; die Integration
 # übersetzt das Programm idempotent in die Mechanik (Sollwert/Modus/Boost).
-CONF_PV_PROGRAM: Final = "pv_program"
+# (C6: kein eigener Options-Key - select.HaierPvProgramSelect ist ein reines
+# Kommando-Select ohne Register-/Options-Speicher, s. dortiger Docstring.)
 PV_PROGRAM_OFF: Final = "aus"                  # Integration fasst den Sollwert nicht an
 PV_PROGRAM_GRUND: Final = "grund"              # Sollwert = 50 °C, Modus ECO
 PV_PROGRAM_UEBERSCHUSS: Final = "ueberschuss"  # Sollwert = 65 °C, Modus AUTO
@@ -201,6 +202,12 @@ DEFAULT_PV_DEBOUNCE: Final = 5
 # Scan-Intervall/``pv_mode``) – dort ist der Reload gerade der Zweck.
 # Siehe ``_async_update_listener`` in __init__.py.
 LIVE_OPTION_KEYS: Final = frozenset({
+    # Nachtrag v1.18.0 (W2): beide werden in ``pv.py`` je Poll frisch gelesen
+    # (``state_float(self.hass, o.get(CONF_PV_SENSOR))`` bzw. der Negativpreis-Gate),
+    # fehlten hier aber - ein Sensorwechsel im Dialog löste denselben unnötigen
+    # Reload mit Besitzstand-Verlust-Risiko aus wie die Keys unten.
+    CONF_PV_SENSOR,
+    CONF_PV_NEGATIVE_PRICE_SENSOR,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_NORMAL,
     CONF_PV_TEMP_HIGH,
@@ -234,10 +241,15 @@ LIVE_OPTION_KEYS: Final = frozenset({
     CONF_EMERGENCY_MODE,
     # --- Legionellen-Watchdog (legionella.py) ------------------------------
     # Ebenfalls alle je Poll gelesen. Ein Reload während eines laufenden Desinfektions-
-    # laufs verwirft ``_saved_setpoint``/``_saved_mode``; ``_restore()`` wird nie
-    # aufgerufen, das Gerät bleibt auf dem 65-°C-Sollwert in AUTO stehen. Die PV-Leiter
-    # wertet diesen fremden Sollwert als manuellen Eingriff und tritt dauerhaft zurück.
-    # (``_last_success`` liegt im Store und ist davon nicht betroffen.)
+    # laufs verwirft ohne diese Keys ``_saved_setpoint``/``_saved_mode``; ``_restore()``
+    # wird nie aufgerufen, das Gerät bleibt auf dem 65-°C-Sollwert in AUTO stehen -
+    # NICHT weil die PV-Leiter das fälschlich als manuellen Eingriff werten würde
+    # (``_last_written`` wird beim Reload ebenfalls neu gebootstrappt, es entsteht
+    # kein ``_manual_hold``), sondern schlicht, weil niemand mehr zuständig ist.
+    # (K3, v1.18.0: ``active``/``_saved_setpoint``/``_saved_mode`` liegen inzwischen
+    # ebenfalls im Store - ein Neustart/Reload außerhalb dieser Liste heilt sich damit
+    # beim nächsten Poll selbst. Diese Keys bleiben trotzdem live, damit ein
+    # Options-Reload während eines Laufs erst gar nicht nötig ist.)
     CONF_LEGIONELLA_ENABLED,
     CONF_LEGIONELLA_TARGET,
     CONF_LEGIONELLA_INTERVAL,

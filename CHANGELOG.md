@@ -5,6 +5,97 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.18.0] - 2026-08-19
+
+Vollständiger Review-Durchgang gegen v1.17.0 (zwei unabhängige Review-Runden, alle
+Befunde gegen den Code verifiziert, neue Fälle in einer Simulation gegenprobiert –
+Details siehe PR). Schwerpunkt: Besitzstand-Verlust bei Neustart/Reload und
+Rangfolge-Konflikte zwischen den drei Controllern.
+
+**Kritisch – Besitzstand überlebt jetzt einen Neustart/Reload (Store-Persistenz):**
+- `emergency._forced`, `pv._boost_applied` sowie der komplette Zustand eines laufenden
+  Legionellen-Desinfektionslaufs (`active`, `_saved_setpoint`, `_saved_mode`,
+  `_releasing`) sind jetzt im HA-Store persistiert – Vorbild ist das bestehende Muster
+  für `pv._last_kick_day` und `legionella._last_success`. Vorher: ein HA-Neustart,
+  HACS-Update oder „Integration neu laden" ließ das Gerät je nach Situation dauerhaft in
+  AUTO/ELEC hängen (COP ≈ 1), den Heizstab dauerhaft mitlaufen, oder den Speicher
+  dauerhaft auf dem 65-°C-Desinfektionssollwert stehen.
+- **Legionellenlauf über einer forcierten Notheizung fror deren Modus dauerhaft ein:**
+  sicherte `legionella` beim Start eines Laufs den (durch die Notheizung erzwungenen)
+  Modus als vermeintlichen Ausgangszustand, schrieb ihr eigener `_restore()` nach
+  Laufende genau diesen erzwungenen Modus zurück – die Notheizung hatte ihren Besitz
+  aber schon beim Zurücktreten für den Lauf aufgegeben und konnte ihn nie wieder
+  übernehmen. `legionella` fragt jetzt `emergency.active` ab und sichert in diesem Fall
+  den wahren Ausgangszustand (ECO).
+- **Notheizung deaktivieren mitten in einem forcierten Lauf** ließ das Gerät in
+  AUTO/ELEC stehen (kein Rückschreiben) – jetzt inkl. Retry im Folgepoll bei
+  Schreibfehler, analog zum bestehenden Legionellen-Handshake.
+- **Boost-Bit blieb während eines gesamten (ausdrücklich timeoutlosen) Legionellenlaufs
+  gesetzt**, wenn der Heizstab beim Start gerade lief – widersprach der eigenen
+  Zusicherung „Aus sofort" (ein Poll). Wird jetzt beim Eintritt in die Pause geräumt.
+- **PV-Modus auf „Aus" wechseln ließ ein gesetztes Boost-Bit endgültig verwaisen**
+  (weder `_reset()` noch der anschließende Reload räumten es auf). Wird jetzt vor dem
+  Rücktritt geräumt.
+
+**Kritisch – Regelungskern:**
+- Eine verletzte Invariante in `pv._apply_mode` (Sollwert > `WP_MAX_TEMP` bei AUTO) warf
+  bisher eine `AssertionError`, die bis zum Coordinator durchschlug: **alle Entitäten
+  „nicht verfügbar" UND die Notheizung wurde im selben Poll gar nicht mehr ausgewertet.**
+  Ersetzt durch Klemmung + Fehlerprotokoll – eine Regelverletzung in der PV-Leiter darf
+  die Notheizung nicht mit abschalten.
+
+**Wichtig:**
+- `LIVE_OPTION_KEYS` um `pv_sensor` und `pv_negative_price_sensor` ergänzt (beide werden
+  je Poll frisch gelesen, fehlten aber – ein Sensorwechsel löste einen unnötigen Reload
+  mit den oben beschriebenen Risiken aus).
+- Legionellen-Zieltemperatur ist jetzt auf `WP_MAX_TEMP` (65 °C) begrenzt statt auf die
+  Registergrenze (75 °C) – der Lauf eskaliert auf AUTO (reine WP), ein höheres Ziel wäre
+  dort ohnehin nie erreichbar gewesen (stundenlanger Heizstabbetrieb bei COP ≈ 1 bis zu
+  einem unerreichbaren Ziel).
+- PV-Kaltstart/Morgen-Start respektieren jetzt `emergency.active` und pausieren
+  vollständig, solange die Notheizung den Modus besitzt – vorher konnte ein
+  überschussgetriebener Kaltstart den Sollwert auf 65 °C heben, während das Gerät gerade
+  wegen kritischer Temperatur auf ELEC forciert war, und damit den Rückschalt-Zielwert
+  der Notheizung selbst anheben (`recover_at = max(recover, Sollwert)`).
+- Anti-Takt-/Mindestlaufzeit-Zeitstempel laufen jetzt auch während einer
+  Legionellen-/Notheizungs-Pause weiter, statt einzufrieren.
+- `select.py`: der Rückgabewert von `write_value()` wird jetzt ausgewertet – lehnt das
+  Gerät einen Schreibzugriff ab, zeigt das PV-Programm-Select das nicht mehr
+  fälschlich als erfolgreich an (relevant für HEMS/evcc-Integrationen).
+- `select.py`/`switch.py`: ein noch nicht gelesenes Funktionsregister führt nicht mehr
+  zum stillschweigenden Löschen aller anderen Bits (Betrieb/Leise/Sterilisation) beim
+  ersten Boost-/Bit-Toggle nach dem Start.
+- Boost-Programm im Executor-Modus klemmt Basis-/Erhöht-/Boost-Zieltemperatur jetzt in
+  der richtigen Reihenfolge (Basis ≤ Erhöht ≤ Boost, Basis/Erhöht zusätzlich auf
+  `WP_MAX_TEMP`) – eine verdrehte Einzelfeld-Änderung über die Number-Entities konnte den
+  Sollwert sonst unter „Überschuss" absenken statt anzuheben.
+- Dashboard: Kachel „Wärmemenge (gesamt)" und der „Erfasst seit …"-Hinweis fehlten wegen
+  eines Tippfehlers (`heat_total` statt der tatsächlichen unique_id `total_heat`).
+- Reparaturdienst `haier_modbus.reset_energy_statistics` deckt jetzt zusätzlich die drei
+  geräteseitigen Jahreszähler ab (nicht nur die Gesamt-Zähler) – relevant nach einer
+  Änderung der Register-Skalierung (`energy_scale`), die sonst einen dauerhaften
+  Ausreißer in der Langzeitstatistik verankert.
+- COP-Re-Seed-Signatur berücksichtigt jetzt auch die gewählten Zähler-Entities, nicht nur
+  das Bezugsdatum – ein Wechsel von `cop_elec_entity`/`cop_heat_entity` löst jetzt
+  denselben Re-Seed aus wie ein geändertes Bezugsdatum.
+
+**Kosmetisch:** Entity-Kategorien bereinigt (`fault`/`mode_text` → Diagnose,
+`pv_status`/`legionella_status` bewusst NICHT Diagnose, `connection` → Diagnose), neuer
+Diagnose-Sensor `emergency_status` (bislang war ein in ELEC hängendes Gerät nur an der
+Stromrechnung erkennbar), `select.pv_program` überlebt jetzt einen Reload
+(`RestoreEntity`), `pv._temps()` klemmt Basis/Erhöht jetzt symmetrisch, `cop_prev_year`
+bleibt bei Modbus-Störung verfügbar (rein historischer Wert), Dashboard zeigt im
+Executor-Modus jetzt eine Kachel für `select.pv_program`, tote Konstante `CONF_PV_PROGRAM`
+entfernt, `pv_high`-Klemm-Warnung wiederholt sich nicht mehr nach jedem Neustart.
+
+**Testbarkeit (Voraussetzung für die obigen Fixe):** `now` ist jetzt in
+`pv.async_evaluate`/`legionella.async_evaluate` injizierbar (ein gemeinsames `now` pro
+Poll statt dreier `dt_util.now()`-Aufrufe), Stores sind über einen `store_factory`-
+Parameter injizierbar, die Rangfolge-Auswertung ist als `coordinator._run_controllers()`
+isoliert, und `pv`/`emergency` liefern jetzt öffentliche Status-Objekte (`wp_target`,
+`manual_hold`, `boost_owned`, `starts_today` bzw. `forced_mode`, `water`) statt nur
+private Attribute.
+
 ## [1.17.0] - 2026-08-18
 - **Vier Tagesplan-Kennzahlen als Number-Entities auf der Geräteseite:**
   Kaltstart-Schwelle (`pv_coldstart`), Kaltstart-Mindestdefizit (`pv_coldstart_delta`),

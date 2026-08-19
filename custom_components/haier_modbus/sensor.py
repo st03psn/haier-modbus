@@ -108,6 +108,7 @@ async def async_setup_entry(
     entities.append(HaierLinkStatus(coordinator))
     entities.append(HaierPvStatus(coordinator))
     entities.append(HaierLegionellaStatus(coordinator))
+    entities.append(HaierEmergencyStatus(coordinator))
     async_add_entities(entities)
 
 
@@ -147,10 +148,12 @@ class HaierPvStatus(HaierModbusEntity, SensorEntity):
     ``off``.
     """
 
+    # C2: KEIN DIAGNOSTIC - Betriebszustand, nicht Diagnose (gleicher Charakter
+    # wie ``HaierCurrentSource``, das korrekt keine Kategorie trägt). Widersprach
+    # bislang auch ``dashboard.py``, wo derselbe Sensor als prominente Kachel liegt.
     _attr_translation_key = "pv_status"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = ["off", "base", "normal", "boost", "manual", "held"]
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:solar-power-variant"
 
     def __init__(self, coordinator) -> None:
@@ -184,10 +187,10 @@ class HaierLegionellaStatus(HaierModbusEntity, SensorEntity):
     Tage seither, nächste Fälligkeit, Tank-unten und Ziel. Deaktiviert: ``off``.
     """
 
+    # C2: KEIN DIAGNOSTIC - Betriebszustand, nicht Diagnose (s. HaierPvStatus).
     _attr_translation_key = "legionella_status"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = ["off", "idle", "due", "running", "holding"]
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:bacteria-outline"
 
     def __init__(self, coordinator) -> None:
@@ -211,6 +214,41 @@ class HaierLegionellaStatus(HaierModbusEntity, SensorEntity):
             "next_due": s.get("next_due"),
             "tank_bottom_c": s.get("tank_bottom"),
             "target_c": s.get("target"),
+        }
+
+
+class HaierEmergencyStatus(HaierModbusEntity, SensorEntity):
+    """Live-Status der Notfall-Nachheizung (C12/T4).
+
+    Vorher gab es dafür KEINEN Sensor - ``_forced`` war nirgends sichtbar; ein
+    dauerhaft in AUTO/ELEC hängendes Gerät (K1/K4) fiel bislang nur an der
+    Stromrechnung auf. Betriebszustand, daher bewusst KEIN DIAGNOSTIC (s.
+    ``HaierPvStatus``).
+    """
+
+    _attr_translation_key = "emergency_status"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["disabled", "idle", "forced"]
+    _attr_icon = "mdi:fire-alert"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_emergency_status"
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self):
+        return self.coordinator.emergency.status.get("state")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        s = self.coordinator.emergency.status
+        return {
+            "forced_mode": s.get("forced_mode"),
+            "water_temp_c": s.get("water"),
         }
 
 
@@ -277,7 +315,12 @@ class HaierFaultText(HaierModbusEntity, SensorEntity):
     sprachunabhängig darauf zugreifen können.
     """
 
+    # C1: DIAGNOSTIC (analog ``link_status``/``pv_status``/``legionella_status`` -
+    # gleichrangig, standen aber fälschlich im Hauptblock zwischen den Temperaturen
+    # und wurden dadurch auch Sprachassistenten angeboten, die DIAGNOSTIC-Entities
+    # per HA-Konvention standardmäßig ausblenden).
     _attr_translation_key = "fault"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     # Fixe Zustandstexte, zweisprachig – die Codetabelle selbst ist deutsch.
     _TEXTS = {
@@ -317,7 +360,9 @@ class HaierFaultText(HaierModbusEntity, SensorEntity):
 class HaierModeText(HaierModbusEntity, SensorEntity):
     """Aktueller Modus als Text (read-only, Reg 1)."""
 
+    # C1: DIAGNOSTIC (s. HaierFaultText).
     _attr_translation_key = "mode_text"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:tune-variant"
 
     def __init__(self, coordinator) -> None:
@@ -496,6 +541,13 @@ class HaierPrevYearCop(HaierModbusEntity, SensorEntity):
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.entry.entry_id}_cop_prev_year"
+
+    @property
+    def available(self) -> bool:
+        """C7: rein historischer Wert aus dem Energie-Store - eine Modbus-Störung
+        (die die geerbte ``CoordinatorEntity.available`` an ``coordinator.data``
+        hängt) darf den Rückblick auf ein abgeschlossenes Jahr nicht verdecken."""
+        return True
 
     @property
     def native_value(self):

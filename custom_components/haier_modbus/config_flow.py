@@ -493,8 +493,13 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         legionella = {
             vol.Optional(CONF_LEGIONELLA_ENABLED,
                          default=cur(CONF_LEGIONELLA_ENABLED, False)): bool,
+            # W3: Verdichtergrenze (_TEMP_WP, max WP_MAX_TEMP), nicht die Registergrenze
+            # (_TEMP, max 75) - der Lauf eskaliert auf AUTO (reine WP), ein Ziel oberhalb
+            # WP_MAX_TEMP wäre dort nie erreichbar (stundenlanger Heizstabbetrieb bei
+            # COP ≈ 1 bis zum unerreichbaren Ziel; das eigentliche Abbruchkriterium ist
+            # ohnehin ``bottom_min``).
             vol.Optional(CONF_LEGIONELLA_TARGET,
-                         default=cur(CONF_LEGIONELLA_TARGET, DEFAULT_LEGIONELLA_TARGET)): _TEMP,
+                         default=cur(CONF_LEGIONELLA_TARGET, DEFAULT_LEGIONELLA_TARGET)): _TEMP_WP,
             vol.Optional(CONF_LEGIONELLA_INTERVAL,
                          default=cur(CONF_LEGIONELLA_INTERVAL, DEFAULT_LEGIONELLA_INTERVAL)): _DAYS,
             vol.Optional(CONF_LEGIONELLA_BOTTOM,

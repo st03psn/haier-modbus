@@ -11,6 +11,7 @@ from __future__ import annotations
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -62,11 +63,23 @@ class HaierBitSwitch(HaierModbusEntity, SwitchEntity):
         return None if raw is None else bool(raw & self._bitmask)
 
     async def async_turn_on(self, **kwargs) -> None:
-        current = self._regs.get(REG_FUNCTION, 0)
+        # W9: ohne bislang erfolgreichen Block-Read ist ``REG_FUNCTION`` unbekannt -
+        # ein Fallback auf 0 würde beim Schreiben ALLE fremden Bits löschen
+        # (BIT_ACTIVE/BIT_MUTE/BIT_STERILIZE), das Gerät ginge aus. Vorlage:
+        # ``pv._apply_heater`` verweigert unter derselben Bedingung ebenfalls.
+        current = self._regs.get(REG_FUNCTION)
+        if current is None:
+            raise HomeAssistantError(
+                "Funktionsregister noch nicht gelesen - Schalten aktuell nicht möglich"
+            )
         await self.coordinator.async_write_register(REG_FUNCTION, current | self._bitmask)
 
     async def async_turn_off(self, **kwargs) -> None:
-        current = self._regs.get(REG_FUNCTION, 0)
+        current = self._regs.get(REG_FUNCTION)
+        if current is None:
+            raise HomeAssistantError(
+                "Funktionsregister noch nicht gelesen - Schalten aktuell nicht möglich"
+            )
         await self.coordinator.async_write_register(REG_FUNCTION, current & ~self._bitmask)
 
 

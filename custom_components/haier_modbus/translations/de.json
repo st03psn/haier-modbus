@@ -300,6 +300,14 @@
           "running": "Desinfektion läuft",
           "holding": "Haltephase"
         }
+      },
+      "emergency_status": {
+        "name": "Notheizung-Status",
+        "state": {
+          "disabled": "Deaktiviert",
+          "idle": "Bereit",
+          "forced": "Aktiv"
+        }
       }
     },
     "binary_sensor": {

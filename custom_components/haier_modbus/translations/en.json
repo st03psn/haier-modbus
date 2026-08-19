@@ -300,6 +300,14 @@
           "running": "Disinfecting",
           "holding": "Holding"
         }
+      },
+      "emergency_status": {
+        "name": "Emergency heating status",
+        "state": {
+          "disabled": "Disabled",
+          "idle": "Idle",
+          "forced": "Forced"
+        }
       }
     },
     "binary_sensor": {
