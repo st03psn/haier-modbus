@@ -117,7 +117,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 SERVICE_RESET_ENERGY_STATS = "reset_energy_statistics"
 
 
-
 # W12: Zähler, deren Langzeitstatistik ein einmaliger Ausreißer verankern kann und
 # die der Reparaturdienst deshalb mit zurücksetzen muss. Die drei geräteseitigen
 # ``ENERGY_SENSORS`` (sensor.py) sind ebenfalls ``TOTAL_INCREASING`` und skaliert
