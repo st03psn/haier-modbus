@@ -419,4 +419,5 @@ PLATFORMS: Final = [
     "select",
     "switch",
     "binary_sensor",
+    "time",
 ]

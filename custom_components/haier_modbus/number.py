@@ -23,21 +23,39 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    CONF_EMERGENCY_CRITICAL,
+    CONF_EMERGENCY_RECOVER,
+    CONF_LEGIONELLA_BOTTOM,
+    CONF_LEGIONELLA_HOLD,
+    CONF_LEGIONELLA_INTERVAL,
+    CONF_LEGIONELLA_TARGET,
     CONF_PV_COLDSTART,
     CONF_PV_COLDSTART_DELTA,
+    CONF_PV_DEBOUNCE,
+    CONF_PV_HEATER_POWER,
     CONF_PV_HIGH,
     CONF_PV_HOLD,
     CONF_PV_MAX_STARTS,
+    CONF_PV_MIN_OFF,
     CONF_PV_MIN_RUN,
     CONF_PV_MODE,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
     CONF_PV_TEMP_NORMAL,
+    DEFAULT_EMERGENCY_CRITICAL,
+    DEFAULT_EMERGENCY_RECOVER,
+    DEFAULT_LEGIONELLA_BOTTOM,
+    DEFAULT_LEGIONELLA_HOLD,
+    DEFAULT_LEGIONELLA_INTERVAL,
+    DEFAULT_LEGIONELLA_TARGET,
     DEFAULT_PV_COLDSTART,
     DEFAULT_PV_COLDSTART_DELTA,
+    DEFAULT_PV_DEBOUNCE,
+    DEFAULT_PV_HEATER_POWER,
     DEFAULT_PV_HIGH,
     DEFAULT_PV_HOLD,
     DEFAULT_PV_MAX_STARTS,
+    DEFAULT_PV_MIN_OFF,
     DEFAULT_PV_MIN_RUN,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
@@ -115,6 +133,47 @@ PV_TAGESPLAN_NUMBERS: tuple[OptionNumber, ...] = (
                  min_value=1, max_value=180, step=1, unit="min", icon="mdi:timer-play-outline"),
 )
 
+# Timing-Feinheiten: bislang nur im Options-Dialog erreichbar, dort sogar ohne Grenzen
+# (bare ``int``, config_flow.py). Nur im **Coordinator**-Modus relevant. ``pv_min_off``
+# ist das symmetrische Gegenstück zu ``pv_min_run`` (Mindest-Stillstand statt
+# Mindestlaufzeit) – dieselben Grenzen wie dort. ``pv_debounce`` bekommt hier erstmals
+# überhaupt eine Obergrenze (60 min); der Dialog selbst validiert weiterhin nicht.
+PV_TIMING_NUMBERS: tuple[OptionNumber, ...] = (
+    OptionNumber(key=CONF_PV_MIN_OFF, default=DEFAULT_PV_MIN_OFF,
+                 min_value=1, max_value=180, step=1, unit="min", icon="mdi:timer-off-outline"),
+    OptionNumber(key=CONF_PV_DEBOUNCE, default=DEFAULT_PV_DEBOUNCE,
+                 min_value=1, max_value=60, step=1, unit="min", icon="mdi:timer-sand"),
+    OptionNumber(key=CONF_PV_HEATER_POWER, default=DEFAULT_PV_HEATER_POWER,
+                 min_value=0, max_value=10000, step=50, unit="W", icon="mdi:radiator"),
+)
+
+# Notheizung: unabhängig vom PV-Modus (läuft auch bei pv_mode=off), daher unconditional
+# in async_setup_entry. Grenzen identisch zum Options-Flow-Selector ``_TEMP`` (35-75 °C) –
+# bewusst nicht auf WP_MAX_TEMP verengt, das wäre eine Verhaltensänderung gegenüber dem
+# Dialog und nicht Gegenstand dieser Entity-Freischaltung.
+EMERGENCY_NUMBERS: tuple[OptionNumber, ...] = (
+    OptionNumber(key=CONF_EMERGENCY_CRITICAL, default=DEFAULT_EMERGENCY_CRITICAL,
+                 min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,
+                 unit=UnitOfTemperature.CELSIUS, icon="mdi:thermometer-alert"),
+    OptionNumber(key=CONF_EMERGENCY_RECOVER, default=DEFAULT_EMERGENCY_RECOVER,
+                 min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,
+                 unit=UnitOfTemperature.CELSIUS, icon="mdi:thermometer-check"),
+)
+
+# Legionellen-Watchdog: ebenfalls unabhängig vom PV-Modus, unconditional.
+LEGIONELLA_NUMBERS: tuple[OptionNumber, ...] = (
+    OptionNumber(key=CONF_LEGIONELLA_TARGET, default=DEFAULT_LEGIONELLA_TARGET,
+                 min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,
+                 unit=UnitOfTemperature.CELSIUS, icon="mdi:bacteria-outline"),
+    OptionNumber(key=CONF_LEGIONELLA_INTERVAL, default=DEFAULT_LEGIONELLA_INTERVAL,
+                 min_value=1, max_value=30, step=1, unit="d", icon="mdi:calendar-refresh"),
+    OptionNumber(key=CONF_LEGIONELLA_BOTTOM, default=DEFAULT_LEGIONELLA_BOTTOM,
+                 min_value=SET_TEMP_MIN, max_value=SET_TEMP_MAX,
+                 unit=UnitOfTemperature.CELSIUS, icon="mdi:thermometer-low"),
+    OptionNumber(key=CONF_LEGIONELLA_HOLD, default=DEFAULT_LEGIONELLA_HOLD,
+                 min_value=1, max_value=180, step=1, unit="min", icon="mdi:timer-outline"),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -130,6 +189,9 @@ async def async_setup_entry(
     if mode == PV_MODE_COORDINATOR:
         entities += [HaierPvOptionNumber(coordinator, d) for d in PV_WATT_NUMBERS]
         entities += [HaierPvOptionNumber(coordinator, d) for d in PV_TAGESPLAN_NUMBERS]
+        entities += [HaierPvOptionNumber(coordinator, d) for d in PV_TIMING_NUMBERS]
+    entities += [HaierPvOptionNumber(coordinator, d) for d in EMERGENCY_NUMBERS]
+    entities += [HaierPvOptionNumber(coordinator, d) for d in LEGIONELLA_NUMBERS]
 
     async_add_entities(entities)
 

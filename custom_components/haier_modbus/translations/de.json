@@ -339,6 +339,20 @@
           "ueberschuss": "Überschuss (65 °C, AUTO)",
           "boost": "Boost (75 °C + Heizstab)"
         }
+      },
+      "emergency_mode": {
+        "name": "Eskalationsmodus",
+        "state": {
+          "auto": "AUTO (WP-Vorrang, Standard)",
+          "elec": "ELEC (nur Heizstab, schnellste Aufheizung)"
+        }
+      },
+      "pv_escalation": {
+        "name": "PV Eskalation",
+        "state": {
+          "none": "Keine (nur Erhöht-Zieltemperatur)",
+          "boost": "Boost (WP + Heizstab gemeinsam)"
+        }
       }
     },
     "switch": {
@@ -356,6 +370,15 @@
       },
       "pv_boost_only_negative_price": {
         "name": "PV Boost nur bei Negativpreis"
+      },
+      "emergency_enabled": {
+        "name": "Notfall-Nachheizung"
+      },
+      "legionella_enabled": {
+        "name": "Legionellen-Schutz"
+      },
+      "pv_morning_enabled": {
+        "name": "PV Morgen-Start"
       }
     },
     "number": {
@@ -388,6 +411,41 @@
       },
       "pv_min_run": {
         "name": "PV Mindestlaufzeit"
+      },
+      "pv_min_off": {
+        "name": "PV Mindest-Stillstand"
+      },
+      "pv_debounce": {
+        "name": "PV Entprellzeit"
+      },
+      "pv_heater_power": {
+        "name": "PV Heizstab-Nennleistung"
+      },
+      "emergency_critical": {
+        "name": "Kritische Wassertemperatur"
+      },
+      "emergency_recover": {
+        "name": "Erholt-Wassertemperatur"
+      },
+      "legionella_target": {
+        "name": "Legionellen Desinfektions-Zieltemperatur"
+      },
+      "legionella_interval_days": {
+        "name": "Legionellen Intervall"
+      },
+      "legionella_bottom_min": {
+        "name": "Legionellen Nachweis-Schwelle"
+      },
+      "legionella_hold_min": {
+        "name": "Legionellen Haltezeit"
+      }
+    },
+    "time": {
+      "legionella_window_start": {
+        "name": "Legionellen Fenster Start"
+      },
+      "legionella_window_end": {
+        "name": "Legionellen Fenster Ende"
       }
     }
   },
