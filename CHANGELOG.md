@@ -5,6 +5,43 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.19.0] - 2026-08-24
+
+**Alle besprochenen Regelungs-Schwellwerte jetzt als Entity auf der Geräteseite** –
+Anlass war eine Live-Diagnose (Historie zeigte eine echte Geräte-Hysterese im
+ECO-Modus, unabhängig von der Regelung; als Reaktion darauf u. a. `pv_coldstart` live
+auf 450 W abgesenkt). Ziel: keine der besprochenen Stellschrauben soll künftig noch
+einen Code-Deploy brauchen.
+
+- **9 neue Number-Entities:** `pv_min_off` (Mindest-Stillstand, Gegenstück zum
+  bereits vorhandenen `pv_min_run`), `pv_debounce`, `pv_heater_power`,
+  `emergency_critical`, `emergency_recover`, `legionella_target`,
+  `legionella_interval_days`, `legionella_bottom_min`, `legionella_hold_min`. Grenzen
+  identisch zu den bestehenden Options-Flow-Selectors; `pv_min_off`/`pv_debounce`
+  hatten dort bislang gar keine Grenzen (bare `int`) – bekommen hier erstmals welche.
+- **3 neue Switch-Entities:** `emergency_enabled`, `legionella_enabled`,
+  `pv_morning_enabled`.
+- **2 neue Select-Entities**, erstmals eine Options-Fassade auf enum-artige
+  Schlüssel (`HaierOptionSelect`, analog zu `HaierPvOptionNumber`):
+  `emergency_mode` (auto/elec) und `pv_escalation` (none/boost, bewusst ohne den
+  Altwert `elec` – der ist nur Migrationsziel für Altbestand).
+- **Neue `time`-Plattform** (erste der Integration): `legionella_window_start`/
+  `legionella_window_end` als Uhrzeit-Entities, Speicherformat weiterhin der
+  bestehende `"HH:MM"`-String in `entry.options`.
+- Notheizung/Legionellen-Entities sind **unconditional** (unabhängig vom PV-Modus,
+  laufen auch bei `pv_mode: off`); die reinen PV-Timing-Werte weiterhin nur im
+  Coordinator-Modus, wie die bestehenden PV-Entities.
+- `LIVE_OPTION_KEYS` musste nicht geändert werden – alle 16 neuen Schlüssel waren
+  bereits vollständig enthalten (Ergebnis der v1.17.0/v1.18.0-Reload-Fixe). Keine der
+  neuen Entities löst also einen Integration-Reload aus.
+- **Nicht Teil dieser Änderung:** Entity-Referenz-Picker (`pv_sensor`,
+  `pv_power_entity`, `pv_negative_price_sensor`, `cop_*_entity`) bleiben im
+  Options-Dialog – strukturell kein Number/Switch/Select, ändern zudem
+  Setup-relevante Verdrahtung. Ebenso `ambient_offset`/`energy_scale`/`cop_ref_date`
+  (Kalibrierung/Energie-Buchhaltung, nicht Teil der besprochenen
+  Regelungs-Schwellwerte) und die geräteeigene ECO-Hysterese selbst (Firmware-Logik
+  ohne zugehöriges Modbus-Register, nicht steuerbar).
+
 ## [1.18.0] - 2026-08-19
 
 Vollständiger Review-Durchgang gegen v1.17.0 (zwei unabhängige Review-Runden, alle

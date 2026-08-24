@@ -9,26 +9,38 @@ Options-Änderung legt es bei Bedarf neu an).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
     BIT_BOOST,
+    CONF_EMERGENCY_MODE,
+    CONF_PV_ESCALATION,
     CONF_PV_MODE,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
     CONF_PV_TEMP_NORMAL,
+    DEFAULT_EMERGENCY_MODE,
+    DEFAULT_PV_ESCALATION,
     DEFAULT_PV_TEMP_BASE,
     DEFAULT_PV_TEMP_HIGH,
     DEFAULT_PV_TEMP_NORMAL,
     DOMAIN,
+    EMERGENCY_MODE_AUTO,
+    EMERGENCY_MODE_ELEC,
     MODE_AUTO,
     MODE_ECO,
     MODE_TO_TEXT,
+    PV_ESC_BOOST,
+    PV_ESC_NONE,
+    PV_MODE_COORDINATOR,
     PV_MODE_EXECUTOR,
     PV_PROGRAM_BOOST,
     PV_PROGRAM_GRUND,
@@ -45,6 +57,33 @@ from .const import (
 from .entity import HaierModbusEntity
 
 
+@dataclass(frozen=True, kw_only=True)
+class OptionSelect:
+    """Beschreibung einer Select-Fassade auf einen enum-artigen Options-Schlüssel."""
+
+    key: str
+    default: str
+    options: tuple[str, ...]
+    icon: str | None = None
+
+
+# Notheizung: unabhängig vom PV-Modus, unconditional angelegt.
+EMERGENCY_SELECTS: tuple[OptionSelect, ...] = (
+    OptionSelect(key=CONF_EMERGENCY_MODE, default=DEFAULT_EMERGENCY_MODE,
+                 options=(EMERGENCY_MODE_AUTO, EMERGENCY_MODE_ELEC),
+                 icon="mdi:fire-alert"),
+)
+
+# PV-Eskalation: nur im Coordinator-Modus relevant (Boost ist dort eine echte Stufe).
+# Bewusst OHNE den Altwert "elec" - der ist reines Migrationsziel für Altbestand
+# (__init__.py-Migration bildet ihn auf "boost" ab) und im aktiven Options-Flow-
+# Selector selbst schon nicht mehr enthalten.
+PV_COORDINATOR_SELECTS: tuple[OptionSelect, ...] = (
+    OptionSelect(key=CONF_PV_ESCALATION, default=DEFAULT_PV_ESCALATION,
+                 options=(PV_ESC_NONE, PV_ESC_BOOST), icon="mdi:tune"),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -52,6 +91,9 @@ async def async_setup_entry(
     entities = [HaierModeSelect(coordinator)]
     if entry.options.get(CONF_PV_MODE) == PV_MODE_EXECUTOR:
         entities.append(HaierPvProgramSelect(coordinator))
+    entities += [HaierOptionSelect(coordinator, d) for d in EMERGENCY_SELECTS]
+    if entry.options.get(CONF_PV_MODE) == PV_MODE_COORDINATOR:
+        entities += [HaierOptionSelect(coordinator, d) for d in PV_COORDINATOR_SELECTS]
     async_add_entities(entities)
 
 
@@ -177,3 +219,38 @@ class HaierPvProgramSelect(HaierModbusEntity, RestoreEntity, SelectEntity):
 
         await self.coordinator.async_request_refresh()
         return ok
+
+
+class HaierOptionSelect(HaierModbusEntity, SelectEntity):
+    """Bedien-Fassade auf einen enum-artigen Options-Schlüssel in ``entry.options``
+    (``emergency_mode``, ``pv_escalation``) – Muster analog ``HaierPvOptionNumber``
+    in ``number.py``. Anders als ``HaierPvProgramSelect`` kein Kommando-Select,
+    sondern ein reiner Options-Spiegel: liest/schreibt den Schlüssel direkt.
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator, desc: OptionSelect) -> None:
+        super().__init__(coordinator)
+        self._desc = desc
+        self._attr_translation_key = desc.key
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{desc.key}"
+        self._attr_options = list(desc.options)
+        self._attr_icon = desc.icon
+
+    @property
+    def available(self) -> bool:
+        """Config-Entity: auch bei Modbus-Störung einsehbar/änderbar."""
+        return True
+
+    @property
+    def current_option(self) -> str | None:
+        return self.coordinator.entry.options.get(self._desc.key, self._desc.default)
+
+    async def async_select_option(self, option: str) -> None:
+        entry = self.coordinator.entry
+        self.hass.config_entries.async_update_entry(
+            entry, options={**entry.options, self._desc.key: option}
+        )
+        # Ohne Reload bleibt diese Entität bestehen -> Zustand selbst nachziehen.
+        self.async_write_ha_state()

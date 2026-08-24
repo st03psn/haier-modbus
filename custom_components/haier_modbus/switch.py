@@ -8,6 +8,8 @@ aus – der Update-Listener überspringt die Keys aus ``LIVE_OPTION_KEYS`` bewus
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -20,14 +22,41 @@ from .const import (
     BIT_BOOST,
     BIT_MUTE,
     BIT_STERILIZE,
+    CONF_EMERGENCY_ENABLED,
+    CONF_LEGIONELLA_ENABLED,
     CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
     CONF_PV_MODE,
+    CONF_PV_MORNING_ENABLED,
     DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE,
+    DEFAULT_PV_MORNING_ENABLED,
     DOMAIN,
     PV_MODE_COORDINATOR,
     REG_FUNCTION,
 )
 from .entity import HaierModbusEntity
+
+
+@dataclass(frozen=True, kw_only=True)
+class OptionSwitch:
+    """Beschreibung einer Switch-Fassade auf einen bool-Options-Schlüssel."""
+
+    key: str
+    default: bool
+    icon: str | None = None
+
+
+# Notheizung/Legionellen-Watchdog: unabhängig vom PV-Modus, unconditional angelegt.
+EMERGENCY_LEGIONELLA_SWITCHES: tuple[OptionSwitch, ...] = (
+    OptionSwitch(key=CONF_EMERGENCY_ENABLED, default=False, icon="mdi:thermometer-alert"),
+    OptionSwitch(key=CONF_LEGIONELLA_ENABLED, default=False, icon="mdi:bacteria-outline"),
+)
+
+# Morgen-Start an/aus: nur im Coordinator-Modus relevant (der Executor überlässt den
+# Tagesplan dem HEMS).
+PV_COORDINATOR_SWITCHES: tuple[OptionSwitch, ...] = (
+    OptionSwitch(key=CONF_PV_MORNING_ENABLED, default=DEFAULT_PV_MORNING_ENABLED,
+                 icon="mdi:weather-sunset-up"),
+)
 
 
 async def async_setup_entry(
@@ -40,10 +69,12 @@ async def async_setup_entry(
         HaierBitSwitch(coordinator, "mute", BIT_MUTE, "mdi:volume-mute"),
         HaierBitSwitch(coordinator, "sterilize", BIT_STERILIZE, "mdi:bacteria"),
     ]
+    entities += [HaierOptionSwitch(coordinator, d) for d in EMERGENCY_LEGIONELLA_SWITCHES]
     # Nur im Coordinator-Modus relevant – der Executor überlässt Boost/Preis-Logik
     # dem externen HEMS (gleicher Split wie die PV-Number-Entities).
     if entry.options.get(CONF_PV_MODE) == PV_MODE_COORDINATOR:
         entities.append(HaierPvBoostOnlyNegativePriceSwitch(coordinator))
+        entities += [HaierOptionSwitch(coordinator, d) for d in PV_COORDINATOR_SWITCHES]
     async_add_entities(entities)
 
 
@@ -114,6 +145,46 @@ class HaierPvBoostOnlyNegativePriceSwitch(HaierModbusEntity, SwitchEntity):
         entry = self.coordinator.entry
         self.hass.config_entries.async_update_entry(
             entry, options={**entry.options, CONF_PV_BOOST_ONLY_NEGATIVE_PRICE: value}
+        )
+        # Ohne Reload bleibt diese Entität bestehen -> Zustand selbst nachziehen.
+        self.async_write_ha_state()
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self._set(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self._set(False)
+
+
+class HaierOptionSwitch(HaierModbusEntity, SwitchEntity):
+    """Generische Bedien-Fassade auf einen bool-Options-Schlüssel (Notheizung/
+    Legionellen-Watchdog/Morgen-Start an-aus) – Muster analog
+    ``HaierPvBoostOnlyNegativePriceSwitch``, hier parametrisiert statt je
+    Option eine eigene Klasse.
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator, desc: OptionSwitch) -> None:
+        super().__init__(coordinator)
+        self._desc = desc
+        self._attr_translation_key = desc.key
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{desc.key}"
+        self._attr_icon = desc.icon
+
+    @property
+    def available(self) -> bool:
+        """Config-Entity: auch bei Modbus-Störung einsehbar/änderbar."""
+        return True
+
+    @property
+    def is_on(self) -> bool | None:
+        return self.coordinator.entry.options.get(self._desc.key, self._desc.default)
+
+    async def _set(self, value: bool) -> None:
+        entry = self.coordinator.entry
+        self.hass.config_entries.async_update_entry(
+            entry, options={**entry.options, self._desc.key: value}
         )
         # Ohne Reload bleibt diese Entität bestehen -> Zustand selbst nachziehen.
         self.async_write_ha_state()
