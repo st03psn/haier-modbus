@@ -57,6 +57,10 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 - **Diagnose:** **Modbus-Status** (`OK` / `Konverter nicht erreichbar` /
   `Gerät antwortet nicht`) und Binärsensor **Verbindung**.
 - **PV-Überschuss-Steuerung** eingebaut (optional): Modi Aus / Coordinator / Executor (HEMS-Client).
+- **Notfall-Nachheizung** (optional): schaltet bei kritisch niedriger Wassertemperatur
+  vorübergehend auf AUTO oder ELEC, unabhängig vom ECO-Zeitfenster. Details unten.
+- **Legionellen-Schutz** (optional): periodische thermische Desinfektion nach
+  Watchdog-Prinzip, mit Nachweis über die Bodentemperatur. Details unten.
 - **Editierbares Dashboard** (Storage-Modus) wird automatisch angelegt.
 - **Ein Block-Read** (Register 1–90) je Intervall (Standard 5 s).
 
@@ -192,13 +196,17 @@ Den aktuellen Zustand zeigt der Diagnose-Sensor **„PV-Regelung Status"**
 mitgelieferte Dashboard hat dafür eine eigene **PV-Sektion** (Status-Kachel +
 Logbuch-Verlauf).
 
-Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar. Die
-**Zieltemperaturen, Überschuss-Schwellen und Tagesplan-Kennzahlen** (Kaltstart-Schwelle/
--Defizit, Tageskontingent, Mindestlaufzeit) stehen zusätzlich als eigene Entitäten direkt
-auf der Geräteseite (`number.haier_hwhp_pv_*`, `switch.haier_hwhp_pv_boost_only_negative_price`,
-Kategorie *Konfiguration*) — dieselbe Quelle, nur bequemer erreichbar; ein Ändern dort löst
-**keinen** Reload aus und unterbricht damit
-auch keinen laufenden Zyklus.
+Alle Schwellen, Zieltemperaturen und Zeiten sind im „Konfigurieren"-Dialog editierbar —
+und praktisch **alle** davon stehen zusätzlich als eigene Entitäten direkt auf der
+Geräteseite (Kategorie *Konfiguration*), dieselbe Quelle wie der Dialog, nur bequemer
+erreichbar: **Zieltemperaturen, Überschuss-Schwellen, Tagesplan-Kennzahlen**
+(Kaltstart-Schwelle/-Defizit, Tageskontingent, Mindestlaufzeit, Mindest-Stillstand,
+Entprellzeit, Heizstab-Nennleistung) als `number.haier_hwhp_pv_*`, sowie
+`switch.haier_hwhp_pv_boost_only_negative_price` und
+`switch.haier_hwhp_pv_morning_enabled`. Ein Ändern dort löst **keinen** Reload aus und
+unterbricht damit auch keinen laufenden Zyklus. Notfall-Nachheizung und
+Legionellen-Schutz haben ihre eigenen Entitäten (siehe unten) — unabhängig vom
+PV-Modus, auch bei `pv_mode: aus` verfügbar.
 
 ### Executor (HEMS-Client, z. B. evcc)
 Die Integration regelt **nicht**, sondern stellt eine Auswahl-Entität
@@ -226,6 +234,36 @@ entprellen, Mindest-Stillstand einhalten); **AUTO nur, wenn nötig** (sonst ECO)
 evcc kennt die WP nicht nativ → Brücke über HA: *evcc-Entscheidung → MQTT/HA →
 Programm-Select/Sollwert*, **nicht** gleichzeitig direkt per Modbus schreiben (kein
 zweiter Bus-Master). Beispiel-Automation siehe [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.md).
+
+## Notfall-Nachheizung & Legionellen-Schutz
+Beide sind optional, unabhängig vom PV-Modus und je über einen eigenen Switch aktivierbar
+(`switch.haier_hwhp_emergency_enabled` / `switch.haier_hwhp_legionella_enabled`).
+
+**Notfall-Nachheizung:** ECO heizt nur in Zeitfenstern, die Modbus nicht liefert – wird
+tagsüber viel Wasser gezogen, kann es vor dem nächsten Fenster ausgehen. Fällt die
+Wassertemperatur unter `number.haier_hwhp_emergency_critical` (Standard 38 °C), schaltet
+die Integration vorübergehend von ECO auf **AUTO** (WP-Vorrang) oder **ELEC** (nur
+Heizstab, schnellste Aufheizung) – wählbar über `select.haier_hwhp_emergency_mode`. Zurück
+auf ECO, sobald `number.haier_hwhp_emergency_recover` erreicht ist (mindestens der
+aktuelle Sollwert, damit die Rückschaltung nicht in die ECO-Totzone fällt).
+
+**Legionellen-Schutz:** Watchdog-Prinzip statt gelernter Duschgewohnheiten – überwacht nur,
+wie lange die letzte vollständige Durchheizung her ist. Wird `number.haier_hwhp_legionella_interval_days`
+(Standard 7 Tage) überschritten, erzwingt die Integration einen Desinfektionslauf auf
+`number.haier_hwhp_legionella_target` (Standard 65 °C), bevorzugt im konfigurierten
+Zeitfenster (`time.haier_hwhp_legionella_window_start`/`_window_end`, Standard 10–18 Uhr)
+zunächst in ECO, bei Bedarf eskalierend auf AUTO. Als erfolgreich gilt der Lauf erst, wenn
+die Bodentemperatur (`number.haier_hwhp_legionella_bottom_min`) für
+`number.haier_hwhp_legionella_hold_min` gehalten wurde. Wird der Speicher aus anderem
+Grund ohnehin voll durchgeheizt (z. B. PV-Boost), zählt das als Desinfektion – der Timer
+setzt sich zurück, ein Extra-Lauf entfällt. **Verbrühungsrisiko:** bei 65 °C einen
+thermostatischen Mischer verwenden.
+
+Rangfolge bei gleichzeitigem Bedarf: Für den **Sollwert** (Reg 6) schreibt nur, wer ihn
+besitzt – Legionellen-Schutz vor PV-Regelung, die Notfall-Nachheizung rührt den Sollwert
+nicht an. Für den **Modus** (Reg 1) gilt `Legionellen-Schutz > Notfall-Nachheizung >
+PV-Regelung`: Die Notfall-Nachheizung wird zwar je Poll zuletzt ausgewertet, hat damit
+aber das letzte Wort – kritische Wassertemperatur schlägt PV-Optimierung, bewusst so.
 
 ## Dashboard
 Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWWP"
@@ -280,7 +318,10 @@ Setup wizard (connection + model → COP → optional PV surplus), bilingual nam
 control (setpoint, mode AUTO/ECO/ELEC/VAC, switches), a combined **current source**
 display with dynamic icon, temperature/energy sensors, **fault code with plain text**,
 calculated **COP/JAZ** with selectable sources, Modbus link diagnostics, built-in
-**PV surplus control**, and an **editable storage dashboard**.
+**PV surplus control**, an optional **emergency reheat** (temporarily switches to
+AUTO/ELEC at critically low water temperature, independent of the ECO window) and
+**legionella protection** (periodic thermal disinfection, watchdog-style, verified via
+the tank-bottom temperature — see below), and an **editable storage dashboard**.
 
 ### COP / JAZ – system vs. device
 The reported COP/JAZ is a **system COP**: with an external meter (Shelly) it includes
@@ -385,12 +426,16 @@ The diagnostic sensor **“PV control status”** (`sensor.haier_hwhp_pv_status`
 live state (off / base / normal / boost, plus manual override and “active cycle held”,
 with surplus/setpoint/pump/heater attributes); the bundled dashboard has a dedicated PV
 section for it. All thresholds, target temps and timings are editable in the Configure
-dialog; the **target temperatures, surplus thresholds and daily-plan figures**
-(cold-start threshold/deficit, daily start allowance, minimum run time) are additionally
-exposed as entities on the device page (`number.haier_hwhp_pv_*`,
-`switch.haier_hwhp_pv_boost_only_negative_price`, *config* category) — same single
-source of truth, just easier to reach, and changing them there triggers **no** reload,
-so a running cycle is not disturbed.
+dialog — and virtually **all** of them are additionally exposed as entities on the
+device page (*config* category), same single source of truth as the dialog, just
+easier to reach: **target temperatures, surplus thresholds, daily-plan figures**
+(cold-start threshold/deficit, daily start allowance, minimum run time, minimum
+off-time, debounce time, heater rated power) as `number.haier_hwhp_pv_*`, plus
+`switch.haier_hwhp_pv_boost_only_negative_price` and
+`switch.haier_hwhp_pv_morning_enabled`. Changing them there triggers **no** reload, so
+a running cycle is not disturbed. Emergency reheat and legionella protection have
+their own entities (see below) — independent of PV mode, available even at
+`pv_mode: off`.
 
 **Executor** does not regulate; it exposes `select.haier_hwhp_pv_program`
 (`aus`/`grund`/`ueberschuss`/`boost`) that an external HEMS (or you) sets — the
@@ -403,6 +448,36 @@ needed**, **Boost/heater only at really high surplus**, and **keep the 38 °C gu
 evcc doesn't know the heat pump natively → bridge via HA (*evcc decision → MQTT/HA →
 program select/setpoint*), never write Modbus directly in parallel (avoid a second bus
 master). Example automation: [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.md).
+
+### Emergency reheat & legionella protection
+Both are optional, independent of PV mode, and each toggled via its own switch
+(`switch.haier_hwhp_emergency_enabled` / `switch.haier_hwhp_legionella_enabled`).
+
+**Emergency reheat:** ECO only heats within time windows that Modbus doesn't expose —
+if a lot of water is drawn during the day, it can run out before the next window. If the
+water temperature drops below `number.haier_hwhp_emergency_critical` (default 38 °C),
+the integration temporarily switches ECO to **AUTO** (heat-pump priority) or **ELEC**
+(heater only, fastest reheat) — selectable via `select.haier_hwhp_emergency_mode`. Back
+to ECO once `number.haier_hwhp_emergency_recover` is reached (never below the current
+setpoint, so the switch-back doesn't fall into the ECO dead zone).
+
+**Legionella protection:** watchdog-style rather than learned shower habits — it only
+tracks how long ago the last full heat-up was. Once
+`number.haier_hwhp_legionella_interval_days` (default 7 days) is exceeded, the
+integration forces a disinfection run to `number.haier_hwhp_legionella_target` (default
+65 °C), preferably within the configured window
+(`time.haier_hwhp_legionella_window_start`/`_window_end`, default 10:00–18:00),
+first in ECO and escalating to AUTO if needed. The run only counts as successful once
+the tank-bottom temperature (`number.haier_hwhp_legionella_bottom_min`) has held for
+`number.haier_hwhp_legionella_hold_min`. If the tank gets fully heated anyway for some
+other reason (e.g. PV boost), that counts as disinfection too — the timer resets, no
+extra run happens. **Scald risk:** use a thermostatic mixing valve at 65 °C.
+
+Precedence when both apply: for the **setpoint** (Reg 6), only the owner writes —
+legionella protection before PV control, emergency reheat never touches the setpoint.
+For the **mode** (Reg 1): `legionella protection > emergency reheat > PV control` —
+emergency reheat is evaluated last each poll, so it gets the final word; critical water
+temperature deliberately beats PV optimization.
 
 ### Installation (HACS)
 HACS → custom repository (category *Integration*) → download → restart → add the
