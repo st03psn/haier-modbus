@@ -16,9 +16,19 @@ Ablauf eines Laufs (kein Timeout/Abbruch – läuft, bis erreicht):
   wiederherstellen.
 
 Selbst-Reset: Wird der Speicher aus beliebigem Grund (z. B. PV-Boost auf 65/75 °C)
-ohnehin voll durchgeheizt, zählt das als Desinfektion – der Timer springt zurück
-und es läuft kein Extra-Zyklus. Im Alltag mit täglicher Nutzung greift der Schutz
-also kaum; er ist die Absicherung für Stagnation (Urlaub).
+ohnehin voll durchgeheizt (``Tank unten`` hält die Boden-Schwelle für die Haltezeit),
+zählt das als Desinfektion – der Timer springt zurück und es läuft kein Extra-Zyklus.
+Das gilt unabhängig davon, ob der Schutz überhaupt schon fällig ist. Bis v1.19.0
+zählte ein solcher Ausschlag nur, wenn zugleich ``due`` galt oder gerade selbst ein
+Lauf aktiv war (``held and (self.active or due)``) – im Sommerbetrieb mit PV-Boost
+wurde der Speicher damit real an sechs von sieben Tagen für mehrere Stunden über
+die Nachweis-Schwelle durchgeheizt, ohne dass einer dieser Zyklen zählte, und der
+Watchdog feuerte trotzdem stur nach Ablauf der vollen 7 Tage (Live-Fall 12.–19.09.).
+``_streak_marked`` verhindert seitdem nur noch, dass ein *einzelner* Hitze-Ausschlag
+mehrfach (bei jedem Poll) als neuer Erfolg gewertet wird – nicht mehr, ob überhaupt
+gezählt wird. Im Alltag mit täglicher Nutzung/PV-Boost greift der erzwungene Lauf
+damit kaum noch; er bleibt die Absicherung für Stagnation (z. B. Urlaub, oder ein
+sonnenarmer Winter mit überwiegendem ECO-Betrieb bei 50 °C ohne Volldurchheizung).
 
 Solange ein Lauf aktiv ist, pausiert die PV-Sollwert-Regelung (sonst würde sie
 gegen den 65-°C-Sollwert schreiben); nach dem Lauf übernimmt sie wieder normal.
@@ -86,6 +96,7 @@ class LegionellaController:
         self._last_success = None               # datetime der letzten Volldurchheizung
         self._run_started = None                # datetime des aktuellen Laufs
         self._bottom_since = None               # seit wann hält Tank-unten das Ziel?
+        self._streak_marked = False             # dieser Hitze-Ausschlag schon als Erfolg gezählt?
         self._releasing = False                 # Lauf fertig, warte auf Sollwert-Rückkehr
         self._saved_setpoint: int | None = None
         self._saved_mode: int | None = None
@@ -196,6 +207,7 @@ class LegionellaController:
             self._releasing = False
             self._run_started = None
             self._bottom_since = None
+            self._streak_marked = False
             self._saved_setpoint = None
             self._saved_mode = None
             await self._save_store()
@@ -243,11 +255,16 @@ class LegionellaController:
         else:
             self._bottom_since = None
             held = False
+            # Ausschlag vorbei -> der nächste (z. B. PV-getriebene) Hitze-Ausschlag
+            # darf wieder eigenständig als Erfolg zählen.
+            self._streak_marked = False
 
-        # Erfolg nur werten, wenn ein Lauf läuft oder der Schutz fällig ist – so
-        # löst ein dauerhaft heißer Speicher (nach Erfolg) nicht bei jedem Poll
-        # erneut einen Timer-Reset aus.
-        if held and (self.active or due):
+        # Erfolg werten, sobald der Boden lange genug hält – unabhängig davon, ob
+        # der Schutz überhaupt schon fällig ist (s. Modul-Docstring "Selbst-Reset").
+        # ``_streak_marked`` verhindert nur, dass ein einzelner, andauernder
+        # Hitze-Ausschlag bei jedem weiteren Poll erneut als neuer Erfolg gezählt wird.
+        if held and not self._streak_marked:
+            self._streak_marked = True
             await self._mark_success(now)
             self._bottom_since = None
             if self.active:
