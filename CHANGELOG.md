@@ -5,6 +5,25 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.19.1] - 2026-09-19
+
+**Fix: Legionellen-Selbst-Reset griff nie vor Fälligkeit.** Live-Fall: Der Speicher
+wurde vom 13.–18.09. an sechs von sieben Tagen per PV-Boost für mehrere Stunden auf
+65 °C durchgeheizt (`Tank unten` weit über der Nachweis-Schwelle), trotzdem löste der
+Watchdog am 19.09. stur nach Ablauf der vollen 7 Tage einen erzwungenen Lauf aus.
+Ursache: Ein Hitze-Ausschlag zählte nur als Erfolg, wenn der Schutz zugleich `due`
+war oder gerade selbst aktiv lief (`held and (self.active or due)`) – der im
+Modul-Docstring beschriebene Selbst-Reset ("wird der Speicher ohnehin voll
+durchgeheizt, zählt das als Desinfektion") griff dadurch faktisch nie vor dem
+Fälligkeitstag. Jetzt zählt jeder Hitze-Ausschlag unabhängig von `due`/`active`,
+sobald `Tank unten` die Nachweis-Schwelle für die Haltezeit hält; ein neues
+`_streak_marked`-Flag verhindert weiterhin, dass ein dauerhaft heißer Speicher bei
+jedem Poll erneut als neuer Erfolg gezählt wird (ein Hitze-Ausschlag = höchstens ein
+Erfolg). Im sonnenreichen Sommerbetrieb mit regelmäßigem PV-Boost sollte der
+erzwungene Lauf damit kaum noch anspringen; im sonnenarmen Winter mit überwiegendem
+ECO-Betrieb bei 50 °C bleibt er als Absicherung aktiv (per Simulation geprüft,
+s. `docs/`-Review – kein automatisiertes Testsetup vorhanden).
+
 ## [1.19.0] - 2026-08-24
 
 **Alle besprochenen Regelungs-Schwellwerte jetzt als Entity auf der Geräteseite** –
