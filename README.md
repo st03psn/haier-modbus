@@ -169,11 +169,18 @@ gebaut, dass die Wärmepumpe nicht **taktet** (kurze Nachmittags-Kaltstarts) und
   trüben Tagen die volle Ladung aus dem Netz). Die Anhebung auf Erhöht folgt bei
   Überschuss über den Piggyback-Zweig unten — ohne neues Startkontingent.
 - **Tages-Kaltstart:** überschussgetrieben, mit **Mindestdefizit** — Wasser liegt
-  mindestens `pv_coldstart_delta` (Default 10 K) unter der Erhöht-Zieltemperatur, der voll
+  mindestens `pv_coldstart_delta` (Default 7 K) unter der Erhöht-Zieltemperatur, der voll
   entprellte Überschuss erreicht `pv_coldstart` (Default 600 W), Anti-Takt-Zeit
   (`pv_min_off`) ist erfüllt und das **Tageskontingent** (`pv_max_starts`, Default 3) ist
   noch nicht ausgeschöpft. Das Mindestdefizit verhindert Starts für wenige Grad; das
-  Kontingent ist die Notbremse, die eigentliche Taktbremse ist `pv_min_off`.
+  Kontingent ist die Notbremse, die eigentliche Taktbremse ist `pv_min_off`. Soll ein
+  unterbrochener Zyklus (z. B. bei 60 °C, weil Akku oder Auto Vorrang hatten) nachmittags
+  fortgesetzt werden, Mindestdefizit auf ≈ 5 K senken und das Kontingent auf 3 lassen.
+- **Leerlauf-Schutz (ab v1.21.0):** Läuft der Verdichter nach einem Start nicht innerhalb
+  von 10 min an (Wasser lag noch in der Geräte-Hysterese), stellt die Leiter auf Normal/ECO
+  zurück, zählt den Start nicht und versucht es heute erst wieder bei mindestens 2 K
+  tieferem Wasser. Das Logbuch nennt Wasser und Sollwert – so lässt sich die echte
+  Hysterese des Geräts ablesen.
 - **Anheben Normal → Erhöht nur bei laufender WP** (Piggyback) über der **Halte-Schwelle**
   (Default 50 W) — kein zusätzlicher Kaltstart, kein Takten.
 - **Mindestlaufzeit** (`pv_min_run`, Default 30 min): ein einmal gestarteter Zyklus wird
@@ -385,11 +392,17 @@ precedence over the electric heater**:
   full charge from the grid). The rise to elevated follows on surplus via the piggyback
   branch below — without spending a start allowance.
 - **Daily cold start:** surplus-driven, with a **minimum deficit** — the water sits at
-  least `pv_coldstart_delta` (default 10 K) below the elevated target, the fully debounced
+  least `pv_coldstart_delta` (default 7 K) below the elevated target, the fully debounced
   surplus reaches `pv_coldstart` (default 600 W), the anti-cycling time (`pv_min_off`) is
   satisfied, and the **daily start allowance** (`pv_max_starts`, default 3) isn't spent
   yet. The minimum deficit blocks starts for a few degrees; the allowance is the backstop,
-  the actual anti-cycling guard is `pv_min_off`.
+  the actual anti-cycling guard is `pv_min_off`. To let an interrupted cycle (e.g. stopped at
+  60 °C because battery or car had priority) resume in the afternoon, lower the minimum
+  deficit to ≈ 5 K and keep the allowance at 3.
+- **Dead-start guard (since v1.21.0):** if the compressor doesn't start within 10 min of a
+  start (water still inside the device's hysteresis), the ladder returns to normal/ECO,
+  doesn't count the start and only retries today once the water is at least 2 K lower. The
+  logbook names water and setpoint — revealing the device's real hysteresis.
 - **Raising normal → elevated only while the pump is already running** (piggyback), above
   the **hold threshold** (default 50 W) — no extra cold start, no cycling.
 - **Minimum run time** (`pv_min_run`, default 30 min): once a cycle starts it is held for
