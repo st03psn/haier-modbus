@@ -5,6 +5,55 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.20.0] - 2026-10-14
+
+**Neu: Vorrang für Hausakku und andere Senken.** Live-Fall 14.10.: Die WP lief um 08:50
+per überschussgetriebenem Kaltstart auf Erhöht/AUTO los, obwohl nichts eingespeist wurde –
+der „Überschuss" (400–950 W) war exakt die Ladeleistung des Hausakkus (SoC 30 %). Ursache:
+Der Überschuss-Sensor war als `PV − Hausverbrauch` gerechnet; bei Hybrid-Wechselrichtern
+ist die Akku-Ladung ein eigener Zweig der Bilanz und nicht im Hausverbrauch enthalten.
+Die Regelung erwartet aber einen einspeisungsbasierten Wert. Drei optionale Felder im
+PV-Schritt (Wizard + Konfigurieren), alle Live-Optionen ohne Reload:
+
+- **Akku-Leistungssensor** + **Vorzeichen** (Laden positiv/negativ): Die Regelung arbeitet
+  auf `max(0, Überschuss − Akku-Ladung)`. Sensor unlesbar → Überschuss 0 (fail-safe).
+- **Akku-Ladestand-Sensor** + **Akku-Vorrang bis Ladestand (%)** (auch als Number-Entity):
+  ab der Grenze zählt die Akku-Ladung wieder als Überschuss. SoC unlesbar → Vorrang bleibt.
+- **Vorrang-Sperre** (binary_sensor/input_boolean/switch): `an` → Überschuss 0, Heizstab
+  sofort aus; der Morgen-Start auf Normal/ECO bleibt. Z. B. für „Auto wartet auf PV".
+
+Eine laufende Mindestlaufzeit wird in allen Fällen respektiert. Ohne die neuen Felder ist
+das Verhalten unverändert. Der Status-Sensor zeigt neu `surplus_raw_w`, `battery_charge_w`
+und `priority`. Per Simulation der echten `pv.py` geprüft (kein automatisiertes Testsetup).
+
+**Fixes aus einer Tages-Simulation aller Regelungsoptionen** (echte Controller in
+Coordinator-Reihenfolge + Geräte-/Haus-/Akkumodell, ~40 Szenarien). Alle drei Fehler
+bestanden schon vorher und traten nur bei Grenzwerten auf, die die Number-Entities
+zulassen (keine Cross-Field-Validierung):
+
+- **Kaltstart-Schwelle 0 W** → Kaltstarts mitten in der Nacht aus Akku/Netz
+  (`Überschuss ≥ 0` war immer wahr). Ein Kaltstart verlangt jetzt zusätzlich Überschuss > 0.
+- **Halte-Puffer 0 W** → jeder laufende Zyklus (auch der der Notheizung) wurde ohne
+  Überschuss auf Erhöht/AUTO angehoben. Mit Akku-Vorrang ist der effektive Überschuss oft
+  exakt 0 – dort schlug das direkt durch. Halten/Anheben verlangt jetzt Überschuss > 0.
+- **Normal- ≥ Erhöht-Zieltemperatur** → Status „Erhöht" und Modus AUTO rund um die Uhr
+  (auch nachts). Ohne echte Erhöht-Stufe bleibt die Leiter jetzt auf Normal/ECO.
+
+Außerdem: Leistungssensoren in **kW/MW** werden in W umgerechnet (Überschuss- und
+Akku-Sensor) – bislang wurde z. B. 2,7 kW als 2,7 W gelesen.
+
+**Verlassen der PV-Regelung räumt auf.** Bisher blieb das Gerät nach dem Umschalten auf
+„Aus"/„Executor" mitten in einem Zyklus auf Erhöht/AUTO stehen. Jetzt wird einmalig auf
+Normal/ECO zurückgestellt – nur, wenn der Sollwert noch der selbst geschriebene ist (neu
+persistiert, überlebt den Reload des Moduswechsels). Manueller Sollwert bleibt; läuft
+Legionellen-Schutz oder Notheizung, wird danach zurückgestellt.
+
+**Vorrang als Status sichtbar.** `PV-Regelung Status` zeigt neu „Vorrang: Akku lädt",
+„Vorrang: Sperre aktiv" bzw. „Vorrang: Akku-Sensor fehlt" statt nur „Normal" – Kachel und
+Logbuch erklären damit, *warum* nicht angehoben wird. Die Anzeige hält einen Vorrang eine
+Entprellzeit lang nach (kein Flattern in der Dämmerung); die Regelung selbst ist davon
+unberührt.
+
 ## [1.19.1] - 2026-09-19
 
 **Fix: Legionellen-Selbst-Reset griff nie vor Fälligkeit.** Live-Fall: Der Speicher

@@ -42,6 +42,11 @@
         "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps, daily plan and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
         "data": {
           "pv_sensor": "PV surplus sensor (W)",
+          "pv_battery_sensor": "Battery power sensor (optional, battery priority)",
+          "pv_battery_sign": "Battery sensor sign",
+          "pv_battery_soc_sensor": "Battery state-of-charge sensor (optional)",
+          "pv_battery_soc_limit": "Battery priority up to SoC (%)",
+          "pv_priority_lock": "Priority lock (optional)",
           "pv_temp_normal": "Elevated target temperature (°C)",
           "pv_temp_base": "Normal target temperature (°C)",
           "pv_temp_high": "Boost target temperature (°C, Executor only)",
@@ -63,6 +68,11 @@
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
+          "pv_battery_sensor": "Gives the home battery priority: control then works on **surplus − battery charging power**. Needed if your surplus sensor is computed as “PV − house consumption” — with hybrid inverters (Fronius, SMA, Huawei …) battery charging is not part of house consumption and otherwise shows up as surplus. **Leave empty if your surplus sensor already is the grid feed-in** (the battery would be subtracted twice). If the sensor can't be read, surplus counts as 0.",
+          "pv_battery_sign": "“Charging positive” for pure charge sensors (always ≥ 0) and net sensors with + = charging. “Charging negative” for net sensors with − = charging (e.g. Fronius “Battery Power”).",
+          "pv_battery_soc_sensor": "Optional. Together with the SoC limit: from that limit on, battery charging counts as surplus again — the heat pump may then take the rest before the battery. If the sensor can't be read, battery priority stays in effect.",
+          "pv_battery_soc_limit": "Only effective with a SoC sensor. 100 % = battery always has priority.",
+          "pv_priority_lock": "Optional binary_sensor/input_boolean/switch. While it is **on**, surplus counts as 0: no cold start, no raise, no heater — only the morning start to the normal target in ECO. Meant e.g. for “car plugged in and waiting for PV surplus” or an HEMS lock. A charging car usually doesn't need it: if the wallbox sits behind the grid meter, its power is already in house consumption.",
           "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
           "pv_temp_base": "Normal target temperature (no surplus) — also the setpoint the controller falls back to when a cycle ends.",
           "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated.",
@@ -143,6 +153,11 @@
         "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps, daily plan and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
         "data": {
           "pv_sensor": "PV surplus sensor (W)",
+          "pv_battery_sensor": "Battery power sensor (optional, battery priority)",
+          "pv_battery_sign": "Battery sensor sign",
+          "pv_battery_soc_sensor": "Battery state-of-charge sensor (optional)",
+          "pv_battery_soc_limit": "Battery priority up to SoC (%)",
+          "pv_priority_lock": "Priority lock (optional)",
           "pv_temp_normal": "Elevated target temperature (°C)",
           "pv_temp_base": "Normal target temperature (°C)",
           "pv_temp_high": "Boost target temperature (°C, Executor only)",
@@ -164,6 +179,11 @@
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
+          "pv_battery_sensor": "Gives the home battery priority: control then works on **surplus − battery charging power**. Needed if your surplus sensor is computed as “PV − house consumption” — with hybrid inverters (Fronius, SMA, Huawei …) battery charging is not part of house consumption and otherwise shows up as surplus. **Leave empty if your surplus sensor already is the grid feed-in** (the battery would be subtracted twice). If the sensor can't be read, surplus counts as 0.",
+          "pv_battery_sign": "“Charging positive” for pure charge sensors (always ≥ 0) and net sensors with + = charging. “Charging negative” for net sensors with − = charging (e.g. Fronius “Battery Power”).",
+          "pv_battery_soc_sensor": "Optional. Together with the SoC limit: from that limit on, battery charging counts as surplus again — the heat pump may then take the rest before the battery. If the sensor can't be read, battery priority stays in effect.",
+          "pv_battery_soc_limit": "Only effective with a SoC sensor. 100 % = battery always has priority.",
+          "pv_priority_lock": "Optional binary_sensor/input_boolean/switch. While it is **on**, surplus counts as 0: no cold start, no raise, no heater — only the morning start to the normal target in ECO. Meant e.g. for “car plugged in and waiting for PV surplus” or an HEMS lock. A charging car usually doesn't need it: if the wallbox sits behind the grid meter, its power is already in house consumption.",
           "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
           "pv_temp_base": "Normal target temperature (no surplus) — also the setpoint the controller falls back to when a cycle ends.",
           "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated.",
@@ -216,6 +236,12 @@
         "hp200m7_f9": "HP200M7-F9",
         "hp260m7_f9": "HP260M7-F9",
         "other": "Other model"
+      }
+    },
+    "pv_battery_sign": {
+      "options": {
+        "charge_positive": "Charging positive (+ = charging)",
+        "charge_negative": "Charging negative (− = charging)"
       }
     }
   },
@@ -280,7 +306,10 @@
           "normal": "Elevated",
           "boost": "Boost",
           "manual": "Manual override",
-          "held": "Active cycle held"
+          "held": "Active cycle held",
+          "priority_battery": "Priority: battery charging",
+          "priority_lock": "Priority: lock active",
+          "priority_sensor": "Priority: battery sensor missing"
         }
       },
       "link_status": {
@@ -438,6 +467,9 @@
       },
       "legionella_hold_min": {
         "name": "Legionella hold time"
+      },
+      "pv_battery_soc_limit": {
+        "name": "PV battery priority up to SoC"
       }
     },
     "time": {

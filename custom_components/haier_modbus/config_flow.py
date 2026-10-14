@@ -22,6 +22,8 @@ from homeassistant.helpers import selector
 from pymodbus.client import AsyncModbusTcpClient
 
 from .const import (
+    BATTERY_SIGN_CHARGE_NEGATIVE,
+    BATTERY_SIGN_CHARGE_POSITIVE,
     CONF_AMBIENT_OFFSET,
     CONF_COP_ELEC_ENTITY,
     CONF_COP_ENABLED,
@@ -42,6 +44,10 @@ from .const import (
     CONF_LEGIONELLA_WINDOW_START,
     CONF_MODEL,
     CONF_PORT,
+    CONF_PV_BATTERY_SENSOR,
+    CONF_PV_BATTERY_SIGN,
+    CONF_PV_BATTERY_SOC_LIMIT,
+    CONF_PV_BATTERY_SOC_SENSOR,
     CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
     CONF_PV_COLDSTART,
     CONF_PV_COLDSTART_DELTA,
@@ -58,6 +64,7 @@ from .const import (
     CONF_PV_MORNING_TIME,
     CONF_PV_NEGATIVE_PRICE_SENSOR,
     CONF_PV_POWER_ENTITY,
+    CONF_PV_PRIORITY_LOCK,
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_HIGH,
@@ -77,6 +84,8 @@ from .const import (
     DEFAULT_LEGIONELLA_WINDOW_START,
     DEFAULT_MODEL_KEY,
     DEFAULT_PORT,
+    DEFAULT_PV_BATTERY_SIGN,
+    DEFAULT_PV_BATTERY_SOC_LIMIT,
     DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE,
     DEFAULT_PV_COLDSTART,
     DEFAULT_PV_COLDSTART_DELTA,
@@ -126,6 +135,28 @@ _NEGATIVE_PRICE_SENSOR = selector.EntitySelector(
 # Optionale Geräte-Gesamtleistung (W) – Verfeinerung der Heizstab-Leistungsschätzung (AP3).
 _POWER_ENTITY = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor", device_class="power")
+)
+# Vorrang anderer Senken (v1.20.0): Akku-Leistung (W) + Vorzeichen, Ladestand (%),
+# Vorrang-Sperre. ``switch`` bei der Sperre bewusst zugelassen (z. B. Wallbox-Schalter).
+_BATTERY_SENSOR = selector.EntitySelector(
+    selector.EntitySelectorConfig(domain="sensor", device_class="power")
+)
+_BATTERY_SIGN = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[BATTERY_SIGN_CHARGE_POSITIVE, BATTERY_SIGN_CHARGE_NEGATIVE],
+        translation_key="pv_battery_sign",
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+_SOC_SENSOR = selector.EntitySelector(
+    selector.EntitySelectorConfig(domain="sensor", device_class="battery")
+)
+_PERCENT = selector.NumberSelector(
+    selector.NumberSelectorConfig(min=0, max=100, step=1, unit_of_measurement="%",
+                                  mode=selector.NumberSelectorMode.BOX)
+)
+_PRIORITY_LOCK = selector.EntitySelector(
+    selector.EntitySelectorConfig(domain=["binary_sensor", "input_boolean", "switch"])
 )
 _ESCALATION = selector.SelectSelector(
     selector.SelectSelectorConfig(
@@ -236,6 +267,20 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
     fields: dict[Any, Any] = {}
     if mode == PV_MODE_COORDINATOR:
         fields[vol.Optional(CONF_PV_SENSOR)] = _PV_SENSOR
+        # Vorrang anderer Senken direkt beim Überschuss-Sensor: sie bestimmen, was
+        # dessen Wert für die Regelung bedeutet (v1.20.0, s. pv._effective_surplus).
+        fields.update(
+            {
+                vol.Optional(CONF_PV_BATTERY_SENSOR): _BATTERY_SENSOR,
+                vol.Optional(CONF_PV_BATTERY_SIGN,
+                             default=o.get(CONF_PV_BATTERY_SIGN, DEFAULT_PV_BATTERY_SIGN)): _BATTERY_SIGN,
+                vol.Optional(CONF_PV_BATTERY_SOC_SENSOR): _SOC_SENSOR,
+                vol.Optional(CONF_PV_BATTERY_SOC_LIMIT,
+                             default=o.get(CONF_PV_BATTERY_SOC_LIMIT,
+                                           DEFAULT_PV_BATTERY_SOC_LIMIT)): _PERCENT,
+                vol.Optional(CONF_PV_PRIORITY_LOCK): _PRIORITY_LOCK,
+            }
+        )
 
     if mode in (PV_MODE_COORDINATOR, PV_MODE_EXECUTOR):
         # Zieltemps sind die gemeinsame Mechanik beider Modi.
