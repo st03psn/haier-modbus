@@ -169,6 +169,11 @@ _STORAGE_VERSION = 1
 _MORNING_WINDOW_H = 3
 
 
+# Leistungssensoren dürfen in W, kW oder MW vorliegen (device_class power). Ohne
+# Umrechnung würde ein Akku-Sensor mit 2,7 kW als 2,7 W abgezogen (praktisch wirkungslos).
+_POWER_FACTOR = {"W": 1.0, "kW": 1000.0, "MW": 1_000_000.0}
+
+
 def _parse_time(raw) -> time:
     """"HH:MM" / "HH:MM:SS" -> time; bei Unsinn Default 10:00."""
     try:
@@ -451,6 +456,16 @@ class PvController:
         state = self.hass.states.get(entity_id)
         return state is not None and state.state == "on"
 
+    def _power_w(self, entity_id: str | None) -> float | None:
+        """Zustand eines Leistungssensors in **W** (``kW``/``MW`` werden umgerechnet,
+        fehlende/unbekannte Einheit gilt als W – Verhalten wie bis v1.19)."""
+        value = state_float(self.hass, entity_id)
+        if value is None:
+            return None
+        state = self.hass.states.get(entity_id)
+        unit = getattr(state, "attributes", {}).get("unit_of_measurement") if state else None
+        return value * _POWER_FACTOR.get(unit, 1.0)
+
     def _effective_surplus(self, o: dict, raw: float) -> float:
         """Rohen Sensorwert in den *effektiven* Überschuss übersetzen (v1.20.0).
 
@@ -495,7 +510,7 @@ class PvController:
             if soc is not None and soc >= limit:
                 return raw
 
-        value = state_float(self.hass, battery)
+        value = self._power_w(battery)
         if value is None:
             info["priority"] = "battery_unknown"
             return 0.0
@@ -628,6 +643,11 @@ class PvController:
             return
 
         t_normal, t_base = self._temps(o)
+        # F3: Liegt Erhöht nicht über Normal (Number-Entities validieren nicht
+        # gegeneinander), gibt es keine Erhöht-Stufe. Ohne diesen Merker trafen alle
+        # ``>= t_normal - 0.5``-Vergleiche auch die Basis -> Status „Erhöht" und Modus
+        # AUTO rund um die Uhr (auch nachts, ohne ECO-Fenster).
+        elevated_ok = t_normal > t_base
 
         # Läuft gerade die Legionellen-Desinfektion, besitzt sie Sollwert/Modus
         # (65 °C). Die PV-Sollwert-Regelung pausiert, damit sie nicht dagegen
@@ -654,7 +674,7 @@ class PvController:
             self._track_running(data, now, t_base)   # W6: Zeitstempel laufen weiter
             return
 
-        raw_surplus = state_float(self.hass, o.get(CONF_PV_SENSOR))
+        raw_surplus = self._power_w(o.get(CONF_PV_SENSOR))
         if raw_surplus is None:
             return
         # v1.20.0: Vorrang-Sperre / Akku-Vorrang -> effektiver Überschuss. Ab hier
@@ -758,11 +778,13 @@ class PvController:
         coldstart_w = float(o.get(CONF_PV_COLDSTART, DEFAULT_PV_COLDSTART))
         coldstart_delta = float(o.get(CONF_PV_COLDSTART_DELTA, DEFAULT_PV_COLDSTART_DELTA))
         coldstart_eligible = (
-            not running and water <= t_normal - coldstart_delta
+            elevated_ok and not running and water <= t_normal - coldstart_delta
             and self._starts_today(now.date()) < max_starts
         )
         coldstart_want = (
-            coldstart_eligible and available >= coldstart_w
+            # F1: ``> 0`` zusätzlich – sonst ist ``pv_coldstart = 0`` (Number-Entity
+            # erlaubt 0) bei 0 W immer erfüllt und es wird nachts aus Akku/Netz gestartet.
+            coldstart_eligible and available > 0 and available >= coldstart_w
             and self._start_allowed(o, running, now)
         )
         if coldstart_want:
@@ -796,12 +818,20 @@ class PvController:
         #    v1.13.2 wird ``_wp_target`` aus dem *rohen* Register gebootstrappt (35..75,
         #    nicht zwingend eine Stufe). Ein bares `else` würde einen Bootstrap-Wert
         #    ungeprüft wie die höchste Stufe behandeln.
-        if self._wp_target >= t_normal - 0.5:       # aktuell Erhöht
-            wp_want = t_normal if (surplus >= hold or self._heater_on) else t_base
+        #
+        #    F2: ``> 0`` zusätzlich zum Halte-Puffer – bei ``pv_hold = 0`` war
+        #    ``Überschuss >= 0`` sonst immer wahr und JEDER laufende Zyklus (auch der der
+        #    Notheizung) wurde ohne Überschuss auf Erhöht/AUTO angehoben. Mit Akku-Vorrang
+        #    ist der effektive Überschuss oft exakt 0 – dort schlug das direkt durch.
+        has_surplus = surplus > 0 and surplus >= hold
+        if not elevated_ok:                          # F3: keine Erhöht-Stufe konfiguriert
+            wp_want = t_base
+        elif self._wp_target >= t_normal - 0.5:     # aktuell Erhöht
+            wp_want = t_normal if (has_surplus or self._heater_on) else t_base
         elif self._wp_target <= t_base + 0.5:       # aktuell Basis: nur Piggyback anheben
-            wp_want = t_normal if (running and surplus >= hold) else t_base
+            wp_want = t_normal if (running and has_surplus) else t_base
         else:                                        # Bootstrap-Zwischenwert (kein Kaltstart!)
-            wp_want = t_normal if (running and surplus >= hold) else t_base
+            wp_want = t_normal if (running and has_surplus) else t_base
 
         # Mindestlaufzeit (v1.16.4, ersetzt die Abbruch-Entprellung aus 1.16.3). Real
         # belegt am 13.08.: Kaltstart 10:53, WP läuft 10:56, um 11:00 bricht der
@@ -821,7 +851,7 @@ class PvController:
         min_run_s = o.get(CONF_PV_MIN_RUN, DEFAULT_PV_MIN_RUN) * 60
         run_elapsed_s = (now - self._run_since).total_seconds() if self._run_since else None
         holding_min_run = (
-            running
+            running and elevated_ok
             and self._wp_target >= t_normal - 0.5   # nur relevant, wenn gerade Erhöht läuft
             and run_elapsed_s is not None
             and run_elapsed_s < min_run_s
@@ -894,7 +924,7 @@ class PvController:
         #    Der Heizstab (Schritt 6) bleibt bewusst aktiv – er ist überschussgeführt und
         #    hängt nicht am manuell gesetzten Sollwert.
         if not self._manual_hold and not self._hold_run:
-            if self._wp_target >= t_normal - 0.5:   # Erhöht (bzw. Boost, gleiche Zieltemp)
+            if elevated_ok and self._wp_target >= t_normal - 0.5:   # Erhöht (bzw. Boost)
                 want_mode = MODE_AUTO
             elif self._wp_target <= t_base + 0.5:   # Basis
                 want_mode = MODE_ECO
@@ -914,7 +944,7 @@ class PvController:
             return
         if self._heater_on:
             state = "boost"
-        elif self._wp_target >= t_normal - 0.5:
+        elif elevated_ok and self._wp_target >= t_normal - 0.5:
             state = "normal"
         else:
             state = "base"

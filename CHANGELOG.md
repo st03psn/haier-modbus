@@ -26,6 +26,22 @@ Eine laufende Mindestlaufzeit wird in allen Fällen respektiert. Ohne die neuen 
 das Verhalten unverändert. Der Status-Sensor zeigt neu `surplus_raw_w`, `battery_charge_w`
 und `priority`. Per Simulation der echten `pv.py` geprüft (kein automatisiertes Testsetup).
 
+**Fixes aus einer Tages-Simulation aller Regelungsoptionen** (echte Controller in
+Coordinator-Reihenfolge + Geräte-/Haus-/Akkumodell, ~40 Szenarien). Alle drei Fehler
+bestanden schon vorher und traten nur bei Grenzwerten auf, die die Number-Entities
+zulassen (keine Cross-Field-Validierung):
+
+- **Kaltstart-Schwelle 0 W** → Kaltstarts mitten in der Nacht aus Akku/Netz
+  (`Überschuss ≥ 0` war immer wahr). Ein Kaltstart verlangt jetzt zusätzlich Überschuss > 0.
+- **Halte-Puffer 0 W** → jeder laufende Zyklus (auch der der Notheizung) wurde ohne
+  Überschuss auf Erhöht/AUTO angehoben. Mit Akku-Vorrang ist der effektive Überschuss oft
+  exakt 0 – dort schlug das direkt durch. Halten/Anheben verlangt jetzt Überschuss > 0.
+- **Normal- ≥ Erhöht-Zieltemperatur** → Status „Erhöht" und Modus AUTO rund um die Uhr
+  (auch nachts). Ohne echte Erhöht-Stufe bleibt die Leiter jetzt auf Normal/ECO.
+
+Außerdem: Leistungssensoren in **kW/MW** werden in W umgerechnet (Überschuss- und
+Akku-Sensor) – bislang wurde z. B. 2,7 kW als 2,7 W gelesen.
+
 ## [1.19.1] - 2026-09-19
 
 **Fix: Legionellen-Selbst-Reset griff nie vor Fälligkeit.** Live-Fall: Der Speicher
