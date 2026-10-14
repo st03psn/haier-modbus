@@ -5,6 +5,27 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.21.0] - 2026-10-14
+
+**Neu: Leerlauf-Schutz für Starts.** Hebt die Leiter den Sollwert an (Kaltstart oder
+Morgen-Start), während das Wasser noch innerhalb der Wiedereinschalt-Hysterese des Geräts
+liegt, läuft der Verdichter nicht an. Bisher blieb dann Erhöht/AUTO stehen und der Start
+war vom Tageskontingent abgezogen – ohne jede Wärme. Jetzt nach 10 min ohne Anlauf: zurück
+auf Normal/ECO, Start zurück ins Kontingent, Logbuch-Eintrag mit Wasser/Sollwert, und ein
+neuer Kaltstart verlangt heute mindestens 2 K tieferes Wasser (sonst Endlosschleife aus
+Leerlauf-Starts). Anlass: Wunsch, einen unterbrochenen Zyklus (z. B. bei 60 °C, weil
+Akku/Auto Vorrang hatten) nachmittags fortzusetzen – dafür wird das Mindestdefizit kleiner
+gesetzt, und der Schutz macht das gefahrlos, auch ohne die Geräte-Hysterese genau zu kennen.
+
+**Fix: doppelter Kaltstart.** Lief der Verdichter nach einem Kaltstart nicht innerhalb der
+Entprellzeit an (Abtauen, Leerlauf), feuerte der Kaltstart erneut und zählte einen weiteren
+Start – zwei Starts in 10 min, Kontingent verbrannt. Kein Kaltstart mehr, solange die Leiter
+schon auf Erhöht steht oder ein Start auf den Anlauf wartet. Bestand schon vorher; fiel mit
+7 K Mindestdefizit kaum auf, weil der Verdichter real nach 3–3,5 min anläuft.
+
+README: Default des Mindestdefizits korrigiert (7 K, nicht 10 K). Per Simulation geprüft;
+alle übrigen Szenarien unverändert.
+
 ## [1.20.0] - 2026-10-14
 
 **Neu: Vorrang für Hausakku und andere Senken.** Live-Fall 14.10.: Die WP lief um 08:50

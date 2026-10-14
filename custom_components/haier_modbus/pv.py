@@ -168,6 +168,12 @@ _EVENT_LOGBOOK_ENTRY = "logbook_entry"
 _STORAGE_VERSION = 1
 _MORNING_WINDOW_H = 3
 
+# Leerlauf-Schutz (v1.21.0): Läuft der Verdichter nach einem von der Leiter ausgelösten
+# Start (Morgen-Start/Kaltstart) nicht innerhalb dieser Zeit an, lag das Wasser innerhalb
+# der geräteeigenen Wiedereinschalt-Hysterese. Real lief er bislang 3–3,5 min nach dem
+# Anheben an; 10 min lassen genug Luft für Abtau-/Anlaufverzögerungen.
+_DEAD_START_S = 10 * 60
+
 
 # Leistungssensoren dürfen in W, kW oder MW vorliegen (device_class power). Ohne
 # Umrechnung würde ein Akku-Sensor mit 2,7 kW als 2,7 W abgezogen (praktisch wirkungslos).
@@ -244,6 +250,13 @@ class PvController:
         # Wechsel des PV-Modus auslöst – nur so kann der frische Controller beim Verlassen
         # des Coordinator-Modus erkennen, dass der Erhöht-Sollwert noch seiner ist.
         self._owned_setpoint: int | None = None
+        # Leerlauf-Schutz (v1.21.0): Zeitpunkt + Tag des letzten Starts, dessen Anlauf noch
+        # aussteht, und die Wassertemperatur, bei der heute ein Start leer lief (ein neuer
+        # Kaltstart verlangt dann tieferes Wasser – sonst Endlosschleife aus Leerlauf-Starts).
+        self._start_pending = None
+        self._start_pending_day = None
+        self._dead_start_water: int | None = None
+        self._dead_start_day = None
         # Live-Status (vom Diagnose-Sensor gelesen): aktueller Regel-Zustand.
         #   state: off | base | normal | boost | manual | held
         #   (interne Keys – die Anzeigetexte lauten Normal/Erhöht/Boost, s. Übersetzungen)
@@ -354,6 +367,7 @@ class PvController:
         self._coldstart_ready = False
         self._hold_run = False
         self._run_since = None
+        self._start_pending = None
         # Manuellen Sollwert-Schutz beim Verlassen des Coordinator-Modus lösen.
         self._manual_hold = False
         self._manual_day = None
@@ -608,6 +622,48 @@ class PvController:
         if mode != want_mode and await coordinator.write_value(REG_MODE, want_mode):
             _LOGGER.debug("PV: Modus -> %s", "AUTO" if want_mode == MODE_AUTO else "ECO")
 
+    async def _check_dead_start(self, coordinator, running: bool, current: int,
+                                water: float, t_base: float, now) -> None:
+        """Leerlauf-Schutz (v1.21.0): Start ohne Verdichteranlauf erkennen und zurücknehmen.
+
+        Hebt die Leiter den Sollwert an, während das Wasser noch innerhalb der
+        Wiedereinschalt-Hysterese des Geräts liegt, läuft der Verdichter nicht an. Bisher
+        blieb dann Erhöht/AUTO stehen und der Start war vom Tageskontingent abgezogen –
+        ohne jede Wärme. Jetzt nach ``_DEAD_START_S``:
+
+        - Start zurück ins Kontingent (nur am selben Tag),
+        - Leiter zurück auf Normal (Sollwert/Modus folgen in diesem Poll über Schritt 5/7),
+        - die Wassertemperatur merken: ein neuer Kaltstart verlangt heute mindestens 2 K
+          tieferes Wasser (sonst startete er nach ``pv_min_off`` sofort wieder leer),
+        - Logbuch-Eintrag mit Wasser/Soll – liefert nebenbei die echte Geräte-Hysterese.
+
+        Ein manueller Eingriff in der Zwischenzeit beendet die Überwachung (der Nutzer
+        besitzt dann den Sollwert).
+        """
+        if self._start_pending is None:
+            return
+        if running or self._manual_hold:
+            self._start_pending = None
+            return
+        if (now - self._start_pending).total_seconds() < _DEAD_START_S:
+            return
+        start_day = self._start_pending_day
+        self._start_pending = None
+        if self._starts_day == start_day and self._starts_count > 0:
+            self._starts_count -= 1
+            await self._save_store()
+        self._dead_start_water = int(water)
+        self._dead_start_day = now.date()
+        self._wp_target = t_base
+        self._wp_cand = None
+        self._wp_since = None
+        msg = (f"Leerlauf-Start: Verdichter lief bei Wasser {water:.0f} °C und Soll "
+               f"{current} °C nicht an – zurück auf Normal, Start nicht gezählt")
+        _LOGGER.info("PV: %s", msg)
+        self.hass.bus.async_fire(_EVENT_LOGBOOK_ENTRY, {
+            "name": "BWWP PV-Überschuss", "message": msg, "domain": DOMAIN,
+        })
+
     def _shown_priority(self, now, hold_s: float) -> str | None:
         """Vorrang-Grund für die Status-Anzeige, um ``hold_s`` nachgehalten."""
         prio = self._surplus_info.get("priority")
@@ -727,6 +783,7 @@ class PvController:
         # schreibt (bzw. den 65-°C-Sollwert als manuellen Eingriff fehldeutet).
         if coordinator.legionella.active:
             self._track_running(data, now, t_base)   # W6: Zeitstempel laufen weiter
+            self._start_pending = None   # Leerlauf-Schutz: Lauf gehört jetzt Legionellen
             # K6: lief der Heizstab beim Start des Laufs, muss das Bit SOFORT (ein
             # Poll) geräumt werden - sonst bleibt es für die gesamte, ausdrücklich
             # timeoutlose Laufdauer stehen (verletzt die eigene Zusicherung
@@ -745,6 +802,7 @@ class PvController:
         # zu einem Ziel, das nur der Heizstab erreicht).
         if coordinator.emergency.active:
             self._track_running(data, now, t_base)   # W6: Zeitstempel laufen weiter
+            self._start_pending = None
             return
 
         raw_surplus = self._power_w(o.get(CONF_PV_SENSOR))
@@ -828,6 +886,7 @@ class PvController:
                 self._wp_target = t_base
                 await self._write_setpoint(coordinator, target)
                 await self._register_start(now.date())
+                self._start_pending, self._start_pending_day = now, now.date()
                 await self._apply_mode(coordinator, data, MODE_ECO, target)
                 _LOGGER.debug("PV: Morgen-Start Soll -> %d (ECO, Überschuss %.0f W)", target, surplus)
                 self._announce(coordinator, target, surplus, up=True)
@@ -848,11 +907,23 @@ class PvController:
         #    und die Anlaufverluste verteilen sich auf sehr wenig gewonnene Wärme.
         #    Der Kaltstart soll einen *spürbar entleerten* Speicher laden, nicht die
         #    letzten Grad nachpolieren.
+        await self._check_dead_start(coordinator, running, int(current), water, t_base, now)
         coldstart_w = float(o.get(CONF_PV_COLDSTART, DEFAULT_PV_COLDSTART))
         coldstart_delta = float(o.get(CONF_PV_COLDSTART_DELTA, DEFAULT_PV_COLDSTART_DELTA))
+        if self._dead_start_day != now.date():
+            self._dead_start_water = None   # Tageswechsel: Sperre aus dem Leerlauf vergessen
         coldstart_eligible = (
             elevated_ok and not running and water <= t_normal - coldstart_delta
+            # Kein zweiter Kaltstart, solange der erste noch auf den Verdichteranlauf wartet
+            # bzw. die Leiter schon auf Erhöht steht: Lief der Verdichter nicht innerhalb der
+            # Entprellzeit an, feuerte der Kaltstart bisher erneut und zählte einen weiteren
+            # Start (Simulation: zwei Starts in 10 min, Kontingent verbrannt).
+            and self._start_pending is None and self._wp_target < t_normal - 0.5
             and self._starts_today(now.date()) < max_starts
+            # Leerlauf-Schutz: bei dieser Wassertemperatur lief heute schon ein Start leer.
+            # 2 K Abstand – mit nur 1 K liefe bei langsamer Abkühlung (≈ 0,3 K/h) jedes
+            # weitere Grad erneut leer an (Simulation: 62 -> 61 -> 60 °C, je 10 min AUTO).
+            and (self._dead_start_water is None or water <= self._dead_start_water - 2)
         )
         coldstart_want = (
             # F1: ``> 0`` zusätzlich – sonst ist ``pv_coldstart = 0`` (Number-Entity
@@ -880,6 +951,7 @@ class PvController:
             target = int(min(max(int(t_normal), SET_TEMP_MIN), SET_TEMP_MAX))
             await self._write_setpoint(coordinator, target)
             await self._register_start(now.date())
+            self._start_pending, self._start_pending_day = now, now.date()
             await self._apply_mode(coordinator, data, MODE_AUTO, target)
             _LOGGER.debug("PV: Kaltstart Soll -> %d (Überschuss %.0f W)", target, surplus)
             self._announce(coordinator, target, surplus, up=True)
