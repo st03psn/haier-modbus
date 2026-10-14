@@ -42,6 +42,11 @@
         "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen, Tagesplan und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
         "data": {
           "pv_sensor": "PV-Überschuss-Sensor (W)",
+          "pv_battery_sensor": "Akku-Leistungssensor (optional, Akku-Vorrang)",
+          "pv_battery_sign": "Vorzeichen des Akku-Sensors",
+          "pv_battery_soc_sensor": "Akku-Ladestand-Sensor (optional)",
+          "pv_battery_soc_limit": "Akku-Vorrang bis Ladestand (%)",
+          "pv_priority_lock": "Vorrang-Sperre (optional)",
           "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
           "pv_temp_base": "Normal-Zieltemperatur (°C)",
           "pv_temp_high": "Boost-Zieltemperatur (°C, nur Executor)",
@@ -63,6 +68,11 @@
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
+          "pv_battery_sensor": "Gibt dem Hausakku Vorrang: Die Regelung arbeitet dann mit **Überschuss − Akku-Ladeleistung**. Nötig, wenn dein Überschuss-Sensor als „PV − Hausverbrauch“ gerechnet ist – bei Hybrid-Wechselrichtern (Fronius, SMA, Huawei …) steckt die Akku-Ladung nicht im Hausverbrauch und erscheint sonst als Überschuss. **Leer lassen, wenn der Überschuss-Sensor bereits die Netzeinspeisung ist** (der Akku würde sonst doppelt abgezogen). Ist der Sensor nicht lesbar, gilt der Überschuss als 0.",
+          "pv_battery_sign": "„Laden positiv“ für reine Ladesensoren (immer ≥ 0) und Netto-Sensoren mit + = Laden. „Laden negativ“ für Netto-Sensoren mit − = Laden (z. B. Fronius „Battery Power“).",
+          "pv_battery_soc_sensor": "Optional. Zusammen mit der Ladestand-Grenze: Ab dieser Grenze zählt die Akku-Ladung wieder als Überschuss – die Wärmepumpe darf dann den Rest vor dem Akku nehmen. Ist der Sensor nicht lesbar, bleibt der Akku-Vorrang bestehen.",
+          "pv_battery_soc_limit": "Nur mit Ladestand-Sensor wirksam. 100 % = Akku hat immer Vorrang.",
+          "pv_priority_lock": "Optionaler binary_sensor/input_boolean/switch. Solange er **an** ist, gilt der Überschuss als 0: kein Kaltstart, kein Anheben, kein Heizstab – nur der Morgen-Start auf Normal-Zieltemperatur in ECO. Gedacht z. B. für „Auto steckt und wartet auf PV-Überschuss“ oder eine HEMS-Sperre. Ein ladendes Auto braucht das in der Regel nicht: Hängt die Wallbox hinter dem Netzzähler, steckt ihre Leistung schon im Hausverbrauch.",
           "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
           "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für den nächtlichen Rückfall bei Zyklusende.",
           "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht.",
@@ -143,6 +153,11 @@
         "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen, Tagesplan und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
         "data": {
           "pv_sensor": "PV-Überschuss-Sensor (W)",
+          "pv_battery_sensor": "Akku-Leistungssensor (optional, Akku-Vorrang)",
+          "pv_battery_sign": "Vorzeichen des Akku-Sensors",
+          "pv_battery_soc_sensor": "Akku-Ladestand-Sensor (optional)",
+          "pv_battery_soc_limit": "Akku-Vorrang bis Ladestand (%)",
+          "pv_priority_lock": "Vorrang-Sperre (optional)",
           "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
           "pv_temp_base": "Normal-Zieltemperatur (°C)",
           "pv_temp_high": "Boost-Zieltemperatur (°C, nur Executor)",
@@ -164,6 +179,11 @@
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
+          "pv_battery_sensor": "Gibt dem Hausakku Vorrang: Die Regelung arbeitet dann mit **Überschuss − Akku-Ladeleistung**. Nötig, wenn dein Überschuss-Sensor als „PV − Hausverbrauch“ gerechnet ist – bei Hybrid-Wechselrichtern (Fronius, SMA, Huawei …) steckt die Akku-Ladung nicht im Hausverbrauch und erscheint sonst als Überschuss. **Leer lassen, wenn der Überschuss-Sensor bereits die Netzeinspeisung ist** (der Akku würde sonst doppelt abgezogen). Ist der Sensor nicht lesbar, gilt der Überschuss als 0.",
+          "pv_battery_sign": "„Laden positiv“ für reine Ladesensoren (immer ≥ 0) und Netto-Sensoren mit + = Laden. „Laden negativ“ für Netto-Sensoren mit − = Laden (z. B. Fronius „Battery Power“).",
+          "pv_battery_soc_sensor": "Optional. Zusammen mit der Ladestand-Grenze: Ab dieser Grenze zählt die Akku-Ladung wieder als Überschuss – die Wärmepumpe darf dann den Rest vor dem Akku nehmen. Ist der Sensor nicht lesbar, bleibt der Akku-Vorrang bestehen.",
+          "pv_battery_soc_limit": "Nur mit Ladestand-Sensor wirksam. 100 % = Akku hat immer Vorrang.",
+          "pv_priority_lock": "Optionaler binary_sensor/input_boolean/switch. Solange er **an** ist, gilt der Überschuss als 0: kein Kaltstart, kein Anheben, kein Heizstab – nur der Morgen-Start auf Normal-Zieltemperatur in ECO. Gedacht z. B. für „Auto steckt und wartet auf PV-Überschuss“ oder eine HEMS-Sperre. Ein ladendes Auto braucht das in der Regel nicht: Hängt die Wallbox hinter dem Netzzähler, steckt ihre Leistung schon im Hausverbrauch.",
           "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
           "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für den nächtlichen Rückfall bei Zyklusende.",
           "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht.",
@@ -216,6 +236,12 @@
         "hp200m7_f9": "HP200M7-F9",
         "hp260m7_f9": "HP260M7-F9",
         "other": "Anderes Modell"
+      }
+    },
+    "pv_battery_sign": {
+      "options": {
+        "charge_positive": "Laden positiv (+ = Laden)",
+        "charge_negative": "Laden negativ (− = Laden)"
       }
     }
   },
@@ -438,6 +464,9 @@
       },
       "legionella_hold_min": {
         "name": "Legionellen Haltezeit"
+      },
+      "pv_battery_soc_limit": {
+        "name": "PV Akku-Vorrang bis Ladestand"
       }
     },
     "time": {

@@ -111,6 +111,21 @@ Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 > braucht daher einen externen **Watt**-Sensor: den **PV-Überschuss-Sensor**
 > (`sensor.pv_uberschuss_watt`, roh, kappt bei 0). Ohne ihn bleibt der Coordinator inaktiv.
 
+> **Akku, Auto & Vorrang (ab v1.20.0):** Die Regelung erwartet einen
+> **einspeisungsbasierten** Überschuss. Rechnet dein Sensor `PV − Hausverbrauch`, steckt bei
+> Hybrid-Wechselrichtern (Fronius, SMA, Huawei …) die **Akku-Ladung** darin – der Akku ist
+> ein eigener Zweig der Bilanz, kein Verbraucher – und die WP würde starten, während der
+> Akku lädt. Dafür gibt es im PV-Schritt optional:
+> - **Akku-Leistungssensor** (+ Vorzeichen): Regelung auf `Überschuss − Akku-Ladung`. Nicht
+>   setzen, wenn der Sensor schon die Netzeinspeisung ist. Unlesbar → Überschuss gilt als 0.
+> - **Akku-Ladestand-Sensor + Grenze (%)**: ab dieser Grenze zählt die Akku-Ladung wieder.
+> - **Vorrang-Sperre** (binary_sensor/input_boolean/switch): `an` → kein Anheben, kein
+>   Heizstab, nur der Morgen-Start auf Normal in ECO (z. B. Auto wartet auf PV).
+>
+> Eine **ladende Wallbox** hinter dem Netzzähler ist schon im Hausverbrauch enthalten und
+> braucht keine Option. Der Status-Sensor `PV-Regelung Status` zeigt die Zerlegung
+> (`surplus_raw_w`, `battery_charge_w`, `priority`).
+
 > **⚠️ Zieltemperaturen: Registergrenze ≠ Gerätegrenze.** Das Hersteller-Datenblatt der
 > M7-Reihe nennt beides getrennt: **Einstellbereich *mit Heizstab* 35–75 °C** gegenüber
 > **max. Temperaturausgabe *nur Wärmepumpe* 65 °C**. Der Bereich 65–75 °C ist also nur mit
@@ -306,6 +321,21 @@ exposes **code + description** attributes. Full table:
 > cumulative **kWh** registers, **not instantaneous power**. The Coordinator mode therefore
 > needs an external **watt** sensor: the **PV-surplus sensor** (`sensor.pv_uberschuss_watt`,
 > raw, clips at 0). Without it the Coordinator stays inactive.
+
+> **Battery, car & priority (since v1.20.0):** control expects a **feed-in based** surplus.
+> If your sensor computes `PV − house consumption`, hybrid inverters (Fronius, SMA, Huawei …)
+> include the **battery charging** in it — the battery is its own branch of the balance, not
+> a consumer — and the heat pump would start while the battery charges. The PV step offers,
+> optionally:
+> - **Battery power sensor** (+ sign): control on `surplus − battery charging`. Don't set it
+>   if your sensor already is the grid feed-in. Unreadable → surplus counts as 0.
+> - **Battery SoC sensor + limit (%)**: from that limit on, battery charging counts again.
+> - **Priority lock** (binary_sensor/input_boolean/switch): `on` → no raise, no heater, only
+>   the morning start to normal in ECO (e.g. car waiting for PV).
+>
+> A **charging wallbox** behind the grid meter is already part of house consumption and
+> needs no option. The `PV control status` sensor shows the breakdown (`surplus_raw_w`,
+> `battery_charge_w`, `priority`).
 
 > **⚠️ Target temperatures: register limit ≠ device limit.** The manufacturer's M7 data
 > sheet lists both separately: **setting range *with heater* 35–75 °C** vs. **max.

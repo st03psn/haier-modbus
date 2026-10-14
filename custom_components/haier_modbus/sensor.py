@@ -176,6 +176,10 @@ class HaierPvStatus(HaierModbusEntity, SensorEntity):
             "setpoint_c": s.get("setpoint"),
             "hp_running": s.get("running"),
             "heater_on": s.get("heater"),
+            # v1.20.0: Zerlegung des Überschusses - warum (nicht) angehoben wird.
+            "surplus_raw_w": s.get("surplus_raw"),
+            "battery_charge_w": s.get("battery_charge"),
+            "priority": s.get("priority"),
         }
 
 

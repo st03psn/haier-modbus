@@ -29,6 +29,7 @@ from .const import (
     CONF_LEGIONELLA_HOLD,
     CONF_LEGIONELLA_INTERVAL,
     CONF_LEGIONELLA_TARGET,
+    CONF_PV_BATTERY_SOC_LIMIT,
     CONF_PV_COLDSTART,
     CONF_PV_COLDSTART_DELTA,
     CONF_PV_DEBOUNCE,
@@ -48,6 +49,7 @@ from .const import (
     DEFAULT_LEGIONELLA_HOLD,
     DEFAULT_LEGIONELLA_INTERVAL,
     DEFAULT_LEGIONELLA_TARGET,
+    DEFAULT_PV_BATTERY_SOC_LIMIT,
     DEFAULT_PV_COLDSTART,
     DEFAULT_PV_COLDSTART_DELTA,
     DEFAULT_PV_DEBOUNCE,
@@ -145,6 +147,11 @@ PV_TIMING_NUMBERS: tuple[OptionNumber, ...] = (
                  min_value=1, max_value=60, step=1, unit="min", icon="mdi:timer-sand"),
     OptionNumber(key=CONF_PV_HEATER_POWER, default=DEFAULT_PV_HEATER_POWER,
                  min_value=0, max_value=10000, step=50, unit="W", icon="mdi:radiator"),
+    # v1.20.0: Akku-Vorrang bis Ladestand. Wirkt nur mit gesetztem SoC-Sensor; die
+    # Entität existiert trotzdem im Coordinator-Modus, weil das Setzen des Sensors
+    # (Live-Option) keinen Reload auslöst und sie sonst erst nach einem Neustart käme.
+    OptionNumber(key=CONF_PV_BATTERY_SOC_LIMIT, default=DEFAULT_PV_BATTERY_SOC_LIMIT,
+                 min_value=0, max_value=100, step=1, unit="%", icon="mdi:battery-charging-high"),
 )
 
 # Notheizung: unabhängig vom PV-Modus (läuft auch bei pv_mode=off), daher unconditional

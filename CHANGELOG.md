@@ -5,6 +5,27 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.20.0] - 2026-10-14
+
+**Neu: Vorrang für Hausakku und andere Senken.** Live-Fall 14.10.: Die WP lief um 08:50
+per überschussgetriebenem Kaltstart auf Erhöht/AUTO los, obwohl nichts eingespeist wurde –
+der „Überschuss" (400–950 W) war exakt die Ladeleistung des Hausakkus (SoC 30 %). Ursache:
+Der Überschuss-Sensor war als `PV − Hausverbrauch` gerechnet; bei Hybrid-Wechselrichtern
+ist die Akku-Ladung ein eigener Zweig der Bilanz und nicht im Hausverbrauch enthalten.
+Die Regelung erwartet aber einen einspeisungsbasierten Wert. Drei optionale Felder im
+PV-Schritt (Wizard + Konfigurieren), alle Live-Optionen ohne Reload:
+
+- **Akku-Leistungssensor** + **Vorzeichen** (Laden positiv/negativ): Die Regelung arbeitet
+  auf `max(0, Überschuss − Akku-Ladung)`. Sensor unlesbar → Überschuss 0 (fail-safe).
+- **Akku-Ladestand-Sensor** + **Akku-Vorrang bis Ladestand (%)** (auch als Number-Entity):
+  ab der Grenze zählt die Akku-Ladung wieder als Überschuss. SoC unlesbar → Vorrang bleibt.
+- **Vorrang-Sperre** (binary_sensor/input_boolean/switch): `an` → Überschuss 0, Heizstab
+  sofort aus; der Morgen-Start auf Normal/ECO bleibt. Z. B. für „Auto wartet auf PV".
+
+Eine laufende Mindestlaufzeit wird in allen Fällen respektiert. Ohne die neuen Felder ist
+das Verhalten unverändert. Der Status-Sensor zeigt neu `surplus_raw_w`, `battery_charge_w`
+und `priority`. Per Simulation der echten `pv.py` geprüft (kein automatisiertes Testsetup).
+
 ## [1.19.1] - 2026-09-19
 
 **Fix: Legionellen-Selbst-Reset griff nie vor Fälligkeit.** Live-Fall: Der Speicher

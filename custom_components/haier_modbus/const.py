@@ -92,6 +92,35 @@ CONF_PV_BOOST_ONLY_NEGATIVE_PRICE: Final = "pv_boost_only_negative_price"
 DEFAULT_PV_HEATER_POWER: Final = 1500
 DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE: Final = False
 
+# --- Vorrang anderer Senken vor der WP (v1.20.0) ----------------------------
+# Die Integration erwartet einen einspeisungsbasierten Überschuss. Viele Templates
+# rechnen aber ``PV − Hausverbrauch`` – die Akku-Ladung steckt bei Hybrid-Wechselrichtern
+# (Fronius, SMA, Huawei …) NICHT im Hausverbrauch, sondern ist ein eigener Zweig der
+# Bilanz. Folge: der Ladestrom des Akkus erscheint als „Überschuss" und die WP startet,
+# während der Akku eigentlich lädt (Live-Fall 14.10.: Kaltstart bei 400–950 W
+# „Überschuss" = exakt die Akku-Ladeleistung, Einspeisung ≈ 0).
+#
+# 1) Optionaler Akku-Leistungssensor (W). Gesetzt -> ``Überschuss − Akku-Ladung``.
+#    Vorzeichen wählbar, weil es reine Ladesensoren (≥ 0) und Netto-Sensoren mit
+#    beiden Konventionen gibt. NICHT setzen, wenn der Überschuss-Sensor schon die
+#    Netzeinspeisung ist (Akku sonst doppelt abgezogen).
+CONF_PV_BATTERY_SENSOR: Final = "pv_battery_sensor"
+CONF_PV_BATTERY_SIGN: Final = "pv_battery_sign"
+BATTERY_SIGN_CHARGE_POSITIVE: Final = "charge_positive"   # Laden > 0 (auch reine Ladesensoren)
+BATTERY_SIGN_CHARGE_NEGATIVE: Final = "charge_negative"   # Laden < 0 (z. B. Fronius „Battery Power")
+DEFAULT_PV_BATTERY_SIGN: Final = BATTERY_SIGN_CHARGE_POSITIVE
+# 2) Optional: Akku-Vorrang nur bis zu einem Ladestand. Ab ``pv_battery_soc_limit`` zählt
+#    die Akku-Ladung wieder als Überschuss (die WP darf den Rest vor dem Akku nehmen).
+#    100 % = Vorrang immer (Default; ein voller Akku lädt ohnehin nicht mehr).
+CONF_PV_BATTERY_SOC_SENSOR: Final = "pv_battery_soc_sensor"
+CONF_PV_BATTERY_SOC_LIMIT: Final = "pv_battery_soc_limit"
+DEFAULT_PV_BATTERY_SOC_LIMIT: Final = 100
+# 3) Optionale Vorrang-Sperre (binary_sensor/input_boolean/switch): ``on`` -> der
+#    Überschuss gilt als 0. Kein Kaltstart, kein Anheben, kein Heizstab; der Morgen-Start
+#    auf Basis/ECO bleibt. Generisch für „Auto steckt und wartet auf PV", HEMS-Sperren,
+#    manuellen Schalter.
+CONF_PV_PRIORITY_LOCK: Final = "pv_priority_lock"
+
 # --- Tagesplan: Kaltstart + Rückfall auf Basis/ECO (v1.16.0) ----------------
 CONF_PV_COLDSTART: Final = "pv_coldstart"      # Überschuss (W), ab dem tagsüber kalt gestartet wird
 CONF_PV_MAX_STARTS: Final = "pv_max_starts"    # max. von der Leiter ausgelöste Starts/Tag
@@ -208,6 +237,12 @@ LIVE_OPTION_KEYS: Final = frozenset({
     # Reload mit Besitzstand-Verlust-Risiko aus wie die Keys unten.
     CONF_PV_SENSOR,
     CONF_PV_NEGATIVE_PRICE_SENSOR,
+    # v1.20.0: Vorrang anderer Senken - alle je Poll in ``pv._effective_surplus``.
+    CONF_PV_BATTERY_SENSOR,
+    CONF_PV_BATTERY_SIGN,
+    CONF_PV_BATTERY_SOC_SENSOR,
+    CONF_PV_BATTERY_SOC_LIMIT,
+    CONF_PV_PRIORITY_LOCK,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_NORMAL,
     CONF_PV_TEMP_HIGH,

@@ -52,6 +52,16 @@ Normalisierung.
 - Fällt der Überschuss unter die Schwelle: nur der Heizstab geht weg; die WP läuft
   unverändert weiter (Schicht 1 unberührt).
 
+**Vorrang anderer Senken (v1.20.0):** Vor beiden Schichten wird der Sensorwert zum
+*effektiven* Überschuss (``_effective_surplus``):
+- **Vorrang-Sperre** (optionale Entität) ``on`` -> Überschuss = 0, Heizstab aus.
+- **Akku-Vorrang** (optionaler Akku-Leistungssensor): ``Überschuss − Akku-Ladung``, außer
+  der Ladestand liegt auf/über ``pv_battery_soc_limit``. Akku-Sensor nicht lesbar ->
+  Überschuss = 0 (fail-safe: lieber kein Anheben als den Akku leerziehen).
+Der Morgen-Start hängt nicht am Überschuss und bleibt in allen Fällen unberührt – bei
+Vorrang fährt die WP also nur die Grundladung auf Basis in ECO. Eine laufende
+Mindestlaufzeit wird respektiert (Verdichterschutz, max. ``pv_min_run``).
+
 **Modus (AP4):** ``base`` -> ECO, ``Erhöht``/``Boost`` -> AUTO, idempotent. Harte
 Invariante: AUTO nur, wenn der geschriebene Sollwert ≤ ``WP_MAX_TEMP`` ist – oberhalb
 zieht das Gerät laut Datenblatt selbsttätig den Heizstab (unbelegter Teil der
@@ -85,7 +95,12 @@ from homeassistant.helpers.storage import Store
 import homeassistant.util.dt as dt_util
 
 from .const import (
+    BATTERY_SIGN_CHARGE_NEGATIVE,
     BIT_BOOST,
+    CONF_PV_BATTERY_SENSOR,
+    CONF_PV_BATTERY_SIGN,
+    CONF_PV_BATTERY_SOC_LIMIT,
+    CONF_PV_BATTERY_SOC_SENSOR,
     CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
     CONF_PV_COLDSTART,
     CONF_PV_COLDSTART_DELTA,
@@ -102,9 +117,12 @@ from .const import (
     CONF_PV_MORNING_TIME,
     CONF_PV_NEGATIVE_PRICE_SENSOR,
     CONF_PV_POWER_ENTITY,
+    CONF_PV_PRIORITY_LOCK,
     CONF_PV_SENSOR,
     CONF_PV_TEMP_BASE,
     CONF_PV_TEMP_NORMAL,
+    DEFAULT_PV_BATTERY_SIGN,
+    DEFAULT_PV_BATTERY_SOC_LIMIT,
     DEFAULT_PV_COLDSTART,
     DEFAULT_PV_COLDSTART_DELTA,
     DEFAULT_PV_DEBOUNCE,
@@ -217,7 +235,10 @@ class PvController:
             "running": None, "heater": False,
             "wp_target": None, "manual_hold": False, "boost_owned": False,
             "starts_today": 0,
+            "surplus_raw": None, "battery_charge": None, "priority": None,
         }
+        # Zerlegung des effektiven Überschusses (v1.20.0) für den Status-Sensor.
+        self._surplus_info: dict = {}
 
     def _set_status(self, state, surplus, setpoint, running, heater) -> None:
         self.status = {
@@ -232,6 +253,9 @@ class PvController:
             "manual_hold": self._manual_hold,
             "boost_owned": self._boost_applied,
             "starts_today": self._starts_today(self._starts_day) if self._starts_day else 0,
+            "surplus_raw": self._surplus_info.get("surplus_raw"),
+            "battery_charge": self._surplus_info.get("battery_charge"),
+            "priority": self._surplus_info.get("priority"),
         }
 
     async def _ensure_loaded(self, coordinator) -> None:
@@ -427,6 +451,62 @@ class PvController:
         state = self.hass.states.get(entity_id)
         return state is not None and state.state == "on"
 
+    def _effective_surplus(self, o: dict, raw: float) -> float:
+        """Rohen Sensorwert in den *effektiven* Überschuss übersetzen (v1.20.0).
+
+        Hintergrund: Die Regelung erwartet einen einspeisungsbasierten Überschuss.
+        Ein Template ``PV − Hausverbrauch`` enthält bei Hybrid-Wechselrichtern aber die
+        Akku-Ladung, weil der Akku in der Bilanz ein eigener Zweig ist und nicht im
+        Hausverbrauch steckt. Live-Fall 14.10.: Kaltstart bei 400–950 W „Überschuss",
+        der exakt der Akku-Ladeleistung entsprach (Einspeisung ≈ 0).
+
+        Reihenfolge:
+        1. Vorrang-Sperre ``on`` -> 0. Nur ``on`` sperrt; ``unavailable`` nicht (eine
+           offline Wallbox lädt auch kein Auto).
+        2. Kein Akku-Sensor -> roher Wert (Verhalten wie bis v1.19).
+        3. Ladestand ≥ ``pv_battery_soc_limit`` -> roher Wert (Akku-Ladung zählt wieder).
+           SoC nicht lesbar -> Vorrang gilt weiter (konservativ).
+        4. Akku-Sensor nicht lesbar -> 0 (fail-safe, s. Modul-Docstring).
+        5. sonst ``max(0, roh − Akku-Ladung)``.
+
+        Die Heizstab-Normalisierung (``verfügbar = Überschuss + P_heizstab``) bleibt
+        damit korrekt: Solange der Akku noch Leistung aufnehmen kann, ist die Einspeisung
+        0 und ``verfügbar`` liegt unter ``pv_high`` (≥ P_heizstab + 50) -> Heizstab aus.
+        Erst ein gesättigter Akku (Einspeisung > 0) lässt ihn zu.
+        """
+        info: dict = {"surplus_raw": round(raw), "battery_charge": None, "priority": None}
+        self._surplus_info = info
+
+        lock = o.get(CONF_PV_PRIORITY_LOCK)
+        if lock:
+            state = self.hass.states.get(lock)
+            if state is not None and state.state == "on":
+                info["priority"] = "lock"
+                return 0.0
+
+        battery = o.get(CONF_PV_BATTERY_SENSOR)
+        if not battery:
+            return raw
+
+        soc_eid = o.get(CONF_PV_BATTERY_SOC_SENSOR)
+        if soc_eid:
+            soc = state_float(self.hass, soc_eid)
+            limit = float(o.get(CONF_PV_BATTERY_SOC_LIMIT, DEFAULT_PV_BATTERY_SOC_LIMIT))
+            if soc is not None and soc >= limit:
+                return raw
+
+        value = state_float(self.hass, battery)
+        if value is None:
+            info["priority"] = "battery_unknown"
+            return 0.0
+        if o.get(CONF_PV_BATTERY_SIGN, DEFAULT_PV_BATTERY_SIGN) == BATTERY_SIGN_CHARGE_NEGATIVE:
+            value = -value
+        charge = max(0.0, value)
+        info["battery_charge"] = round(charge)
+        if charge > 0:
+            info["priority"] = "battery"
+        return max(0.0, raw - charge)
+
     def _start_allowed(self, o: dict, running: bool, now) -> bool:
         """Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND
         Tages-Kaltstart, AP6a): läuft die WP -> ok; sonst nach Mindest-Stillstand."""
@@ -543,6 +623,7 @@ class PvController:
             if self._boost_applied:
                 await self._release_heater(coordinator, data)
             self._reset()
+            self._surplus_info = {}
             self._set_status("off", None, None, None, False)
             return
 
@@ -573,9 +654,16 @@ class PvController:
             self._track_running(data, now, t_base)   # W6: Zeitstempel laufen weiter
             return
 
-        surplus = state_float(self.hass, o.get(CONF_PV_SENSOR))
-        if surplus is None:
+        raw_surplus = state_float(self.hass, o.get(CONF_PV_SENSOR))
+        if raw_surplus is None:
             return
+        # v1.20.0: Vorrang-Sperre / Akku-Vorrang -> effektiver Überschuss. Ab hier
+        # arbeiten ALLE Stufen (Kaltstart, Piggyback, Halten, Heizstab) nur noch darauf.
+        surplus = self._effective_surplus(o, raw_surplus)
+        # Sperre bzw. unlesbarer Akku: Überschuss ist künstlich 0. Der Heizstab muss dann
+        # explizit aus – ``verfügbar = 0 + P_heizstab`` könnte mit gemessener Leistung
+        # (bis 1,3 × Nennwert) sonst über ``pv_high`` liegen und ihn halten.
+        priority_block = self._surplus_info.get("priority") in ("lock", "battery_unknown")
 
         running = self._track_running(data, now, t_base)
 
@@ -749,7 +837,7 @@ class PvController:
         only_negative = bool(o.get(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE, False))
         price_gate_ok = (not only_negative) or self._negative_price(o)
         if choice == PV_ESC_BOOST:
-            heater_want = running and available >= hoch and price_gate_ok
+            heater_want = running and available >= hoch and price_gate_ok and not priority_block
         else:
             heater_want = False
         if heater_want:
