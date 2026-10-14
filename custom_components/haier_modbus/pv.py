@@ -173,6 +173,13 @@ _MORNING_WINDOW_H = 3
 # Umrechnung würde ein Akku-Sensor mit 2,7 kW als 2,7 W abgezogen (praktisch wirkungslos).
 _POWER_FACTOR = {"W": 1.0, "kW": 1000.0, "MW": 1_000_000.0}
 
+# Vorrang-Grund (``_effective_surplus``) -> Status-Zustand, wenn die Leiter auf Normal steht.
+_PRIORITY_STATES = {
+    "battery": "priority_battery",
+    "lock": "priority_lock",
+    "battery_unknown": "priority_sensor",
+}
+
 
 def _parse_time(raw) -> time:
     """"HH:MM" / "HH:MM:SS" -> time; bei Unsinn Default 10:00."""
@@ -232,6 +239,11 @@ class PvController:
         self._store: Store | None = None       # Persistenz für _last_kick_day/_starts_*
         self._loaded = False                   # Store schon einmal geladen?
         self._pv_high_clamped_warned = False   # einmalige Warnung bei verdrehtem pv_high
+        # Zuletzt von der Leiter geschriebener Sollwert, PERSISTIERT (v1.20.0). Anders als
+        # ``_last_written`` (Manuell-Erkennung, nur RAM) überlebt er den Reload, den ein
+        # Wechsel des PV-Modus auslöst – nur so kann der frische Controller beim Verlassen
+        # des Coordinator-Modus erkennen, dass der Erhöht-Sollwert noch seiner ist.
+        self._owned_setpoint: int | None = None
         # Live-Status (vom Diagnose-Sensor gelesen): aktueller Regel-Zustand.
         #   state: off | base | normal | boost | manual | held
         #   (interne Keys – die Anzeigetexte lauten Normal/Erhöht/Boost, s. Übersetzungen)
@@ -244,6 +256,11 @@ class PvController:
         }
         # Zerlegung des effektiven Überschusses (v1.20.0) für den Status-Sensor.
         self._surplus_info: dict = {}
+        # Angezeigter Vorrang-Grund + Zeitpunkt, zu dem er zuletzt galt (nur Anzeige):
+        # hält den Status eine Entprellzeit lang, damit er in der Dämmerung nicht im
+        # Poll-Takt zwischen „Normal" und „Vorrang" springt (Logbuch-Flut).
+        self._prio_shown: str | None = None
+        self._prio_seen = None
 
     def _set_status(self, state, surplus, setpoint, running, heater) -> None:
         self.status = {
@@ -294,6 +311,8 @@ class PvController:
             self._boost_applied = bool(data.get("boost_applied", False))
             # C13: sonst wiederholt sich die pv_high-Warnung nach jedem Neustart.
             self._pv_high_clamped_warned = bool(data.get("pv_high_clamped_warned", False))
+            if data.get("owned_setpoint") is not None:
+                self._owned_setpoint = int(data["owned_setpoint"])
 
     async def _save_store(self) -> None:
         if self._store is None:
@@ -304,6 +323,7 @@ class PvController:
             "starts_count": self._starts_count,
             "boost_applied": self._boost_applied,
             "pv_high_clamped_warned": self._pv_high_clamped_warned,
+            "owned_setpoint": self._owned_setpoint,
         })
 
     async def _mark_kicked(self, day) -> None:
@@ -356,6 +376,9 @@ class PvController:
         ok = await coordinator.write_value(REG_SET_TEMP, target)
         if ok:
             self._last_written = target
+            if self._owned_setpoint != target:
+                self._owned_setpoint = target
+                await self._save_store()
         return ok
 
     def _announce(self, coordinator, target: int, surplus: float, up: bool) -> None:
@@ -518,7 +541,8 @@ class PvController:
             value = -value
         charge = max(0.0, value)
         info["battery_charge"] = round(charge)
-        if charge > 0:
+        # Ab 50 W, damit Messrauschen eines ruhenden Akkus den Status nicht flattern lässt.
+        if charge >= 50:
             info["priority"] = "battery"
         return max(0.0, raw - charge)
 
@@ -584,6 +608,54 @@ class PvController:
         if mode != want_mode and await coordinator.write_value(REG_MODE, want_mode):
             _LOGGER.debug("PV: Modus -> %s", "AUTO" if want_mode == MODE_AUTO else "ECO")
 
+    def _shown_priority(self, now, hold_s: float) -> str | None:
+        """Vorrang-Grund für die Status-Anzeige, um ``hold_s`` nachgehalten."""
+        prio = self._surplus_info.get("priority")
+        if prio in _PRIORITY_STATES:
+            self._prio_shown, self._prio_seen = prio, now
+            return prio
+        if self._prio_shown and self._prio_seen is not None \
+                and (now - self._prio_seen).total_seconds() < hold_s:
+            return self._prio_shown
+        self._prio_shown = self._prio_seen = None
+        return None
+
+    async def _release_setpoint(self, coordinator, data: dict[int, int], o: dict) -> None:
+        """Beim Verlassen des Coordinator-Modus einen eigenen Erhöht-Zustand räumen (v1.20.0).
+
+        Vorher blieb das Gerät nach „PV-Modus: Aus" (oder Executor) mitten im Zyklus auf
+        Erhöht/AUTO stehen – niemand schrieb es mehr zurück (Simulations-Befund). Jetzt
+        einmalig zurück auf die Normal-Zieltemperatur und ECO, aber **nur**, wenn der
+        Sollwert noch genau der ist, den die Leiter selbst geschrieben hat, und er über
+        der Normal-Zieltemperatur liegt. Ein manueller Eingriff (anderer Sollwert) bleibt
+        unberührt; der Modus wird nur von AUTO auf ECO gestellt (ELEC/VAC = fremd).
+
+        Läuft Legionellen-Schutz oder Notheizung, besitzen diese Sollwert/Modus – dann
+        später erneut versuchen (der Merker bleibt stehen). Ein Legionellen-Lauf stellt
+        danach seinen gemerkten Sollwert wieder her; ist das der PV-Erhöht-Wert, greift
+        die Rückgabe im Folgepoll.
+        """
+        owned = self._owned_setpoint
+        if owned is None:
+            return
+        if coordinator.legionella.active or coordinator.emergency.active:
+            return
+        current = data.get(REG_SET_TEMP)
+        mode = data.get(REG_MODE)
+        if current is None or mode is None:
+            return
+        _, t_base = self._temps(o)
+        base = int(min(max(int(t_base), SET_TEMP_MIN), SET_TEMP_MAX))
+        if int(current) == owned and owned > base:
+            ok = await coordinator.write_value(REG_SET_TEMP, base)
+            if ok and mode == MODE_AUTO:
+                ok = await coordinator.write_value(REG_MODE, MODE_ECO)
+            if not ok:
+                return   # nächster Poll versucht es erneut
+            _LOGGER.info("PV-Regelung verlassen: Sollwert %d -> %d, Modus ECO", owned, base)
+        self._owned_setpoint = None
+        await self._save_store()
+
     async def _release_heater(self, coordinator, data: dict[int, int]) -> None:
         """Heizstab-Bit (Boost) einmalig ausräumen, unabhängig vom Überschuss (K6/K7).
 
@@ -637,6 +709,7 @@ class PvController:
             # ``LIVE_OPTION_KEYS``) würde den Heizstab sonst endgültig verwaist lassen.
             if self._boost_applied:
                 await self._release_heater(coordinator, data)
+            await self._release_setpoint(coordinator, data, o)
             self._reset()
             self._surplus_info = {}
             self._set_status("off", None, None, None, False)
@@ -946,6 +1019,9 @@ class PvController:
             state = "boost"
         elif elevated_ok and self._wp_target >= t_normal - 0.5:
             state = "normal"
+        elif (prio := self._shown_priority(now, debounce_s)) is not None:
+            # v1.20.0: Grund sichtbar machen, warum nicht angehoben wird (Kachel/Logbuch).
+            state = _PRIORITY_STATES[prio]
         else:
             state = "base"
         self._set_status(state, surplus, target, running, self._heater_on)

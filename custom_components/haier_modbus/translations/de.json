@@ -306,7 +306,10 @@
           "normal": "Erhöht",
           "boost": "Boost",
           "manual": "Manueller Eingriff",
-          "held": "Laufender Zyklus gehalten"
+          "held": "Laufender Zyklus gehalten",
+          "priority_battery": "Vorrang: Akku lädt",
+          "priority_lock": "Vorrang: Sperre aktiv",
+          "priority_sensor": "Vorrang: Akku-Sensor fehlt"
         }
       },
       "link_status": {

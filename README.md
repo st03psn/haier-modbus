@@ -123,8 +123,14 @@ Volle Tabelle: [`docs/fault-codes.md`](docs/fault-codes.md).
 >   Heizstab, nur der Morgen-Start auf Normal in ECO (z. B. Auto wartet auf PV).
 >
 > Eine **ladende Wallbox** hinter dem Netzzähler ist schon im Hausverbrauch enthalten und
-> braucht keine Option. Der Status-Sensor `PV-Regelung Status` zeigt die Zerlegung
-> (`surplus_raw_w`, `battery_charge_w`, `priority`).
+> braucht keine Option. Der Status-Sensor `PV-Regelung Status` zeigt den Vorrang direkt
+> als Zustand („Vorrang: Akku lädt" / „Sperre aktiv" / „Akku-Sensor fehlt") und die
+> Zerlegung als Attribute (`surplus_raw_w`, `battery_charge_w`, `priority`).
+>
+> **PV-Modus „Aus"/„Executor":** Die Integration regelt dann nicht mehr nach PV
+> (Notheizung, Legionellen-Schutz und die Bedien-Entitäten bleiben aktiv). Beim
+> Umschalten wird ein von ihr gesetzter Erhöht-Zustand einmalig auf Normal/ECO
+> zurückgestellt; ein manuell gesetzter Sollwert bleibt unberührt.
 
 > **⚠️ Zieltemperaturen: Registergrenze ≠ Gerätegrenze.** Das Hersteller-Datenblatt der
 > M7-Reihe nennt beides getrennt: **Einstellbereich *mit Heizstab* 35–75 °C** gegenüber
@@ -334,8 +340,14 @@ exposes **code + description** attributes. Full table:
 >   the morning start to normal in ECO (e.g. car waiting for PV).
 >
 > A **charging wallbox** behind the grid meter is already part of house consumption and
-> needs no option. The `PV control status` sensor shows the breakdown (`surplus_raw_w`,
-> `battery_charge_w`, `priority`).
+> needs no option. The `PV control status` sensor shows the priority directly as its state
+> (“Priority: battery charging” / “lock active” / “battery sensor missing”) and the
+> breakdown as attributes (`surplus_raw_w`, `battery_charge_w`, `priority`).
+>
+> **PV mode “Off”/“Executor”:** the integration no longer controls by PV (emergency
+> heating, legionella protection and the control entities stay active). On switching, an
+> elevated state it set itself is reset once to normal/ECO; a manually set setpoint is
+> left alone.
 
 > **⚠️ Target temperatures: register limit ≠ device limit.** The manufacturer's M7 data
 > sheet lists both separately: **setting range *with heater* 35–75 °C** vs. **max.

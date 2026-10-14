@@ -306,7 +306,10 @@
           "normal": "Elevated",
           "boost": "Boost",
           "manual": "Manual override",
-          "held": "Active cycle held"
+          "held": "Active cycle held",
+          "priority_battery": "Priority: battery charging",
+          "priority_lock": "Priority: lock active",
+          "priority_sensor": "Priority: battery sensor missing"
         }
       },
       "link_status": {

@@ -153,7 +153,8 @@ class HaierPvStatus(HaierModbusEntity, SensorEntity):
     # bislang auch ``dashboard.py``, wo derselbe Sensor als prominente Kachel liegt.
     _attr_translation_key = "pv_status"
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = ["off", "base", "normal", "boost", "manual", "held"]
+    _attr_options = ["off", "base", "normal", "boost", "manual", "held",
+                     "priority_battery", "priority_lock", "priority_sensor"]
     _attr_icon = "mdi:solar-power-variant"
 
     def __init__(self, coordinator) -> None:

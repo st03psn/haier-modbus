@@ -42,6 +42,18 @@ zulassen (keine Cross-Field-Validierung):
 Außerdem: Leistungssensoren in **kW/MW** werden in W umgerechnet (Überschuss- und
 Akku-Sensor) – bislang wurde z. B. 2,7 kW als 2,7 W gelesen.
 
+**Verlassen der PV-Regelung räumt auf.** Bisher blieb das Gerät nach dem Umschalten auf
+„Aus"/„Executor" mitten in einem Zyklus auf Erhöht/AUTO stehen. Jetzt wird einmalig auf
+Normal/ECO zurückgestellt – nur, wenn der Sollwert noch der selbst geschriebene ist (neu
+persistiert, überlebt den Reload des Moduswechsels). Manueller Sollwert bleibt; läuft
+Legionellen-Schutz oder Notheizung, wird danach zurückgestellt.
+
+**Vorrang als Status sichtbar.** `PV-Regelung Status` zeigt neu „Vorrang: Akku lädt",
+„Vorrang: Sperre aktiv" bzw. „Vorrang: Akku-Sensor fehlt" statt nur „Normal" – Kachel und
+Logbuch erklären damit, *warum* nicht angehoben wird. Die Anzeige hält einen Vorrang eine
+Entprellzeit lang nach (kein Flattern in der Dämmerung); die Regelung selbst ist davon
+unberührt.
+
 ## [1.19.1] - 2026-09-19
 
 **Fix: Legionellen-Selbst-Reset griff nie vor Fälligkeit.** Live-Fall: Der Speicher
