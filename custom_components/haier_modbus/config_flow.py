@@ -29,6 +29,7 @@ from .const import (
     CONF_COP_ENABLED,
     CONF_COP_HEAT_ENTITY,
     CONF_COP_REF_DATE,
+    CONF_DASHBOARD_ENABLED,
     CONF_EMERGENCY_CRITICAL,
     CONF_EMERGENCY_ENABLED,
     CONF_EMERGENCY_MODE,
@@ -72,6 +73,7 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
     DEFAULT_AMBIENT_OFFSET,
+    DEFAULT_DASHBOARD_ENABLED,
     DEFAULT_EMERGENCY_CRITICAL,
     DEFAULT_EMERGENCY_MODE,
     DEFAULT_EMERGENCY_RECOVER,
@@ -523,6 +525,8 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_MODEL, default=cur(CONF_MODEL, DEFAULT_MODEL_KEY)): _MODEL,
             vol.Optional(CONF_SCAN_INTERVAL, default=cur(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
             vol.Optional(CONF_AMBIENT_OFFSET, default=cur(CONF_AMBIENT_OFFSET, DEFAULT_AMBIENT_OFFSET)): _OFFSET,
+            vol.Optional(CONF_DASHBOARD_ENABLED,
+                         default=cur(CONF_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_ENABLED)): bool,
         }
 
         emergency = {

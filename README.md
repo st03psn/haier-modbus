@@ -55,7 +55,10 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 - **Energie & COP:** gerätegemessene Register + **berechneter COP/JAZ** mit frei
   wählbaren Quellen (Modbus-intern oder externer Zähler wie Shelly).
 - **Diagnose:** **Modbus-Status** (`OK` / `Konverter nicht erreichbar` /
-  `Gerät antwortet nicht`) und Binärsensor **Verbindung**.
+  `Gerät antwortet nicht`) und Binärsensor **Verbindung**; dazu **Uhr-Abweichung** der
+  Geräteuhr gegenüber Home Assistant (Sekunden) und Problem-Sensor **„Geräteuhr weicht
+  ab"** ab 5 min. Die Geräteuhr ist per Modbus nur lesbar – stellen lässt sie sich nur am
+  Bedienteil.
 - **PV-Überschuss-Steuerung** eingebaut (optional): Modi Aus / Coordinator / Executor (HEMS-Client).
 - **Editierbares Dashboard** (Storage-Modus) wird automatisch angelegt.
 - **Ein Block-Read** (Register 1–90) je Intervall (Standard 5 s).
@@ -262,6 +265,10 @@ Updates erhalten. Abschnitte: Steuerung, Temperaturen, Status, Energie & COP sow
 Diagramme (Energie pro Monat/Tag, Temperaturen 7 Tage, JAZ-Vergleich). Benötigte
 Karten (ApexCharts, card-mod) werden bei Bedarf via HACS nachgezogen.
 
+Lässt Home Assistant kein Storage-Dashboard zu, legt die Integration ersatzweise ein
+**nicht editierbares YAML-Dashboard** an und schreibt den Grund als Warnung ins Log.
+Wer das nicht möchte: Option **„Dashboard automatisch anlegen"** ausschalten.
+
 ## Entity-IDs & Verbindung
 Alle Entitäten werden auf **`<domain>.haier_hwhp_<key>`** standardisiert. Ein
 Modbus-Grundtest je Zyklus unterscheidet Konverter- vs. Geräte-Störung; kurze
@@ -307,8 +314,11 @@ supports Modbus (and that's where the **Slave ID**, default `1`, is set).
 Setup wizard (connection + model → COP → optional PV surplus), bilingual names,
 control (setpoint, mode AUTO/ECO/ELEC/VAC, switches), a combined **current source**
 display with dynamic icon, temperature/energy sensors, **fault code with plain text**,
-calculated **COP/JAZ** with selectable sources, Modbus link diagnostics, built-in
-**PV surplus control**, and an **editable storage dashboard**.
+calculated **COP/JAZ** with selectable sources, Modbus link diagnostics, a **device
+clock drift** sensor (the device clock is read-only via Modbus), built-in
+**PV surplus control**, and an **editable storage dashboard** (can be switched off via the
+option “Create dashboard automatically”; if Home Assistant does not allow a storage
+dashboard, a non-editable YAML fallback is used and the reason is logged as a warning).
 
 ### COP / JAZ – system vs. device
 The reported COP/JAZ is a **system COP**: with an external meter (Shelly) it includes

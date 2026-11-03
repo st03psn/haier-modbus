@@ -115,6 +115,7 @@
           "model": "Model",
           "scan_interval": "Polling interval (seconds)",
           "ambient_offset": "Ambient temperature offset (°C)",
+          "dashboard_enabled": "Create dashboard automatically",
           "cop_enabled": "Enable COP calculation",
           "cop_elec_entity": "External electricity meter (kWh) — empty = Modbus register",
           "cop_heat_entity": "External heat meter (kWh) — empty = Modbus register",
@@ -145,7 +146,8 @@
           "legionella_bottom_min": "The run only counts as reached once the tank bottom – the coldest layer – holds this temperature (slightly below the setpoint).",
           "legionella_hold_min": "How long the tank bottom must hold the verification threshold before the run counts as successful.",
           "legionella_window_start": "Preferred time window (usually the device's ECO window): the run starts here if possible and first heats efficiently in ECO; if it can't reach the target it escalates to AUTO. When overdue, protection is forced even outside this window.",
-          "legionella_window_end": "End of the preferred window (usually the device's ECO window)."
+          "legionella_window_end": "End of the preferred window (usually the device's ECO window).",
+          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards."
         }
       },
       "pv": {
@@ -337,6 +339,9 @@
           "idle": "Idle",
           "forced": "Forced"
         }
+      },
+      "clock_drift": {
+        "name": "Clock drift"
       }
     },
     "binary_sensor": {
@@ -354,6 +359,9 @@
       },
       "connection": {
         "name": "Connection"
+      },
+      "clock_drift_problem": {
+        "name": "Device clock drift"
       }
     },
     "select": {

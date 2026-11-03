@@ -22,11 +22,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
+    CONF_DASHBOARD_ENABLED,
     CONF_PV_MODE,
     CONF_PV_SENSOR,
     DASHBOARD_ICON,
     DASHBOARD_LEGACY_URL_PATH,
     DASHBOARD_URL_PATH,
+    DEFAULT_DASHBOARD_ENABLED,
     DOMAIN,
     PV_MODE_EXECUTOR,
     localized_title,
@@ -171,6 +173,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             tile("binary_sensor", "connection", "Verbindung"),
             tile("sensor", "link_status", "Modbus-Status"),
             tile("sensor", "fault", "Fehlercode"),
+            tile("sensor", "clock_drift", "Uhr-Abweichung"),
         ]),
     ])
 
@@ -360,20 +363,21 @@ def _remove_legacy_yaml_dashboard(hass: HomeAssistant) -> None:
         dashboards.pop(DASHBOARD_LEGACY_URL_PATH, None)
 
 
-async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> bool:
+async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> str | None:
     """Editierbares Storage-Dashboard EINMALIG anlegen.
 
-    Gibt True zurück, wenn ein Storage-Dashboard existiert (neu angelegt ODER
+    Gibt None zurück, wenn ein Storage-Dashboard existiert (neu angelegt ODER
     bereits vorhanden – dann bleiben die Anpassungen des Nutzers unangetastet).
     Greift auf die interne Lovelace-Collection zu; bei abweichender API wird
-    False geliefert, sodass der Aufrufer auf YAML zurückfallen kann.
+    ein kurzer Grund (str) geliefert, den der Aufrufer protokolliert, bevor er
+    auf YAML zurückfällt (#18: bisher war unsichtbar, WARUM der Rückfall griff).
     """
     lovelace = hass.data.get("lovelace")
     if lovelace is None:
-        return False
+        return "hass.data['lovelace'] fehlt"
     dashboards = getattr(lovelace, "dashboards", None)
     if not isinstance(dashboards, dict):
-        return False
+        return f"lovelace.dashboards ist kein dict ({type(lovelace).__name__})"
 
     # WICHTIG zuerst: existiert das Dashboard schon (Storage o. ä.)? Dann nichts
     # tun und True liefern -> der Aufrufer registriert KEIN YAML-Panel darüber.
@@ -381,20 +385,24 @@ async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> bool:
     # HA-versionsabhängig – sie hier zu früh zu verlangen, führte sonst zum
     # YAML-Fallback, der das editierbare Storage-Dashboard überdeckt hat.)
     if DASHBOARD_URL_PATH in dashboards:
-        return True
+        return None
 
     collection = (
         getattr(lovelace, "dashboards_collection", None)
         or getattr(lovelace, "dashboard_collection", None)
     )
     if collection is None:
-        return False
+        attrs = sorted(a for a in dir(lovelace) if not a.startswith("_"))
+        return (
+            f"keine Dashboard-Collection an {type(lovelace).__name__} "
+            f"(mode={getattr(lovelace, 'mode', '?')}, Attribute: {', '.join(attrs)})"
+        )
     try:
         items = list(collection.async_items())
     except Exception:  # noqa: BLE001
         items = []
     if any((i or {}).get("url_path") == DASHBOARD_URL_PATH for i in items):
-        return True
+        return None
 
     # Registry-Eintrag anlegen (registriert via Listener Panel + LovelaceStorage).
     await collection.async_create_item(
@@ -408,9 +416,38 @@ async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> bool:
     )
     store = dashboards.get(DASHBOARD_URL_PATH)
     if store is None:
-        return False
+        return "Dashboard angelegt, aber kein Storage-Objekt registriert"
     await store.async_save(config)  # Start-Layout hinterlegen
-    return True
+    return None
+
+
+def _is_own_yaml_dashboard(dashboards, url_path: str) -> bool:
+    """True, wenn unter ``url_path`` unser YAML-Rückfall hängt (kein Storage)."""
+    dash = dashboards.get(url_path) if isinstance(dashboards, dict) else None
+    if dash is None:
+        return False
+    cfg = getattr(dash, "config", None) or {}
+    filename = str(cfg.get("filename", "")) if isinstance(cfg, dict) else ""
+    return filename == str(_INTEGRATION_DIR / _DASH_FILE)
+
+
+def _remove_own_yaml_dashboard(hass: HomeAssistant) -> None:
+    """YAML-Rückfall abmelden (Dashboard per Option abgeschaltet, #18).
+
+    Ein editierbares Storage-Dashboard bleibt unangetastet – das gehört dem
+    Nutzer und lässt sich in den Einstellungen löschen.
+    """
+    lovelace = hass.data.get("lovelace")
+    dashboards = getattr(lovelace, "dashboards", None)
+    if not _is_own_yaml_dashboard(dashboards, DASHBOARD_URL_PATH):
+        return
+    dashboards.pop(DASHBOARD_URL_PATH, None)
+    if DASHBOARD_URL_PATH in hass.data.get("frontend_panels", {}):
+        try:
+            frontend.async_remove_panel(hass, DASHBOARD_URL_PATH)
+        except Exception:  # noqa: BLE001
+            pass
+    _LOGGER.info("Haier-YAML-Dashboard abgemeldet (Option „Dashboard anlegen“ aus)")
 
 
 async def _register_yaml_dashboard(hass: HomeAssistant, config: dict) -> None:
@@ -463,15 +500,25 @@ async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> N
     try:
         _remove_legacy_yaml_dashboard(hass)
         await hass.async_add_executor_job(_cleanup_legacy_dir, hass.config.path())
+        if not entry.options.get(CONF_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_ENABLED):
+            _remove_own_yaml_dashboard(hass)
+            return
         config = _build_config(hass, entry)
-        if await _seed_storage_dashboard(hass, config):
+        reason = await _seed_storage_dashboard(hass, config)
+        if reason is None:
             _LOGGER.info(
                 "Editierbares Haier-Dashboard unter /%s", DASHBOARD_URL_PATH
             )
             return
         await _register_yaml_dashboard(hass, config)
-        _LOGGER.info(
-            "Haier-Dashboard (YAML-Fallback) unter /%s", DASHBOARD_URL_PATH
+        # WARNING statt INFO (#18): Der Rückfall ist nicht editierbar und kommt
+        # bei jedem Start wieder – der Nutzer soll Grund und Ausweg sehen.
+        _LOGGER.warning(
+            "Haier-Dashboard nur als NICHT editierbares YAML unter /%s angelegt – "
+            "Storage-Dashboard nicht möglich: %s. Abschalten über die Option "
+            "„Dashboard automatisch anlegen“ der Integration.",
+            DASHBOARD_URL_PATH,
+            reason,
         )
     except Exception as exc:  # noqa: BLE001
         _LOGGER.warning("Dashboard-Registrierung übersprungen: %s", exc)

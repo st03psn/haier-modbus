@@ -12,6 +12,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    CLOCK_DRIFT_WARN_S,
     DOMAIN,
     REG_STATUS,
     STATUS_BOILER,
@@ -37,6 +38,7 @@ async def async_setup_entry(
             HaierStatusBit(coordinator, "boiler", STATUS_BOILER, "mdi:water-boiler",
                            enabled_default=False),
             HaierConnection(coordinator),
+            HaierClockDriftProblem(coordinator),
         ]
     )
 
@@ -79,3 +81,29 @@ class HaierConnection(HaierModbusEntity, BinarySensorEntity):
     @property
     def available(self) -> bool:
         return True
+
+
+class HaierClockDriftProblem(HaierModbusEntity, BinarySensorEntity):
+    """Problem, wenn die Geräteuhr mehr als CLOCK_DRIFT_WARN_S abweicht (#21).
+
+    Gedacht als Auslöser für eine Benachrichtigung per Automation; die Uhr
+    selbst lässt sich nur am Bedienteil des Geräts stellen.
+    """
+
+    _attr_translation_key = "clock_drift_problem"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:clock-alert-outline"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_clock_drift_problem"
+
+    @property
+    def is_on(self) -> bool | None:
+        drift = self.coordinator.clock_drift_s
+        return None if drift is None else abs(drift) > CLOCK_DRIFT_WARN_S
+
+    @property
+    def extra_state_attributes(self):
+        return {"threshold_s": CLOCK_DRIFT_WARN_S}

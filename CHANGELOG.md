@@ -5,6 +5,28 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.22.0] - 2026-11-03
+
+**Neu: Abweichung der Geräteuhr (#21).** Die Geräteuhr (Reg 11–17) wurde bisher mitgelesen,
+aber nicht ausgewertet. Neu sind zwei Diagnose-Entitäten:
+- **Uhr-Abweichung** (Sekunden, Geräteuhr − HA-Ortszeit, positiv = Gerät geht vor), mit den
+  Attributen `device_time` und `dst_suspected` (Abweichung ≈ ±1 h → Sommer-/Winterzeit
+  am Gerät nicht umgestellt).
+- **Geräteuhr weicht ab** (Problem-Binärsensor) ab 5 min Abweichung – als Auslöser für
+  eine Benachrichtigung per Automation.
+
+Unplausible Uhrwerte (z. B. Monat 0 nach Stromausfall) ergeben „unbekannt“ statt einer
+falschen Abweichung. Die Geräteuhr ist laut Hersteller-Doku nur lesbar; stellen lässt
+sie sich weiterhin nur am Bedienteil.
+
+**Dashboard (#18):**
+- Greift der nicht editierbare YAML-Rückfall, steht der Grund jetzt als **Warnung** im Log
+  (bisher nur INFO ohne Grund).
+- Neue Option **„Dashboard automatisch anlegen“** (Standard: an). Aus: Es wird kein
+  Dashboard mehr angelegt, ein YAML-Rückfall der Integration wird abgemeldet. Ein bereits
+  angelegtes editierbares Dashboard bleibt bestehen.
+- Neu angelegte Dashboards zeigen die Uhr-Abweichung im Status-Abschnitt.
+
 ## [1.21.0] - 2026-10-14
 
 **Neu: Leerlauf-Schutz für Starts.** Hebt die Leiter den Sollwert an (Kaltstart oder
