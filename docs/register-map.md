@@ -16,7 +16,7 @@ Native Schnittstelle: **Modbus RTU, 9600 bps, 8N1** (TCP via RTU↔TCP-Gateway).
 | 1  | Modus (current mode) | RW | 0x03/0x10 | 0 AUTO · 1 ECO · 2 ELEC · 3 VAC |
 | 2  | Funktionsschalter | RW | 0x03/0x10 | bit0 aktiv · bit1 Boost · bit2 Leise · bit3 Sterilisation |
 | 3  | Betriebsstatus (current operating status / genutzte Quelle) | R | 0x03 | bit0 WP · bit1 Heizstab · bit2 Solar · bit3 Kessel |
-| 4  | Warmwasser % | R | 0x03 | 0..100 |
+| 4  | Warmwasser % | R | 0x03 | 0..100 laut PDF; **real max. 96 = voll** (8er-Stufen), Integration skaliert auf 0..100 |
 | 5  | Zieltemperatur | R | 0x03 | °C, 1..100 |
 | 6  | Solltemperatur (user set) | RW | 0x03/0x10 | °C, 35..75 — **Registergrenze, nicht Gerätegrenze**, s. u. |
 | 7  | Wassertemperatur (Ist) | R | 0x03 | °C, 0..100 |
