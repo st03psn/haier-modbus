@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -38,6 +38,12 @@ from .const import (
     REG_HEATER_ELEC_YEAR,
     REG_HP_ELEC_MONTHS,
     REG_HP_ELEC_YEAR,
+    REG_RTC_DAY,
+    REG_RTC_HOUR,
+    REG_RTC_MINUTE,
+    REG_RTC_MONTH,
+    REG_RTC_SECOND,
+    REG_RTC_YEAR,
     REG_SET_TEMP,
     REG_STATUS,
     STATUS_BOILER,
@@ -63,6 +69,31 @@ LINK_NO_DEVICE = "no_device"         # Konverter erreichbar, aber Gerät (RTU) a
 def _signed16(value: int) -> int:
     """int16 vorzeichenbehaftet interpretieren (z. B. Umgebungstemperatur)."""
     return value - 0x10000 if value >= 0x8000 else value
+
+
+def device_clock(data: dict[int, int], tzinfo) -> datetime | None:
+    """Geräteuhr (Reg 11..17) als zeitzonenbehaftetes datetime, sonst None.
+
+    Das Gerät kennt keine Zeitzone; seine Uhr wird als HA-Ortszeit gedeutet
+    (so stellt man sie am Bedienteil ein). Unplausible Werte – etwa Monat 0
+    oder Jahr 0 nach Stromausfall – liefern None statt einer Fantasie-Abweichung.
+    Der Wochentag (Reg 14) wird bewusst ignoriert.
+    """
+    try:
+        year = data[REG_RTC_YEAR]
+        if not 1 <= year <= 99:
+            return None
+        return datetime(
+            2000 + year,
+            data[REG_RTC_MONTH],
+            data[REG_RTC_DAY],
+            data[REG_RTC_HOUR],
+            data[REG_RTC_MINUTE],
+            data[REG_RTC_SECOND],
+            tzinfo=tzinfo,
+        )
+    except (KeyError, ValueError, TypeError):
+        return None
 
 
 class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
@@ -100,6 +131,10 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self.link_status: str = LINK_OK   # ok | no_converter | no_device
         self._fail_since: float | None = None
         self._auto_enabled: set[str] = set()  # Solar/Kessel bei erster Aktivität freigeschaltet
+        # #21: Geräteuhr und ihre Abweichung zur HA-Zeit, je erfolgreichem Read
+        # aktualisiert (bei Aussetzern bleibt der letzte Stand stehen).
+        self.device_time: datetime | None = None
+        self.clock_drift_s: int | None = None
         super().__init__(
             hass,
             _LOGGER,
@@ -181,6 +216,19 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
             else UpdateFailed(f"Modbus-Lesefehler: {last_err}")
         )
 
+    def _update_clock(self, data: dict[int, int]) -> None:
+        """Abweichung Geräteuhr − HA-Ortszeit in Sekunden (#21).
+
+        Direkt nach dem Read gemessen; Messfehler damit etwa die Lesedauer
+        (≈ 1 s) plus die 1-s-Auflösung der Geräteuhr.
+        """
+        now = dt_util.now()
+        dev = device_clock(data, now.tzinfo)
+        self.device_time = dev
+        self.clock_drift_s = (
+            None if dev is None else round((dev - now).total_seconds())
+        )
+
     def _auto_enable_sources(self, data: dict[int, int]) -> None:
         """Solar/Kessel-Sensoren freischalten, sobald die Quelle erstmals aktiv ist.
 
@@ -212,6 +260,7 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         try:
             data = await self._read_block()
             self._fail_since = None
+            self._update_clock(data)
             self._auto_enable_sources(data)
             await self._maybe_seed(data)
             await self._accumulate_energy(data)

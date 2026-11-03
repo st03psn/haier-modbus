@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -106,10 +106,45 @@ async def async_setup_entry(
     entities.append(HaierCopSensor(coordinator, entry, "year"))
     entities.append(HaierPrevYearCop(coordinator))
     entities.append(HaierLinkStatus(coordinator))
+    entities.append(HaierClockDrift(coordinator))
     entities.append(HaierPvStatus(coordinator))
     entities.append(HaierLegionellaStatus(coordinator))
     entities.append(HaierEmergencyStatus(coordinator))
     async_add_entities(entities)
+
+
+class HaierClockDrift(HaierModbusEntity, SensorEntity):
+    """Abweichung der Geräteuhr (Reg 11..17) von der HA-Ortszeit in Sekunden (#21).
+
+    Positiv = Geräteuhr geht vor. Die Geräteuhr ist laut Hersteller-Doku nur
+    lesbar – stellen lässt sie sich nur am Bedienteil. Eine Abweichung von etwa
+    ±3600 s deutet auf eine verpasste Sommer-/Winterzeit-Umstellung hin
+    (Attribut ``dst_suspected``).
+    """
+
+    _attr_translation_key = "clock_drift"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:clock-alert-outline"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_clock_drift"
+
+    @property
+    def native_value(self):
+        return self.coordinator.clock_drift_s
+
+    @property
+    def extra_state_attributes(self):
+        dev = self.coordinator.device_time
+        drift = self.coordinator.clock_drift_s
+        return {
+            "device_time": dev.isoformat() if dev is not None else None,
+            "dst_suspected": drift is not None and abs(abs(drift) - 3600) <= 600,
+        }
 
 
 class HaierLinkStatus(HaierModbusEntity, SensorEntity):

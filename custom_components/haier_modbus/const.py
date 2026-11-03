@@ -316,6 +316,10 @@ def localized_title(language: str | None) -> str:
 DASHBOARD_URL_PATH: Final = "haier-hwhp"
 DASHBOARD_LEGACY_URL_PATH: Final = "haier-bwwp"  # altes, gesperrtes YAML-Dashboard
 DASHBOARD_ICON: Final = "mdi:water-boiler"
+# #18: mitgeliefertes Dashboard abschaltbar (z. B. wenn HA nur den nicht
+# editierbaren YAML-Rückfall zulässt). Nur beim Setup gelesen -> Reload ok.
+CONF_DASHBOARD_ENABLED: Final = "dashboard_enabled"
+DEFAULT_DASHBOARD_ENABLED: Final = True
 
 # Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte).
 # Schlüssel slug-konform (hassfest-Anforderung an Selector-Keys) -> Anzeigename.
@@ -347,7 +351,19 @@ REG_WATER_TEMP: Final = 7     # R   °C (Ist)
 REG_TANK_TOP: Final = 8       # R   °C
 REG_TANK_BOTTOM: Final = 9    # R   °C
 REG_AMBIENT: Final = 10       # R   °C, vorzeichenbehaftet (int16, -50..100)
-# 11..17  RTC (Jahr/Monat/Tag/Woche/Stunde/Minute/Sekunde)
+# 11..17  RTC (Jahr/Monat/Tag/Woche/Stunde/Minute/Sekunde) – laut Hersteller-PDF
+# NUR lesbar (0x03); ein Stellen der Geräteuhr per Modbus ist nicht dokumentiert.
+REG_RTC_YEAR: Final = 11      # R   YY (24 = 2024)
+REG_RTC_MONTH: Final = 12     # R   1..12
+REG_RTC_DAY: Final = 13       # R   1..31
+REG_RTC_WEEKDAY: Final = 14   # R   1..7 (ungenutzt)
+REG_RTC_HOUR: Final = 15      # R   0..23
+REG_RTC_MINUTE: Final = 16    # R   0..59
+REG_RTC_SECOND: Final = 17    # R   0..59
+
+# Ab dieser Abweichung Geräteuhr ↔ HA-Ortszeit meldet der Problem-Sensor (#21).
+# Fest statt Option: Diagnose, keine Regelgröße.
+CLOCK_DRIFT_WARN_S: Final = 300
 REG_FAULT: Final = 18         # R   Fehlercode 0..64
 
 SET_TEMP_MIN: Final = 35

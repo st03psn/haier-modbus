@@ -115,6 +115,7 @@
           "model": "Modell",
           "scan_interval": "Abfrageintervall (Sekunden)",
           "ambient_offset": "Offset Umgebungstemperatur (°C)",
+          "dashboard_enabled": "Dashboard automatisch anlegen",
           "cop_enabled": "COP-Berechnung aktiv",
           "cop_elec_entity": "Externer Stromzähler (kWh) — leer = Modbus-Register",
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh) — leer = Modbus-Register",
@@ -145,7 +146,8 @@
           "legionella_bottom_min": "Der Lauf gilt erst als erreicht, wenn Tank unten – die kälteste Schicht – diese Temperatur hält (etwas unter dem Sollwert).",
           "legionella_hold_min": "So lange muss Tank unten die Nachweis-Schwelle halten, bevor der Lauf als erfolgreich zählt.",
           "legionella_window_start": "Bevorzugtes Zeitfenster (i. d. R. das ECO-Fenster des Geräts): Der Lauf startet nach Möglichkeit hier und heizt zunächst effizient in ECO mit; kommt er nicht ans Ziel, eskaliert er auf AUTO. Überfällig wird der Schutz notfalls auch außerhalb erzwungen.",
-          "legionella_window_end": "Ende des bevorzugten Fensters (i. d. R. das ECO-Fenster des Geräts)."
+          "legionella_window_end": "Ende des bevorzugten Fensters (i. d. R. das ECO-Fenster des Geräts).",
+          "dashboard_enabled": "Legt beim Setup das Dashboard „Haier BWWP“ an (editierbar, wenn Home Assistant das zulässt). Aus: kein Dashboard mehr anlegen; ein nicht editierbares YAML-Dashboard der Integration wird entfernt, ein bereits angelegtes editierbares bleibt bestehen und lässt sich unter Einstellungen → Dashboards löschen."
         }
       },
       "pv": {
@@ -337,6 +339,9 @@
           "idle": "Bereit",
           "forced": "Aktiv"
         }
+      },
+      "clock_drift": {
+        "name": "Uhr-Abweichung"
       }
     },
     "binary_sensor": {
@@ -354,6 +359,9 @@
       },
       "connection": {
         "name": "Verbindung"
+      },
+      "clock_drift_problem": {
+        "name": "Geräteuhr weicht ab"
       }
     },
     "select": {

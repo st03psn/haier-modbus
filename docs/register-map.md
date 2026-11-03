@@ -23,7 +23,7 @@ Native Schnittstelle: **Modbus RTU, 9600 bps, 8N1** (TCP via RTU↔TCP-Gateway).
 | 8  | Tank oben | R | 0x03 | °C, 0..100 |
 | 9  | Tank unten | R | 0x03 | °C, 0..100 |
 | 10 | Umgebungstemperatur | R | 0x03 | °C, **int16 vorzeichenbehaftet** (-50..100) |
-| 11–17 | RTC (7 Register) | R | 0x03 | 11 Jahr (YY, 24=2024) · 12 Monat · 13 Tag · 14 Woche (1–7) · 15 Std · 16 Min · 17 Sek |
+| 11–17 | RTC (7 Register) | R | 0x03 | 11 Jahr (YY, 24=2024) · 12 Monat · 13 Tag · 14 Woche (1–7) · 15 Std · 16 Min · 17 Sek — ausgewertet als Diagnose „Uhr-Abweichung“ (nur lesbar, nicht stellbar) |
 | 18 | Fehlercode | R | 0x03 | 0 keiner; 1–15 E1–EF; 16–31 L0–LF; 32–47 F0–FF; 48–63 P0–PF; 64 PP |
 
 > **Registergrenze ≠ Gerätegrenze:** Reg 6 nimmt bis **75 °C** an. Das Hersteller-Datenblatt
