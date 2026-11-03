@@ -345,6 +345,10 @@ REG_MODE: Final = 1            # RW  0 AUTO | 1 ECO | 2 ELEC | 3 VAC
 REG_FUNCTION: Final = 2       # RW  Bitfeld: bit0 active, bit1 boost, bit2 mute, bit3 sterilize
 REG_STATUS: Final = 3         # R   Bitfeld: bit0 WP, bit1 E-Heizstab, bit2 Solar, bit3 Kessel
 REG_HOTWATER_PCT: Final = 4   # R   %
+# Reg 4 meldet einen vollen Speicher als 96 (nicht 100): Feldmessung 08–11/2026,
+# 91 Tage lang Tagesmaximum stets 96, Werte in 8er-Stufen (64/72/80/88/96).
+# Der Sensor skaliert daher raw·100/96 und klemmt auf 100.
+HOTWATER_PCT_FULL: Final = 96
 REG_TARGET_TEMP: Final = 5    # R   °C (geräteinterne Zieltemperatur)
 REG_SET_TEMP: Final = 6       # RW  °C (Sollwert, 35..75)
 REG_WATER_TEMP: Final = 7     # R   °C (Ist)

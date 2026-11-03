@@ -24,6 +24,7 @@ from .const import (
     DEFAULT_ENERGY_SCALE,
     DOMAIN,
     FAULT_CODES,
+    HOTWATER_PCT_FULL,
     fault_code,
     MODE_TO_TEXT,
     REG_AMBIENT,
@@ -56,6 +57,7 @@ class RegSensor:
     icon: str | None = None
     factor: float = 1.0
     offset_key: str | None = None   # Options-Key eines additiven Korrektur-Offsets
+    full_scale: int | None = None   # Rohwert, der 100 % entspricht (Prozent-Register)
 
 
 TEMP_SENSORS: tuple[RegSensor, ...] = (
@@ -75,7 +77,8 @@ TEMP_SENSORS: tuple[RegSensor, ...] = (
               unit=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE,
               state_class=SensorStateClass.MEASUREMENT, offset_key=CONF_AMBIENT_OFFSET),
     RegSensor(key="hotwater_pct", register=REG_HOTWATER_PCT,
-              unit=PERCENTAGE, state_class=SensorStateClass.MEASUREMENT, icon="mdi:water-percent"),
+              unit=PERCENTAGE, state_class=SensorStateClass.MEASUREMENT, icon="mdi:water-percent",
+              full_scale=HOTWATER_PCT_FULL),
 )
 
 ENERGY_SENSORS: tuple[RegSensor, ...] = (
@@ -340,12 +343,22 @@ class HaierRegSensor(HaierModbusEntity, SensorEntity):
         raw = self._regs.get(self._desc.register)
         if raw is None:
             return None
+        if self._desc.full_scale:
+            # Gerät meldet „voll“ nicht als 100 (s. HOTWATER_PCT_FULL) -> auf 0..100 umrechnen.
+            return min(100, round(raw * 100 / self._desc.full_scale))
         val = raw * self._desc.factor if self._desc.factor != 1.0 else raw
         if self._desc.offset_key:
             offset = self.coordinator.entry.options.get(self._desc.offset_key, 0.0)
             if offset:
                 val = round(val + offset, 1)
         return val
+
+    @property
+    def extra_state_attributes(self):
+        # Rohwert mitführen, wo skaliert wird – nachvollziehbar und für Automationen.
+        if not self._desc.full_scale:
+            return None
+        return {"raw": self._regs.get(self._desc.register)}
 
 
 class HaierFaultText(HaierModbusEntity, SensorEntity):

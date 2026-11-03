@@ -19,6 +19,12 @@ Unplausible Uhrwerte (z. B. Monat 0 nach Stromausfall) ergeben „unbekannt“ s
 falschen Abweichung. Die Geräteuhr ist laut Hersteller-Doku nur lesbar; stellen lässt
 sie sich weiterhin nur am Bedienteil.
 
+**Fix: Warmwasser-Anteil erreicht jetzt 100 %.** Reg 4 meldet einen vollen Speicher als
+**96**, nicht 100 (Verlauf über 91 Tage: Tagesmaximum stets 96, Werte in 8er-Stufen
+64/72/80/88/96). Der Sensor „Warmwasser“ rechnet daher `Rohwert × 100 / 96` (gerundet, max.
+100): 96 → 100 %, 88 → 92 %, 80 → 83 %, 72 → 75 %, 64 → 67 %. Der Rohwert steht im Attribut
+`raw`. Bestehende Automationen mit festen Schwellen (z. B. „< 90 %“) ggf. anpassen.
+
 **Dashboard (#18):**
 - Greift der nicht editierbare YAML-Rückfall, steht der Grund jetzt als **Warnung** im Log
   (bisher nur INFO ohne Grund).
