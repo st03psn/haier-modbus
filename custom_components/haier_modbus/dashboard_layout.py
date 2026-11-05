@@ -202,9 +202,9 @@ _JS_KPI = (
     "+ k('§cop_month§', num(m && m.state, 2), 'var(--light-green-color, #8bc34a)') "
     "+ k('§heat§ ' + cy, num(y && y.attributes.heat_kwh, 0) + ' kWh') "
     "+ k('§elec§ ' + cy, num(y && y.attributes.electricity_kwh, 0) + ' kWh') "
-    "+ (y && y.attributes.heat_source === 'modbus' ? `<div style='grid-column:1/-1;display:flex;gap:6px;"
+    "+ (y && y.attributes.heat_source === 'modbus' ? `<div style='grid-column:1/-1;display:flex;gap:6px;justify-content:flex-start;"
     "align-items:flex-start;font-size:11px;line-height:14px;color:var(--warning-color, #ff9800);text-align:left;white-space:normal'>"
-    "<ha-icon icon='mdi:alert-outline' style='--mdc-icon-size:14px;flex:0 0 14px'></ha-icon><span>§cop_note§</span></div>` : '') "
+    "<ha-icon icon='mdi:alert-outline' style='--mdc-icon-size:14px;flex:0 0 14px'></ha-icon><span style='flex:1 1 auto;min-width:0;text-align:left'>§cop_note§</span></div>` : '') "
     "+ `</div>`; ]]]"
 )
 

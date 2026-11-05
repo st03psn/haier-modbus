@@ -23,6 +23,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
@@ -55,7 +56,8 @@ _LEGACY_DASH_DIR = "haier_bwwp"  # alter Ort unter <config>/ – wird aufgeräum
 # älter, gibt es einmalig einen Hinweis auf den Dienst ``rebuild_dashboard``.
 DASHBOARD_LAYOUT_VERSION = 2  # 2 = Ein-Seiten-Layout ab v2.0.0
 _LAYOUT_STORE_KEY = f"{DOMAIN}.dashboard_layout"
-_NOTIFY_ID = f"{DOMAIN}_dashboard_layout"
+_NOTIFY_ID = f"{DOMAIN}_dashboard_layout"  # nur noch zum Entfernen (2.0.0)
+DASHBOARD_ISSUE_ID = "dashboard_layout_update"
 
 
 def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
@@ -305,7 +307,7 @@ async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> N
             _LOGGER.info(
                 "Editierbares Haier-Dashboard unter /%s", DASHBOARD_URL_PATH
             )
-            await _async_sync_layout(hass, config, existed)
+            await _async_sync_layout(hass, config, existed, entry)
             return
         await _register_yaml_dashboard(hass, config)
         _publish_status(hass, DASHBOARD_LAYOUT_VERSION)  # YAML wird je Start neu erzeugt
@@ -348,20 +350,24 @@ def _publish_status(hass: HomeAssistant, applied: int | None) -> None:
     async_dispatcher_send(hass, LAYOUT_SIGNAL)
 
 
-async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -> None:
+async def _async_sync_layout(
+    hass: HomeAssistant, config: dict, existed: bool, entry: ConfigEntry | None = None
+) -> None:
     """Mitgeliefertes Layout aktuell halten, ohne Nutzer-Anpassungen zu überschreiben.
 
     Gespeichert (``.storage/haier_modbus.dashboard_layout``):
       ``applied``  Layout-Generation, die zuletzt ins Dashboard geschrieben wurde
       ``hash``     Fingerabdruck dieses geschriebenen Dashboards
-      ``notified`` Generation, zu der schon eine Benachrichtigung kam
+      ``declined`` Generation, die der Nutzer im Reparatur-Hinweis abgelehnt hat
+      (``notified`` stammt aus 2.0.0 und wird nicht mehr ausgewertet)
     Entspricht das gespeicherte Dashboard noch dem Fingerabdruck, hat der Nutzer
     nichts verändert -> es wird still auf das aktuelle Layout gebracht. Sonst
     bleibt es unangetastet; ist seine Generation älter, meldet die Update-Entität
     ``update.<…>_dashboard`` ein Update (dauerhaft sichtbar unter Einstellungen
-    und – im neuen Layout – als Kachel im Dashboard) und es gibt einmalig eine
-    Benachrichtigung. Dashboards vor v2.0.0 haben keinen Fingerabdruck und
-    gelten als angepasst (Generation 1).
+    und – im neuen Layout – als Kachel im Dashboard), und unter *Reparaturen*
+    fragt ein Hinweis mit Ja/Nein (``repairs.py``), bis er beantwortet ist.
+    Dashboards vor v2.0.0 haben keinen Fingerabdruck und gelten als angepasst
+    (Generation 1).
     """
     meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
     meta = await meta_store.async_load() or {}
@@ -393,46 +399,42 @@ async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -
         return
 
     applied = int(meta.get("applied", 1))
-    notified = int(meta.get("notified", 0))
     _publish_status(hass, applied)
-    if applied >= DASHBOARD_LAYOUT_VERSION or notified >= DASHBOARD_LAYOUT_VERSION:
-        return
-    de = (hass.config.language or "en").lower().startswith("de")
-    title = localized_title(hass.config.language)
+    # Benachrichtigung aus 2.0.0 ablösen – der Hinweis steht jetzt unter Reparaturen.
     await hass.services.async_call(
-        "persistent_notification", "create",
-        {
-            "notification_id": _NOTIFY_ID,
-            "title": (f"{title} – neues Dashboard-Design" if de
-                      else f"{title} – new dashboard design"),
-            "message": (
-                "Für das Dashboard gibt es ein neues, kompakteres Design (eine Seite, "
-                "Speicher-Grafik, JAZ/COP-Karte). Dein bestehendes Dashboard wurde "
-                "**nicht** verändert, weil es angepasst sein könnte.\n\n**Übernehmen:** "
-                "*Einstellungen* → Update „Dashboard“ der Haier-Integration → *Installieren* "
-                "(bleibt dort sichtbar, bis es übernommen ist). **Achtung:** Das ersetzt "
-                "eigene Anpassungen am Haier-Dashboard.\n\n**Erst vergleichen?** Am Haier-Gerät "
-                "„Neues Dashboard zum Vergleich anlegen“ drücken – es erscheint zusätzlich als "
-                "„… (neu)“, dein altes bleibt. Gefällt es (gern auch angepasst), mit "
-                "„Vergleichs-Dashboard übernehmen“ zum Standard machen. Danach hält die Integration das "
-                "Dashboard automatisch aktuell, solange du es nicht veränderst."
-                if de else
-                "A new, more compact dashboard design is available (single page, tank "
-                "graphic, SCOP/COP card). Your existing dashboard was **not** changed, as it "
-                "may contain your own changes.\n\n**To apply it:** *Settings* → update "
-                "“Dashboard” of the Haier integration → *Install* (it stays listed there until "
-                "applied). **Note:** this replaces your own changes to the Haier dashboard.\n\n"
-                "**Compare first?** Press “Create new dashboard for comparison” on the Haier "
-                "device – it appears additionally as “… (new)”, your old one stays. If you like "
-                "it (edited or not), make it the default with “Adopt comparison dashboard”. "
-                "Afterwards the integration keeps the dashboard up to date as long as you do "
-                "not edit it."
-            ),
-        },
-        blocking=False,
+        "persistent_notification", "dismiss", {"notification_id": _NOTIFY_ID}, blocking=False
     )
-    await meta_store.async_save({**meta, "applied": applied,
-                                 "notified": DASHBOARD_LAYOUT_VERSION})
+    if (
+        entry is None
+        or applied >= DASHBOARD_LAYOUT_VERSION
+        or int(meta.get("declined", 0)) >= DASHBOARD_LAYOUT_VERSION
+    ):
+        ir.async_delete_issue(hass, DOMAIN, DASHBOARD_ISSUE_ID)
+        return
+    # Reparatur-Hinweis mit Ja/Nein (repairs.py). Nicht persistent: wird je Start neu
+    # angelegt, solange weder übernommen noch abgelehnt wurde.
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        DASHBOARD_ISSUE_ID,
+        is_fixable=True,
+        is_persistent=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=DASHBOARD_ISSUE_ID,
+        data={"entry_id": entry.entry_id},
+    )
+
+
+async def async_decline_layout(hass: HomeAssistant) -> None:
+    """„Nein“ im Reparatur-Hinweis: für diese Layout-Generation nicht mehr fragen.
+
+    Das Update „Dashboard“ unter Einstellungen bleibt bestehen (dort überspringbar),
+    Übernehmen ist weiterhin über Optionen → Dashboard möglich.
+    """
+    meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
+    meta = await meta_store.async_load() or {}
+    await meta_store.async_save({**meta, "declined": DASHBOARD_LAYOUT_VERSION})
+    ir.async_delete_issue(hass, DOMAIN, DASHBOARD_ISSUE_ID)
 
 
 async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -457,9 +459,7 @@ async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> No
          "notified": DASHBOARD_LAYOUT_VERSION}
     )
     _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
-    await hass.services.async_call(
-        "persistent_notification", "dismiss", {"notification_id": _NOTIFY_ID}, blocking=False
-    )
+    ir.async_delete_issue(hass, DOMAIN, DASHBOARD_ISSUE_ID)
     _LOGGER.info("Haier-Dashboard auf Layout %s neu aufgebaut", DASHBOARD_LAYOUT_VERSION)
 
 
@@ -534,9 +534,7 @@ async def async_promote_compare_dashboard(hass: HomeAssistant, entry: ConfigEntr
         if item_id is not None:
             await collection.async_delete_item(item_id)
     _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
-    await hass.services.async_call(
-        "persistent_notification", "dismiss", {"notification_id": _NOTIFY_ID}, blocking=False
-    )
+    ir.async_delete_issue(hass, DOMAIN, DASHBOARD_ISSUE_ID)
     _LOGGER.info("Vergleichs-Dashboard übernommen (angepasst: %s)", not unchanged)
 
 

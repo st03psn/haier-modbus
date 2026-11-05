@@ -301,15 +301,19 @@ sie bei Bedarf über HACS. Ab HA 2026.11 (eingebauter Marketplace) erscheint sta
 ein Reparatur-Hinweis – installieren unter *Einstellungen → Marketplace*.
 
 **Aktualisierung:** Solange du das Dashboard nicht veränderst, bringt die Integration es
-bei Updates automatisch auf den neuesten Stand. Angepasste Dashboards werden nie
-überschrieben – für sie erscheint unter *Einstellungen* das Update **„Dashboard“**
-(`update.haier_hwhp_dashboard`), im neuen Layout zusätzlich als Kachel im Dashboard.
-*Installieren* übernimmt das neue Layout und ersetzt dabei eigene Anpassungen am
-Haier-Dashboard (alternativ: Aktion `haier_modbus.rebuild_dashboard`). Erst vergleichen?
-Button **„Neues Dashboard zum Vergleich anlegen“** am Haier-Gerät legt das neue Layout
-zusätzlich an; **„Vergleichs-Dashboard übernehmen“** macht es (samt deiner Änderungen daran)
-zum Standard. Dashboards aus
-Versionen vor 2.0.0 gelten als angepasst und zeigen deshalb einmalig dieses Update.
+bei Updates automatisch auf den neuesten Stand. Angepasste Dashboards (und alle aus
+Versionen vor 2.0.0) werden nie ungefragt überschrieben. Stattdessen:
+
+- **Reparatur-Hinweis** unter *Einstellungen → Reparaturen*: „Neues Dashboard-Layout
+  übernehmen?“ mit **Ja** (neues Layout übernehmen – eigene Anpassungen gehen verloren)
+  oder **Nein** (Dashboard behalten; der Hinweis kommt für dieses Layout nicht wieder).
+- Update **„Dashboard“** (`update.haier_hwhp_dashboard`) unter *Einstellungen*, im neuen
+  Layout zusätzlich als Kachel. *Aktualisieren* übernimmt das neue Layout (alternativ:
+  Aktion `haier_modbus.rebuild_dashboard`).
+- **Erst vergleichen:** *Einstellungen → Geräte & Dienste → Haier → Zahnrad (Konfigurieren)
+  → Dashboard* → Aktion **„Neues Dashboard zum Vergleich anlegen“** legt das neue Layout
+  zusätzlich als „… (neu)“ an. An derselben Stelle (oder per „Ja“ im Reparatur-Hinweis bzw.
+  *Aktualisieren*) wird es samt deiner Änderungen daran zum Standard.
 
 Lässt Home Assistant kein Storage-Dashboard zu, legt die Integration ersatzweise ein
 **nicht editierbares YAML-Dashboard** an und schreibt den Grund als Warnung ins Log.

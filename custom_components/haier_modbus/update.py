@@ -3,9 +3,9 @@
 Meldet ein Update, wenn das Haier-Dashboard eine ältere Layout-Generation hat und
 nicht automatisch aktualisiert werden durfte (vom Nutzer angepasst bzw. aus einer
 Version vor v2.0.0). Bleibt unter *Einstellungen* sichtbar, bis es installiert ist
-– eine weggeklickte Benachrichtigung geht so nicht verloren. *Installieren* baut
-das Dashboard neu auf (ersetzt eigene Anpassungen, wie der Dienst
-``rebuild_dashboard``).
+– auch wenn der Reparatur-Hinweis mit „Nein“ beantwortet wurde. *Installieren*
+übernimmt das automatisch angelegte Vergleichs-Dashboard (samt Nutzer-Änderungen);
+gibt es keines, wird das Dashboard neu aufgebaut (wie Dienst ``rebuild_dashboard``).
 """
 
 from __future__ import annotations
@@ -18,8 +18,13 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
-from .dashboard import LAYOUT_SIGNAL, LAYOUT_STATUS_KEY, async_rebuild_dashboard
+from .const import DOMAIN, localized_title
+from .dashboard import (
+    LAYOUT_SIGNAL,
+    LAYOUT_STATUS_KEY,
+    async_promote_compare_dashboard,
+    async_rebuild_dashboard,
+)
 from .entity import HaierModbusEntity
 
 _RELEASE_URL = "https://github.com/st03psn/haier-modbus#dashboard"
@@ -71,16 +76,26 @@ class HaierDashboardUpdate(HaierModbusEntity, UpdateEntity):
     @property
     def release_summary(self) -> str:
         de = (self.hass.config.language or "en").lower().startswith("de")
+        # HA kürzt release_summary auf 255 Zeichen.
+        title = localized_title(self.hass.config.language)
+        if self._status().get("compare"):
+            return (
+                f"Das neue Layout liegt als „{title} (neu)“ in der Seitenleiste zum "
+                "Vergleich bereit. Aktualisieren übernimmt es samt deiner Änderungen daran "
+                "als Haier-Dashboard und ersetzt das bisherige."
+                if de else
+                f"The new layout is in the sidebar as “{title} (new)” for comparison. "
+                "Updating adopts it, including your changes to it, as the Haier dashboard "
+                "and replaces the previous one."
+            )
         return (
-            "Neues Dashboard-Layout. Installieren ersetzt das Haier-Dashboard durch die "
-            "aktuelle Fassung – eigene Anpassungen daran gehen verloren. Erst vergleichen: "
-            "Button „Neues Dashboard zum Vergleich anlegen“ am Haier-Gerät, danach "
-            "„Vergleichs-Dashboard übernehmen“."
+            "Aktualisieren ersetzt das Haier-Dashboard durch das neue Layout (eigene "
+            "Anpassungen gehen verloren). Erst vergleichen: Integration Haier → Zahnrad → "
+            "Dashboard → „Neues Dashboard zum Vergleich anlegen“."
             if de else
-            "New dashboard layout. Installing replaces the Haier dashboard with the "
-            "current version – your own changes to it are lost. To compare first: button "
-            "“Create new dashboard for comparison” on the Haier device, then "
-            "“Adopt comparison dashboard”."
+            "Updating replaces the Haier dashboard with the new layout (your own changes "
+            "are lost). To compare first: Haier integration → gear icon → Dashboard → "
+            "“Create new dashboard for comparison”."
         )
 
     async def async_added_to_hass(self) -> None:
@@ -94,4 +109,7 @@ class HaierDashboardUpdate(HaierModbusEntity, UpdateEntity):
         self.async_write_ha_state()
 
     async def async_install(self, version: str | None, backup: bool, **kwargs: Any) -> None:
-        await async_rebuild_dashboard(self.hass, self.coordinator.entry)
+        if self._status().get("compare"):
+            await async_promote_compare_dashboard(self.hass, self.coordinator.entry)
+        else:
+            await async_rebuild_dashboard(self.hass, self.coordinator.entry)

@@ -4,7 +4,8 @@
   "after_dependencies": [
     "frontend",
     "lovelace",
-    "recorder"
+    "recorder",
+    "repairs"
   ],
   "codeowners": [
     "@st03psn"
@@ -18,5 +19,5 @@
   "requirements": [
     "pymodbus>=3.6.0"
   ],
-  "version": "2.0.0"
+  "version": "2.0.1"
 }

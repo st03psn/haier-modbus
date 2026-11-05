@@ -249,12 +249,14 @@
       },
       "dashboard": {
         "title": "Dashboard",
-        "description": "Bundled dashboard “Haier HWHP”.",
+        "description": "Bundled dashboard “Haier BWWP”. Under “Action” you can first create the new layout for comparison and adopt it afterwards.",
         "data": {
-          "dashboard_enabled": "Create dashboard automatically"
+          "dashboard_enabled": "Create dashboard automatically",
+          "dashboard_action": "Action"
         },
         "data_description": {
-          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards."
+          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards.",
+          "dashboard_action": "Runs once, not saved. **Create for comparison:** new layout additionally as “Haier BWWP (new)”, your dashboard stays. **Adopt:** the comparison dashboard (including your changes to it) becomes the default. **Replace:** replace the Haier dashboard with the new layout right away – your own changes are lost."
         }
       },
       "pv": {
@@ -344,7 +346,15 @@
       "temp_order_high": "The boost target temperature must not be below the elevated target temperature.",
       "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw.",
       "host_required": "The TCP connection type needs a host.",
-      "serial_port_required": "The serial connection type needs a serial port."
+      "serial_port_required": "The serial connection type needs a serial port.",
+      "dashboard_disabled": "This action requires “Create dashboard automatically” to be enabled.",
+      "dashboard_action_failed": "The dashboard action failed – see the log for details."
+    },
+    "abort": {
+      "dashboard_none": "Nothing changed.",
+      "dashboard_compare": "Comparison dashboard “Haier BWWP (new)” created – it is now in the sidebar. To adopt it, open “Dashboard” here again.",
+      "dashboard_promote": "Comparison dashboard adopted and saved as “Haier BWWP”.",
+      "dashboard_replace": "Haier dashboard replaced with the new layout."
     }
   },
   "selector": {
@@ -385,6 +395,14 @@
       "options": {
         "tcp": "TCP (Modbus RTU-to-TCP converter)",
         "serial": "Serial (USB/RS-485 adapter)"
+      }
+    },
+    "dashboard_action": {
+      "options": {
+        "none": "None",
+        "compare": "Create new dashboard for comparison",
+        "promote": "Adopt comparison dashboard",
+        "replace": "Replace Haier dashboard with new layout"
       }
     }
   },
@@ -652,6 +670,25 @@
     "missing_frontend_card_marketplace": {
       "title": "Missing dashboard card: {card_name}",
       "description": "The Haier dashboard needs the **{card_name}** card. Install it under **Settings → Marketplace** (search for “{card_name}”, repository `{hacs_repo}`) and reload the browser tab (Ctrl+Shift+R). The Marketplace asks for a confirmation on first use, which is why the integration does not install it on its own."
+    },
+    "dashboard_layout_update": {
+      "title": "New dashboard layout for Haier HWHP",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Adopt the new dashboard layout?",
+            "description": "A new, more compact layout is available for the Haier dashboard (single page, tank graphic, SCOP/COP card). Your existing dashboard was not changed automatically, as it may contain your own changes.\n\n**Yes, adopt:** the Haier dashboard gets the new layout. Your own changes to it are lost. If you created a comparison dashboard under *gear icon → Dashboard* beforehand, that one is adopted instead – including your changes to it.\n\n**No, keep:** your dashboard stays as it is. This notice will not come back for this layout. You can still adopt it any time under *gear icon → Dashboard*.",
+            "menu_options": {
+              "adopt": "Yes, adopt the new layout",
+              "keep": "No, keep my current dashboard"
+            }
+          }
+        },
+        "abort": {
+          "entry_missing": "The Haier integration is not set up.",
+          "adopt_failed": "Adopting failed – see the log for details. The notice stays."
+        }
+      }
     }
   }
 }
