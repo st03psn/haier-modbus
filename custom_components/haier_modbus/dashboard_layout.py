@@ -34,7 +34,7 @@ _TEXT: dict[str, dict[str, str]] = {
         "setpoint": "Soll", "heat_pump": "Wärmepumpe", "heater": "Heizstab",
         "mode": "Modus", "heat": "Wärme", "elec": "Strom",
         # JS-Texte
-        "top": "oben", "bottom": "unten", "running": "läuft", "off": "aus",
+        "running": "läuft", "off": "aus",
         "on": "an", "is_active": "aktiv", "unit_off": "Gerät aus",
         "solar": "Solar", "ext_source": "Externe Wärmequelle", "control": "Regelung",
         "emergency": "Notheizung", "legionella_run": "Legionellen-Lauf",
@@ -63,7 +63,7 @@ _TEXT: dict[str, dict[str, str]] = {
         "water": "Water", "tank_top": "Tank top", "tank_bottom": "Tank bottom",
         "setpoint": "Setpoint", "heat_pump": "Heat pump", "heater": "Heater",
         "mode": "Mode", "heat": "Heat", "elec": "Electricity",
-        "top": "top", "bottom": "bottom", "running": "running", "off": "off",
+        "running": "running", "off": "off",
         "on": "on", "is_active": "active", "unit_off": "Unit off",
         "solar": "Solar", "ext_source": "External heat source", "control": "Control",
         "emergency": "Emergency heating", "legionella_run": "Legionella run",

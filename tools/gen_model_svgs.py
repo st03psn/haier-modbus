@@ -30,7 +30,7 @@ FOOT_MM = 45    # Sockel
 VB_H = 2050 * MM  # gemeinsame Höhe, damit beide Größen im selben Maßstab erscheinen
 
 
-def svg(key: str, m: dict, fill_pct: float | None = 70) -> str:
+def svg(key: str, m: dict, fill_pct: float | None = 60) -> str:
     w = 600 * MM
     x0 = 20
     h = m["D"] * MM
@@ -56,9 +56,12 @@ def svg(key: str, m: dict, fill_pct: float | None = 70) -> str:
              "<linearGradient id='dark' x1='0' x2='1'>"
              "<stop offset='0' stop-color='#1f2226'/><stop offset='.5' stop-color='#3a3e44'/>"
              "<stop offset='1' stop-color='#1b1d20'/></linearGradient>"
-             "<linearGradient id='water' x1='0' y1='1' x2='0' y2='0'>"
-             "<stop offset='0' stop-color='hsl(60,70%,45%)'/><stop offset='1' stop-color='hsl(120,70%,40%)'/>"
-             "</linearGradient>"
+             # Schichtung wie im Dashboard: Warmzone oben (rot), Übergang, Kaltzone unten (blau)
+             "<linearGradient id='water' x1='0' y1='0' x2='0' y2='1'>"
+             f"<stop offset='0' stop-color='rgb(211,47,47)'/>"
+             f"<stop offset='{max(0, (fill_pct or 0) / 100 - 0.08):.2f}' stop-color='rgb(211,47,47)'/>"
+             f"<stop offset='{min(1, (fill_pct or 0) / 100 + 0.08):.2f}' stop-color='rgb(30,120,220)'/>"
+             "<stop offset='1' stop-color='rgb(30,120,220)'/></linearGradient>"
              "<linearGradient id='glass' x1='0' x2='1'>"
              "<stop offset='0' stop-color='#000' stop-opacity='.18'/><stop offset='.3' stop-color='#fff' stop-opacity='.10'/>"
              "<stop offset='1' stop-color='#000' stop-opacity='.22'/></linearGradient>"
@@ -89,9 +92,8 @@ def svg(key: str, m: dict, fill_pct: float | None = 70) -> str:
     p.append(f"<rect x='{x0 - 2.5}' y='{band_y - 3:.1f}' width='4' height='3' rx='.6' fill='#2a2d31'/>")
     # Speicher-Fenster: Wasser + optional Register
     p.append(f"<rect x='{tx}' y='{ty}' width='{tw}' height='{th}' rx='10' fill='#dfe3e7' opacity='.55'/>")
-    if fill_pct is not None:
-        fy = ty + th * (1 - fill_pct / 100)
-        p.append(f"<g clip-path='url(#win)'><rect x='{tx}' y='{fy:.1f}' width='{tw}' height='{ty + th - fy:.1f}' "
+    if fill_pct is not None:  # Anteil Warmwasser von oben
+        p.append(f"<g clip-path='url(#win)'><rect x='{tx}' y='{ty}' width='{tw}' height='{th}' "
                  "fill='url(#water)' opacity='.9'/></g>")
     # Heizstab (beide Varianten): seitlich eingeschraubt, Stopfen am Mantel, etwa Speichermitte
     hy = ty + th * 0.52
