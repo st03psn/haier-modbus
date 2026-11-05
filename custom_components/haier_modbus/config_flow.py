@@ -19,6 +19,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 
 from .const import (
@@ -250,21 +251,64 @@ _STARTS = selector.NumberSelector(
 )
 
 
-def _cop_schema(o: dict[str, Any]) -> vol.Schema:
-    """COP-/Energiequellen-Schema – im Wizard und im Options-Flow identisch.
+def _cop_schema(o: dict[str, Any], expert: bool = False) -> vol.Schema:
+    """COP-/Energiequellen-Schema.
 
     Die Quelle ergibt sich aus der gewählten Entität: leer = integriertes
     Modbus-Register, gesetzt = externer Zähler. Kein separates Quellen-Dropdown.
+    Register-Skalierung und Bezugsdatum sind Expertenfelder und erscheinen nur
+    in den Optionen (``expert=True``), nicht in der Ersteinrichtung.
     """
-    return vol.Schema(
-        {
-            vol.Optional(CONF_COP_ENABLED, default=o.get(CONF_COP_ENABLED, True)): bool,
-            vol.Optional(CONF_COP_ELEC_ENTITY): _ENERGY_ENTITY,
-            vol.Optional(CONF_COP_HEAT_ENTITY): _ENERGY_ENTITY,
-            vol.Optional(CONF_ENERGY_SCALE, default=o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)): _SCALE,
-            vol.Optional(CONF_COP_REF_DATE): selector.DateSelector(),
-        }
-    )
+    fields: dict[Any, Any] = {
+        vol.Optional(CONF_COP_ENABLED, default=o.get(CONF_COP_ENABLED, True)): bool,
+        vol.Optional(CONF_COP_ELEC_ENTITY): _ENERGY_ENTITY,
+        vol.Optional(CONF_COP_HEAT_ENTITY): _ENERGY_ENTITY,
+    }
+    if expert:
+        fields[vol.Optional(CONF_ENERGY_SCALE,
+                            default=o.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE))] = _SCALE
+        fields[vol.Optional(CONF_COP_REF_DATE)] = selector.DateSelector()
+    return vol.Schema(fields)
+
+
+def _protection_schema(o: dict[str, Any], full: bool) -> vol.Schema:
+    """Schutzfunktionen: Notfall-Nachheizung + Legionellen-Schutz.
+
+    Ersteinrichtung (``full=False``): nur die beiden Schalter mit sinnvollen
+    Standardwerten; alle Schwellen und Zeiten in den Optionen.
+    """
+    fields: dict[Any, Any] = {
+        vol.Optional(CONF_EMERGENCY_ENABLED, default=o.get(CONF_EMERGENCY_ENABLED, True)): bool,
+    }
+    if full:
+        fields.update({
+            vol.Optional(CONF_EMERGENCY_CRITICAL,
+                         default=o.get(CONF_EMERGENCY_CRITICAL, DEFAULT_EMERGENCY_CRITICAL)): _TEMP,
+            vol.Optional(CONF_EMERGENCY_RECOVER,
+                         default=o.get(CONF_EMERGENCY_RECOVER, DEFAULT_EMERGENCY_RECOVER)): _TEMP,
+            vol.Optional(CONF_EMERGENCY_MODE,
+                         default=o.get(CONF_EMERGENCY_MODE, DEFAULT_EMERGENCY_MODE)): _EMERGENCY_MODE,
+        })
+    fields[vol.Optional(CONF_LEGIONELLA_ENABLED,
+                        default=o.get(CONF_LEGIONELLA_ENABLED, False))] = bool
+    if full:
+        fields.update({
+            # W3: Verdichtergrenze (_TEMP_WP, max WP_MAX_TEMP), nicht die Registergrenze
+            # – der Lauf eskaliert auf AUTO (reine WP); das Abbruchkriterium ist bottom_min.
+            vol.Optional(CONF_LEGIONELLA_TARGET,
+                         default=o.get(CONF_LEGIONELLA_TARGET, DEFAULT_LEGIONELLA_TARGET)): _TEMP_WP,
+            vol.Optional(CONF_LEGIONELLA_INTERVAL,
+                         default=o.get(CONF_LEGIONELLA_INTERVAL, DEFAULT_LEGIONELLA_INTERVAL)): _DAYS,
+            vol.Optional(CONF_LEGIONELLA_BOTTOM,
+                         default=o.get(CONF_LEGIONELLA_BOTTOM, DEFAULT_LEGIONELLA_BOTTOM)): _TEMP,
+            vol.Optional(CONF_LEGIONELLA_HOLD,
+                         default=o.get(CONF_LEGIONELLA_HOLD, DEFAULT_LEGIONELLA_HOLD)): _MINUTES,
+            vol.Optional(CONF_LEGIONELLA_WINDOW_START,
+                         default=o.get(CONF_LEGIONELLA_WINDOW_START, DEFAULT_LEGIONELLA_WINDOW_START)): _TIME,
+            vol.Optional(CONF_LEGIONELLA_WINDOW_END,
+                         default=o.get(CONF_LEGIONELLA_WINDOW_END, DEFAULT_LEGIONELLA_WINDOW_END)): _TIME,
+        })
+    return vol.Schema(fields)
 
 
 def _pv_mode_schema(o: dict[str, Any]) -> vol.Schema:
@@ -279,80 +323,112 @@ def _pv_mode_schema(o: dict[str, Any]) -> vol.Schema:
     )
 
 
+# Abschnitte der PV-Details (Coordinator): oben die Kernfelder, darunter einklappbar.
+SECTION_BATTERY = "battery"
+SECTION_HEATER = "heater"
+SECTION_TIMING = "timing"
+_PV_SECTIONS = (SECTION_BATTERY, SECTION_HEATER, SECTION_TIMING)
+
+
 def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
     """Modus-spezifische PV-Felder (zweiter Schritt).
 
-    - **Coordinator:** PV-Sensor, Zieltemps und alle Regel-Schwellen.
+    - **Coordinator:** oben PV-Sensor und die beiden Zieltemperaturen, darunter
+      einklappbare Abschnitte *Hausakku & Vorrang*, *Heizstab & Strompreis* und
+      *Zeiten & Starts (Experte)* – sonst wären es 24 Felder auf einer Seite.
+      Werte kommen je Abschnitt verschachtelt zurück (``_flatten``).
     - **Executor:** nur die Zieltemps (Mechanik fürs Programm-Select); geregelt
       wird über ``select.haier_hwhp_pv_program`` durch das HEMS.
     - **Aus:** keine Felder (der Schritt wird übersprungen).
     """
-    fields: dict[Any, Any] = {}
-    if mode == PV_MODE_COORDINATOR:
-        fields[vol.Optional(CONF_PV_SENSOR)] = _PV_SENSOR
-        # Vorrang anderer Senken direkt beim Überschuss-Sensor: sie bestimmen, was
-        # dessen Wert für die Regelung bedeutet (v1.20.0, s. pv._effective_surplus).
-        fields.update(
-            {
-                vol.Optional(CONF_PV_BATTERY_SENSOR): _BATTERY_SENSOR,
-                vol.Optional(CONF_PV_BATTERY_SIGN,
-                             default=o.get(CONF_PV_BATTERY_SIGN, DEFAULT_PV_BATTERY_SIGN)): _BATTERY_SIGN,
-                vol.Optional(CONF_PV_BATTERY_SOC_SENSOR): _SOC_SENSOR,
-                vol.Optional(CONF_PV_BATTERY_SOC_LIMIT,
-                             default=o.get(CONF_PV_BATTERY_SOC_LIMIT,
-                                           DEFAULT_PV_BATTERY_SOC_LIMIT)): _PERCENT,
-                vol.Optional(CONF_PV_PRIORITY_LOCK): _PRIORITY_LOCK,
-            }
-        )
-
-    if mode in (PV_MODE_COORDINATOR, PV_MODE_EXECUTOR):
-        # Zieltemps sind die gemeinsame Mechanik beider Modi.
-        fields.update(
-            {
-                vol.Optional(CONF_PV_TEMP_NORMAL,
-                             default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP_WP,
-                vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP_WP,
-            }
-        )
-
+    temps = {
+        vol.Optional(CONF_PV_TEMP_BASE, default=o.get(CONF_PV_TEMP_BASE, DEFAULT_PV_TEMP_BASE)): _TEMP_WP,
+        vol.Optional(CONF_PV_TEMP_NORMAL,
+                     default=o.get(CONF_PV_TEMP_NORMAL, DEFAULT_PV_TEMP_NORMAL)): _TEMP_WP,
+    }
     if mode == PV_MODE_EXECUTOR:
-        # Nur noch für das Executor-Programm relevant (PV_PROGRAM_BOOST) – im
-        # Coordinator ist Boost seit v1.16.0 eine Leistungssenke mit derselben
-        # Zieltemperatur wie Erhöht (AP2), dieses Feld dort daher bewusst nicht mehr.
-        fields[vol.Optional(CONF_PV_TEMP_HIGH,
-                             default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH))] = _TEMP
+        # Boost-Zieltemperatur nur noch für das Executor-Programm (PV_PROGRAM_BOOST).
+        return vol.Schema({
+            **temps,
+            vol.Optional(CONF_PV_TEMP_HIGH,
+                         default=o.get(CONF_PV_TEMP_HIGH, DEFAULT_PV_TEMP_HIGH)): _TEMP,
+        })
+    if mode != PV_MODE_COORDINATOR:
+        return vol.Schema({})
 
-    if mode == PV_MODE_COORDINATOR:
-        fields.update(
-            {
-                vol.Optional(CONF_PV_HOLD, default=o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD)): _WATT,
-                vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
-                vol.Optional(CONF_PV_HEATER_POWER,
-                             default=o.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER)): _WATT,
-                vol.Optional(CONF_PV_POWER_ENTITY): _POWER_ENTITY,
-                vol.Optional(CONF_PV_MORNING_ENABLED,
-                             default=o.get(CONF_PV_MORNING_ENABLED, DEFAULT_PV_MORNING_ENABLED)): bool,
-                vol.Optional(CONF_PV_MORNING_TIME,
-                             default=o.get(CONF_PV_MORNING_TIME, DEFAULT_PV_MORNING_TIME)): _TIME,
-                vol.Optional(CONF_PV_COLDSTART,
-                             default=o.get(CONF_PV_COLDSTART, DEFAULT_PV_COLDSTART)): _WATT,
-                vol.Optional(CONF_PV_COLDSTART_DELTA,
-                             default=o.get(CONF_PV_COLDSTART_DELTA, DEFAULT_PV_COLDSTART_DELTA)): _KELVIN,
-                vol.Optional(CONF_PV_MIN_RUN,
-                             default=o.get(CONF_PV_MIN_RUN, DEFAULT_PV_MIN_RUN)): _MINUTES,
-                vol.Optional(CONF_PV_MAX_STARTS,
-                             default=o.get(CONF_PV_MAX_STARTS, DEFAULT_PV_MAX_STARTS)): _STARTS,
-                vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
-                vol.Optional(CONF_PV_MIN_OFF, default=o.get(CONF_PV_MIN_OFF, DEFAULT_PV_MIN_OFF)): int,
-                vol.Optional(CONF_PV_ESCALATION,
-                             default=o.get(CONF_PV_ESCALATION, DEFAULT_PV_ESCALATION)): _ESCALATION,
-                vol.Optional(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
-                             default=o.get(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
-                                           DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE)): bool,
-                vol.Optional(CONF_PV_NEGATIVE_PRICE_SENSOR): _NEGATIVE_PRICE_SENSOR,
-            }
-        )
-    return vol.Schema(fields)
+    battery = vol.Schema({
+        vol.Optional(CONF_PV_BATTERY_SENSOR): _BATTERY_SENSOR,
+        vol.Optional(CONF_PV_BATTERY_SIGN,
+                     default=o.get(CONF_PV_BATTERY_SIGN, DEFAULT_PV_BATTERY_SIGN)): _BATTERY_SIGN,
+        vol.Optional(CONF_PV_BATTERY_SOC_SENSOR): _SOC_SENSOR,
+        vol.Optional(CONF_PV_BATTERY_SOC_LIMIT,
+                     default=o.get(CONF_PV_BATTERY_SOC_LIMIT, DEFAULT_PV_BATTERY_SOC_LIMIT)): _PERCENT,
+        vol.Optional(CONF_PV_PRIORITY_LOCK): _PRIORITY_LOCK,
+    })
+    heater = vol.Schema({
+        vol.Optional(CONF_PV_ESCALATION,
+                     default=o.get(CONF_PV_ESCALATION, DEFAULT_PV_ESCALATION)): _ESCALATION,
+        vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
+        vol.Optional(CONF_PV_HEATER_POWER,
+                     default=o.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER)): _WATT,
+        vol.Optional(CONF_PV_POWER_ENTITY): _POWER_ENTITY,
+        vol.Optional(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
+                     default=o.get(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
+                                   DEFAULT_PV_BOOST_ONLY_NEGATIVE_PRICE)): bool,
+        vol.Optional(CONF_PV_NEGATIVE_PRICE_SENSOR): _NEGATIVE_PRICE_SENSOR,
+    })
+    timing = vol.Schema({
+        vol.Optional(CONF_PV_MORNING_ENABLED,
+                     default=o.get(CONF_PV_MORNING_ENABLED, DEFAULT_PV_MORNING_ENABLED)): bool,
+        vol.Optional(CONF_PV_MORNING_TIME,
+                     default=o.get(CONF_PV_MORNING_TIME, DEFAULT_PV_MORNING_TIME)): _TIME,
+        vol.Optional(CONF_PV_COLDSTART, default=o.get(CONF_PV_COLDSTART, DEFAULT_PV_COLDSTART)): _WATT,
+        vol.Optional(CONF_PV_COLDSTART_DELTA,
+                     default=o.get(CONF_PV_COLDSTART_DELTA, DEFAULT_PV_COLDSTART_DELTA)): _KELVIN,
+        vol.Optional(CONF_PV_HOLD, default=o.get(CONF_PV_HOLD, DEFAULT_PV_HOLD)): _WATT,
+        vol.Optional(CONF_PV_MIN_RUN, default=o.get(CONF_PV_MIN_RUN, DEFAULT_PV_MIN_RUN)): _MINUTES,
+        vol.Optional(CONF_PV_MAX_STARTS, default=o.get(CONF_PV_MAX_STARTS, DEFAULT_PV_MAX_STARTS)): _STARTS,
+        vol.Optional(CONF_PV_DEBOUNCE, default=o.get(CONF_PV_DEBOUNCE, DEFAULT_PV_DEBOUNCE)): int,
+        vol.Optional(CONF_PV_MIN_OFF, default=o.get(CONF_PV_MIN_OFF, DEFAULT_PV_MIN_OFF)): int,
+    })
+    return vol.Schema({
+        vol.Optional(CONF_PV_SENSOR): _PV_SENSOR,
+        **temps,
+        vol.Required(SECTION_BATTERY): section(battery, {"collapsed": True}),
+        vol.Required(SECTION_HEATER): section(heater, {"collapsed": True}),
+        vol.Required(SECTION_TIMING): section(timing, {"collapsed": True}),
+    })
+
+
+def _flatten(user_input: dict[str, Any]) -> dict[str, Any]:
+    """Abschnitts-Werte (verschachtelt) flach machen; leere Werte entfernen."""
+    flat: dict[str, Any] = {}
+    for key, val in user_input.items():
+        if key in _PV_SECTIONS and isinstance(val, dict):
+            flat.update(val)
+        else:
+            flat[key] = val
+    return {k: v for k, v in flat.items() if v not in ("", None)}
+
+
+def _nest(values: dict[str, Any], schema: vol.Schema) -> dict[str, Any]:
+    """Flache Werte für ``add_suggested_values_to_schema`` in Abschnitte einsortieren."""
+    out = dict(values)
+    for key, val in schema.schema.items():
+        if isinstance(val, section):
+            out[str(key)] = {str(k): values[str(k)] for k in val.schema.schema if str(k) in values}
+    return out
+
+
+def _schema_keys(schema: vol.Schema) -> set[str]:
+    """Alle Feldnamen eines Schemas, Abschnitte aufgelöst."""
+    keys: set[str] = set()
+    for key, val in schema.schema.items():
+        if isinstance(val, section):
+            keys |= {str(k) for k in val.schema.schema}
+        else:
+            keys.add(str(key))
+    return keys
 
 
 def _temp_order_error(merged: dict[str, Any]) -> str | None:
@@ -503,7 +579,6 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_HOST): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
                 vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): int,
-                vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
                 vol.Required(CONF_MODEL, default=DEFAULT_MODEL_KEY): _MODEL,
             }
         )
@@ -537,7 +612,6 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_SERIAL_PORT): _serial_port_selector(ports),
                 vol.Required(CONF_BAUDRATE, default=str(DEFAULT_BAUDRATE)): _BAUDRATE,
                 vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): int,
-                vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
                 vol.Required(CONF_MODEL, default=DEFAULT_MODEL_KEY): _MODEL,
             }
         )
@@ -552,8 +626,17 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         if user_input is not None:
             self._cop = {k: v for k, v in user_input.items() if v not in ("", None)}
-            return await self.async_step_pv()
+            return await self.async_step_protection()
         return self.async_show_form(step_id="cop", data_schema=_cop_schema({}))
+
+    async def async_step_protection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Schutzfunktionen (Notfall-Nachheizung, Legionellen) – nur die Schalter."""
+        if user_input is not None:
+            self._cop.update(user_input)
+            return await self.async_step_pv()
+        return self.async_show_form(step_id="protection", data_schema=_protection_schema({}, full=False))
 
     async def async_step_pv(
         self, user_input: dict[str, Any] | None = None
@@ -573,7 +656,7 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         mode = self._pv.get(CONF_PV_MODE, DEFAULT_PV_MODE)
         if user_input is not None:
-            details = {k: v for k, v in user_input.items() if v not in ("", None)}
+            details = _flatten(user_input)
             merged = {**self._pv, **details}
             if mode == PV_MODE_COORDINATOR and not merged.get(CONF_PV_SENSOR):
                 errors["base"] = "pv_sensor_required"
@@ -587,7 +670,7 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         schema = _pv_detail_schema(self._pv, mode)
         if user_input is not None:
-            schema = self.add_suggested_values_to_schema(schema, user_input)
+            schema = self.add_suggested_values_to_schema(schema, _nest(_flatten(user_input), schema))
         return self.async_show_form(step_id="pv_details", data_schema=schema, errors=errors)
 
     def _create_entry(self) -> config_entries.ConfigFlowResult:
@@ -606,115 +689,129 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class HaierModbusOptionsFlow(config_entries.OptionsFlow):
-    """Optionen in zwei Schritten: ``init`` (Verbindung/COP/Notfall + PV-Modus),
-    danach ``pv`` (genau die Felder des gewählten PV-Modus). Bei PV-Modus „Aus“
-    wird der PV-Schritt übersprungen.
+    """Optionen als Menü: Verbindung · Energie & COP · PV · Schutzfunktionen · Dashboard.
+
+    Jeder Bereich speichert nur seine eigenen Felder und übernimmt alle übrigen
+    Optionen unverändert (``_save``). Leere Felder entfernen den Wert (z. B. eine
+    abgewählte Entität).
     """
 
-    _pending: dict[str, Any] = {}
+    _pv_mode: str = DEFAULT_PV_MODE
+
+    def _cur(self, key: str, default: Any) -> Any:
+        return self.config_entry.options.get(key, self.config_entry.data.get(key, default))
+
+    def _save(self, schema: vol.Schema, values: dict[str, Any]) -> config_entries.ConfigFlowResult:
+        keys = _schema_keys(schema)
+        merged = {k: v for k, v in self.config_entry.options.items() if k not in keys}
+        merged.update(values)
+        return self.async_create_entry(title="", data=merged)
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["connection", "energy", "pv_mode", "protection", "dashboard"],
+        )
+
+    def _connection_schema(self) -> vol.Schema:
+        ports = self._ports
+        cur_port = self._cur(CONF_SERIAL_PORT, "")
+        if cur_port and cur_port not in ports:
+            ports = [cur_port, *ports]
+        return vol.Schema({
+            vol.Optional(CONF_CONNECTION_TYPE,
+                         default=self._cur(CONF_CONNECTION_TYPE, DEFAULT_CONNECTION_TYPE)): _CONNECTION_TYPE,
+            vol.Optional(CONF_HOST, default=self._cur(CONF_HOST, "")): str,
+            vol.Optional(CONF_PORT, default=self._cur(CONF_PORT, DEFAULT_PORT)): int,
+            vol.Optional(CONF_SERIAL_PORT, default=cur_port): _serial_port_selector(ports),
+            vol.Optional(CONF_BAUDRATE,
+                         default=str(self._cur(CONF_BAUDRATE, DEFAULT_BAUDRATE))): _BAUDRATE,
+            vol.Optional(CONF_SLAVE, default=self._cur(CONF_SLAVE, DEFAULT_SLAVE)): int,
+            vol.Optional(CONF_MODEL, default=self._cur(CONF_MODEL, DEFAULT_MODEL_KEY)): _MODEL,
+            vol.Optional(CONF_SCAN_INTERVAL,
+                         default=self._cur(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
+            vol.Optional(CONF_AMBIENT_OFFSET,
+                         default=self._cur(CONF_AMBIENT_OFFSET, DEFAULT_AMBIENT_OFFSET)): _OFFSET,
+        })
+
+    async def async_step_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         errors: dict[str, str] = {}
+        self._ports = await self.hass.async_add_executor_job(_list_serial_ports)
+        schema = self._connection_schema()
         if user_input is not None:
-            pending = {k: v for k, v in user_input.items() if v not in ("", None)}
-            if CONF_BAUDRATE in pending:
-                pending[CONF_BAUDRATE] = int(pending[CONF_BAUDRATE])
+            values = {k: v for k, v in user_input.items() if v not in ("", None)}
+            if CONF_BAUDRATE in values:
+                values[CONF_BAUDRATE] = int(values[CONF_BAUDRATE])
             # Zur gewählten Verbindungsart muss ihr Ziel bekannt sein (Options
             # oder Setup-Daten) – sonst baut der Coordinator einen leeren Client.
-            known = connection_settings(pending, self.config_entry.data)
-            if pending.get(CONF_CONNECTION_TYPE) == CONNECTION_SERIAL:
+            known = connection_settings(values, self.config_entry.data)
+            if values.get(CONF_CONNECTION_TYPE) == CONNECTION_SERIAL:
                 if not known[CONF_SERIAL_PORT]:
                     errors["base"] = "serial_port_required"
             elif not known[CONF_HOST]:
                 errors["base"] = "host_required"
             if not errors:
-                self._pending = pending
-                if self._pending.get(CONF_PV_MODE, DEFAULT_PV_MODE) == PV_MODE_OFF:
-                    return self.async_create_entry(title="", data=self._pending)
-                return await self.async_step_pv()
-
-        o = self.config_entry.options
-        d = self.config_entry.data
-
-        def cur(key: str, default: Any) -> Any:
-            return o.get(key, d.get(key, default))
-
-        ports = await self.hass.async_add_executor_job(_list_serial_ports)
-        cur_port = cur(CONF_SERIAL_PORT, "")
-        if cur_port and cur_port not in ports:
-            ports = [cur_port, *ports]
-        connection = {
-            vol.Optional(CONF_CONNECTION_TYPE,
-                         default=cur(CONF_CONNECTION_TYPE, DEFAULT_CONNECTION_TYPE)): _CONNECTION_TYPE,
-            vol.Optional(CONF_HOST, default=cur(CONF_HOST, "")): str,
-            vol.Optional(CONF_PORT, default=cur(CONF_PORT, DEFAULT_PORT)): int,
-            vol.Optional(CONF_SERIAL_PORT, default=cur_port): _serial_port_selector(ports),
-            vol.Optional(CONF_BAUDRATE,
-                         default=str(cur(CONF_BAUDRATE, DEFAULT_BAUDRATE))): _BAUDRATE,
-            vol.Optional(CONF_SLAVE, default=cur(CONF_SLAVE, DEFAULT_SLAVE)): int,
-            vol.Optional(CONF_MODEL, default=cur(CONF_MODEL, DEFAULT_MODEL_KEY)): _MODEL,
-            vol.Optional(CONF_SCAN_INTERVAL, default=cur(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
-            vol.Optional(CONF_AMBIENT_OFFSET, default=cur(CONF_AMBIENT_OFFSET, DEFAULT_AMBIENT_OFFSET)): _OFFSET,
-            vol.Optional(CONF_DASHBOARD_ENABLED,
-                         default=cur(CONF_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_ENABLED)): bool,
-        }
-
-        emergency = {
-            vol.Optional(CONF_EMERGENCY_ENABLED, default=cur(CONF_EMERGENCY_ENABLED, False)): bool,
-            vol.Optional(CONF_EMERGENCY_CRITICAL,
-                         default=cur(CONF_EMERGENCY_CRITICAL, DEFAULT_EMERGENCY_CRITICAL)): _TEMP,
-            vol.Optional(CONF_EMERGENCY_RECOVER,
-                         default=cur(CONF_EMERGENCY_RECOVER, DEFAULT_EMERGENCY_RECOVER)): _TEMP,
-            vol.Optional(CONF_EMERGENCY_MODE,
-                         default=cur(CONF_EMERGENCY_MODE, DEFAULT_EMERGENCY_MODE)): _EMERGENCY_MODE,
-        }
-
-        legionella = {
-            vol.Optional(CONF_LEGIONELLA_ENABLED,
-                         default=cur(CONF_LEGIONELLA_ENABLED, False)): bool,
-            # W3: Verdichtergrenze (_TEMP_WP, max WP_MAX_TEMP), nicht die Registergrenze
-            # (_TEMP, max 75) - der Lauf eskaliert auf AUTO (reine WP), ein Ziel oberhalb
-            # WP_MAX_TEMP wäre dort nie erreichbar (stundenlanger Heizstabbetrieb bei
-            # COP ≈ 1 bis zum unerreichbaren Ziel; das eigentliche Abbruchkriterium ist
-            # ohnehin ``bottom_min``).
-            vol.Optional(CONF_LEGIONELLA_TARGET,
-                         default=cur(CONF_LEGIONELLA_TARGET, DEFAULT_LEGIONELLA_TARGET)): _TEMP_WP,
-            vol.Optional(CONF_LEGIONELLA_INTERVAL,
-                         default=cur(CONF_LEGIONELLA_INTERVAL, DEFAULT_LEGIONELLA_INTERVAL)): _DAYS,
-            vol.Optional(CONF_LEGIONELLA_BOTTOM,
-                         default=cur(CONF_LEGIONELLA_BOTTOM, DEFAULT_LEGIONELLA_BOTTOM)): _TEMP,
-            vol.Optional(CONF_LEGIONELLA_HOLD,
-                         default=cur(CONF_LEGIONELLA_HOLD, DEFAULT_LEGIONELLA_HOLD)): _MINUTES,
-            vol.Optional(CONF_LEGIONELLA_WINDOW_START,
-                         default=cur(CONF_LEGIONELLA_WINDOW_START, DEFAULT_LEGIONELLA_WINDOW_START)): _TIME,
-            vol.Optional(CONF_LEGIONELLA_WINDOW_END,
-                         default=cur(CONF_LEGIONELLA_WINDOW_END, DEFAULT_LEGIONELLA_WINDOW_END)): _TIME,
-        }
-
-        schema = vol.Schema(connection)
-        schema = schema.extend(_cop_schema(o).schema)
-        schema = schema.extend(_pv_mode_schema(o).schema)
-        schema = schema.extend(emergency)
-        schema = schema.extend(legionella)
-        schema = self.add_suggested_values_to_schema(
-            schema, {**o, **({CONF_BAUDRATE: str(o[CONF_BAUDRATE])} if CONF_BAUDRATE in o else {})}
-        )
-        if user_input is not None:
+                return self._save(schema, values)
             schema = self.add_suggested_values_to_schema(schema, user_input)
-        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+        return self.async_show_form(step_id="connection", data_schema=schema, errors=errors)
+
+    async def async_step_energy(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        o = self.config_entry.options
+        schema = _cop_schema(o, expert=True)
+        if user_input is not None:
+            return self._save(schema, {k: v for k, v in user_input.items() if v not in ("", None)})
+        return self.async_show_form(
+            step_id="energy", data_schema=self.add_suggested_values_to_schema(schema, o)
+        )
+
+    async def async_step_protection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        schema = _protection_schema(self.config_entry.options, full=True)
+        if user_input is not None:
+            return self._save(schema, {k: v for k, v in user_input.items() if v not in ("", None)})
+        return self.async_show_form(step_id="protection", data_schema=schema)
+
+    async def async_step_dashboard(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        schema = vol.Schema({
+            vol.Optional(CONF_DASHBOARD_ENABLED,
+                         default=self._cur(CONF_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_ENABLED)): bool,
+        })
+        if user_input is not None:
+            return self._save(schema, user_input)
+        return self.async_show_form(step_id="dashboard", data_schema=schema)
+
+    async def async_step_pv_mode(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """PV Schritt 1: Modus. Bei „Aus“ direkt speichern, sonst Details."""
+        schema = _pv_mode_schema(self.config_entry.options)
+        if user_input is not None:
+            self._pv_mode = user_input.get(CONF_PV_MODE, DEFAULT_PV_MODE)
+            if self._pv_mode == PV_MODE_OFF:
+                return self._save(schema, {CONF_PV_MODE: PV_MODE_OFF})
+            return await self.async_step_pv()
+        return self.async_show_form(step_id="pv_mode", data_schema=schema)
 
     async def async_step_pv(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Zweiter Schritt: modus-spezifische PV-Felder. Speichert die gesamten
-        Optionen (Seite 1 + Seite 2)."""
+        """PV Schritt 2: genau die Felder des gewählten Modus (Coordinator in Abschnitten)."""
         errors: dict[str, str] = {}
-        mode = self._pending.get(CONF_PV_MODE, DEFAULT_PV_MODE)
+        mode = self._pv_mode
+        o = self.config_entry.options
+        schema = _pv_detail_schema(o, mode)
         if user_input is not None:
-            details = {k: v for k, v in user_input.items() if v not in ("", None)}
-            merged = {**self._pending, **details}
+            details = _flatten(user_input)
+            merged = {**o, CONF_PV_MODE: mode, **details}
             if mode == PV_MODE_COORDINATOR and not merged.get(CONF_PV_SENSOR):
                 errors["base"] = "pv_sensor_required"
             elif (order_error := _temp_order_error(merged)) is not None:
@@ -722,9 +819,10 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             elif mode == PV_MODE_COORDINATOR and (coord_error := _pv_coordinator_error(merged)) is not None:
                 errors["base"] = coord_error
             else:
-                return self.async_create_entry(title="", data=merged)
-
-        base = {**self.config_entry.options, **self._pending, **(user_input or {})}
-        schema = _pv_detail_schema(base, mode)
-        schema = self.add_suggested_values_to_schema(schema, base)
+                keys = _schema_keys(schema) | {CONF_PV_MODE}
+                kept = {k: v for k, v in o.items() if k not in keys}
+                return self.async_create_entry(title="", data={**kept, CONF_PV_MODE: mode, **details})
+            schema = self.add_suggested_values_to_schema(schema, _nest(details, schema))
+        else:
+            schema = self.add_suggested_values_to_schema(schema, _nest(dict(o), schema))
         return self.async_show_form(step_id="pv", data_schema=schema, errors=errors)

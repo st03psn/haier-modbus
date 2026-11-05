@@ -1,4 +1,4 @@
-"""Layout des mitgelieferten Dashboards (ab v1.24.0, eine Seite, zweisprachig).
+"""Layout des mitgelieferten Dashboards (ab v2.0.0, eine Seite, zweisprachig).
 
 Aufbau in drei Spalten (Sections-Ansicht):
   1. Speicher   – Speicher-Grafik (button-card) mit Status- und Diagnose-Leiste

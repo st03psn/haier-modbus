@@ -2,7 +2,7 @@
 
 Meldet ein Update, wenn das Haier-Dashboard eine ältere Layout-Generation hat und
 nicht automatisch aktualisiert werden durfte (vom Nutzer angepasst bzw. aus einer
-Version vor v1.24.0). Bleibt unter *Einstellungen* sichtbar, bis es installiert ist
+Version vor v2.0.0). Bleibt unter *Einstellungen* sichtbar, bis es installiert ist
 – eine weggeklickte Benachrichtigung geht so nicht verloren. *Installieren* baut
 das Dashboard neu auf (ersetzt eigene Anpassungen, wie der Dienst
 ``rebuild_dashboard``).

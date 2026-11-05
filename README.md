@@ -12,7 +12,7 @@ Vollständig **lokal** über Modbus – kein hOn-Cloud-Konto nötig. Gegenüber 
 Cloud bietet der lokale Weg **Schreibzugriff**, direkten Zugriff auf die
 **Energieregister** und läuft **ohne Internet-/Cloud-Abhängigkeit**.
 
-![Mitgeliefertes Dashboard (v1.24.0)](docs/images/dashboard.webp)
+![Mitgeliefertes Dashboard (v2.0.0)](docs/images/dashboard.webp)
 
 ---
 
@@ -75,8 +75,15 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „Haier".
 4. **Verbindung:** Verbindungsart wählen. **TCP:** Host = **IP des
    Modbus-Konverters** (nicht der WP), Port `502`. **Seriell:** Port des
-   USB/RS485-Adapters, Baudrate `9600`. Dann Slave `1`, Intervall `5`, Modell.
-5. **COP/Energie:** Quellen wählen. 6. **PV (optional):** Sensor + Schwellen.
+   USB/RS485-Adapters, Baudrate `9600`. Dann Slave `1` und Modell.
+5. **Energie & COP:** Zähler wählen (leer = Geräteregister).
+6. **Schutzfunktionen:** Notfall-Nachheizung (empfohlen) und Legionellen-Schutz.
+7. **PV-Überschuss (optional):** Modus, danach Sensor und Zieltemperaturen; Feineinstellungen
+   in einklappbaren Abschnitten.
+
+Später ändern: *Einstellungen → Geräte & Dienste → Haier → Konfigurieren* – ein Menü mit
+*Verbindung & Gerät · Energie & COP · PV-Überschuss · Schutzfunktionen · Dashboard*.
+Benötigt Home Assistant **ab 2024.7**.
 
 Alternativ lokal: Ordner `custom_components/haier_modbus/` nach
 `<config>/custom_components/` kopieren und neu starten.
@@ -92,7 +99,7 @@ und liegt erfahrungsgemäß **deutlich zu niedrig** → der Geräte-COP fällt z
 optimistisch aus. **Für eine belastbare JAZ einen externen Stromzähler nutzen.**
 Details: [`docs/register-map.md`](docs/register-map.md).
 
-> **Wärmeregister vermutlich zu hoch (Stand v1.24.0):** Die erzeugte Wärme stammt
+> **Wärmeregister vermutlich zu hoch (Stand v2.0.0):** Die erzeugte Wärme stammt
 > ohne externen Wärmezähler aus dem Geräteregister. Ein Abgleich mit der
 > physikalisch im Speicher angekommenen Wärme (Volumen × Temperaturanstieg) über
 > 9 Heizzyklen (Oktober/November 2026, ein Gerät HP200M7) ergab, dass das Register
@@ -277,7 +284,7 @@ zweiter Bus-Master). Beispiel-Automation siehe [`docs/pv-executor-evcc.md`](docs
 ## Dashboard
 Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWWP"
 (`/haier-hwhp`) angelegt – per Drag&Drop frei anpassbar, Änderungen bleiben bei
-Updates erhalten. Seit v1.24.0 eine Seite in drei Spalten (Deutsch/Englisch je
+Updates erhalten. Seit v2.0.0 eine Seite in drei Spalten (Deutsch/Englisch je
 nach Systemsprache):
 
 - **Speicher:** Speicher-Grafik mit Füllstand und Farbe von Rot (≤ kritische
@@ -298,8 +305,11 @@ bei Updates automatisch auf den neuesten Stand. Angepasste Dashboards werden nie
 überschrieben – für sie erscheint unter *Einstellungen* das Update **„Dashboard“**
 (`update.haier_hwhp_dashboard`), im neuen Layout zusätzlich als Kachel im Dashboard.
 *Installieren* übernimmt das neue Layout und ersetzt dabei eigene Anpassungen am
-Haier-Dashboard (alternativ: Aktion `haier_modbus.rebuild_dashboard`). Dashboards aus
-Versionen vor 1.24.0 gelten als angepasst und zeigen deshalb einmalig dieses Update.
+Haier-Dashboard (alternativ: Aktion `haier_modbus.rebuild_dashboard`). Erst vergleichen?
+Button **„Neues Dashboard zum Vergleich anlegen“** am Haier-Gerät legt das neue Layout
+zusätzlich an; **„Vergleichs-Dashboard übernehmen“** macht es (samt deiner Änderungen daran)
+zum Standard. Dashboards aus
+Versionen vor 2.0.0 gelten als angepasst und zeigen deshalb einmalig dieses Update.
 
 Lässt Home Assistant kein Storage-Dashboard zu, legt die Integration ersatzweise ein
 **nicht editierbares YAML-Dashboard** an und schreibt den Grund als Warnung ins Log.
@@ -330,7 +340,7 @@ Fully **local** over Modbus – no hOn cloud account required. Versus the cloud,
 local path offers write access, direct access to the energy registers and runs
 **without any internet/cloud dependency**.
 
-The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards are never overwritten – for them the update entity **“Dashboard”** (`update.haier_hwhp_dashboard`) appears under *Settings* (and as a card on the new dashboard); *Install* applies the new layout and replaces your own changes. Dashboards from versions before 1.24.0 count as edited and therefore show this update once.
+The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards are never overwritten – for them the update entity **“Dashboard”** (`update.haier_hwhp_dashboard`) appears under *Settings* (and as a card on the new dashboard); *Install* applies the new layout and replaces your own changes. Dashboards from versions before 2.0.0 count as edited and therefore show this update once.
 
 ### ⚠️ Important: does your unit even have Modbus?
 **Not every** unit in this series has the Modbus interface – unofficially it is only
@@ -369,7 +379,7 @@ aux loads), is rounded to whole kWh and reads **far too low**. **Use an external
 electricity meter for a meaningful seasonal performance factor.** See
 [`docs/register-map.md`](docs/register-map.md).
 
-> **Heat register probably too high (as of v1.24.0):** without an external heat meter
+> **Heat register probably too high (as of v2.0.0):** without an external heat meter
 > the produced heat comes from the device register. Compared with the heat that
 > physically reached the tank (volume × temperature rise) over 9 heating cycles
 > (Oct/Nov 2026, one HP200M7), the register reported **about 2 to 3.7 times** as much
@@ -522,5 +532,7 @@ master). Example automation: [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.
 ### Installation (HACS)
 HACS → custom repository (category *Integration*) → download → restart → add the
 integration → choose the connection type: **TCP** (converter's IP, port `502`) or
-**Serial** (USB/RS485 adapter port, 9600 baud) → slave `1`, interval, model.
-Everything is changeable later under *Configure*. License: [MIT](LICENSE).
+**Serial** (USB/RS485 adapter port, 9600 baud) → slave `1`, model → energy & COP →
+protection (emergency heating, legionella) → optional PV surplus (fine-tuning in collapsible
+sections). Everything is changeable later under *Configure* (menu: connection, energy, PV,
+protection, dashboard). Requires Home Assistant **2024.7 or later**. License: [MIT](LICENSE).

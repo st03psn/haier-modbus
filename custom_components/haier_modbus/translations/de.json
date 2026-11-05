@@ -15,12 +15,12 @@
           "host": "Host / IP-Adresse",
           "port": "Port",
           "slave": "Modbus-Slave-ID",
-          "scan_interval": "Abfrageintervall (Sekunden)",
           "model": "Modell"
         },
         "data_description": {
           "host": "I. d. R. die IP des Modbus-RTU→TCP-Konverters, nicht der Wärmepumpe selbst.",
-          "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1)."
+          "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1).",
+          "model": "Nur für die Geräteanzeige. Für HP250 und andere Varianten „Anderes Modell“ wählen."
         }
       },
       "serial": {
@@ -30,29 +30,39 @@
           "serial_port": "Serieller Port",
           "baudrate": "Baudrate",
           "slave": "Modbus-Slave-ID",
-          "scan_interval": "Abfrageintervall (Sekunden)",
           "model": "Modell"
         },
         "data_description": {
           "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen; /dev/ttyUSB0 kann sich nach einem Neustart ändern.",
           "baudrate": "Laut Hersteller 9600.",
-          "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1)."
+          "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1).",
+          "model": "Nur für die Geräteanzeige. Für HP250 und andere Varianten „Anderes Modell“ wählen."
         }
       },
       "cop": {
         "title": "Haier BWWP – COP & Energie",
-        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Zähler leer lassen = integriertes Modbus-Register; Entität wählen = externer Zähler. Tipp: Bei externem Stromzähler einen jährlich zurücksetzenden Zähler (utility_meter, cycle: yearly) wählen, damit das Fenster zur Jahres-Wärmemenge passt. Später jederzeit unter „Konfigurieren“ änderbar.",
+        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Zähler leer lassen = integriertes Modbus-Register; Entität wählen = externer Zähler. Tipp: Bei externem Stromzähler einen jährlich zurücksetzenden Zähler (utility_meter, cycle: yearly) wählen, damit das Fenster zur Jahres-Wärmemenge passt. Später jederzeit unter „Konfigurieren“ änderbar. **Hinweis:** Ohne externen Wärmemengenzähler stammt die Wärme aus dem Geräteregister; erste Messungen zeigen dort ca. 2- bis 3,7-mal zu hohe Werte, COP/JAZ fallen entsprechend zu hoch aus (wird überarbeitet).",
         "data": {
           "cop_enabled": "COP-Berechnung aktiv",
           "cop_elec_entity": "Externer Stromzähler (kWh) — leer = Modbus-Register",
-          "cop_heat_entity": "Externer Wärmemengenzähler (kWh) — leer = Modbus-Register",
-          "energy_scale": "Skalierung der kWh-Register (×)",
-          "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)"
+          "cop_heat_entity": "Externer Wärmemengenzähler (kWh) — leer = Modbus-Register"
+        }
+      },
+      "protection": {
+        "title": "Haier BWWP – Schutzfunktionen",
+        "description": "Zwei optionale Schutzfunktionen. Schwellen, Zeiten und Zieltemperaturen lassen sich später unter „Konfigurieren → Schutzfunktionen“ anpassen.",
+        "data": {
+          "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO/ELEC bei kritischer Temperatur)",
+          "legionella_enabled": "Legionellen-Schutz (periodische Desinfektion auf 65 °C)"
+        },
+        "data_description": {
+          "emergency_enabled": "Fällt das Wasser unter eine kritische Temperatur (Standard 38 °C), schaltet die Integration vorübergehend von ECO auf AUTO, damit sofort geheizt wird – auch außerhalb des ECO-Zeitfensters. Empfohlen.",
+          "legionella_enabled": "Heizt den Speicher regelmäßig (Standard alle 7 Tage) auf 65 °C durch, bevorzugt im ECO-Zeitfenster."
         }
       },
       "pv": {
         "title": "Haier BWWP – PV-Modus",
-        "description": "Optionale PV-Überschuss-Steuerung. Betriebsmodus wählen: Aus (nur die rohen Entitäten + 38-°C-Guard), Coordinator (die Integration regelt den Sollwert selbst nach PV-Überschuss + Tagesplan) oder Executor (ein externes HEMS regelt über select.haier_hwhp_pv_program). Die nächste Seite zeigt genau die Felder des gewählten Modus. Später jederzeit unter „Konfigurieren“ änderbar.",
+        "description": "Soll die Integration Warmwasser bevorzugt mit Solarstrom bereiten? „Aus“: keine PV-Regelung (Notheizung und Legionellen-Schutz arbeiten trotzdem). „Integration regelt“: die Integration steuert Solltemperatur und Modus selbst nach PV-Überschuss. „Energiemanager regelt“: ein externes System wie evcc steuert über das Programm-Select. Die nächste Seite zeigt nur die Felder des gewählten Modus.",
         "data": {
           "pv_mode": "PV-Modus"
         },
@@ -62,56 +72,82 @@
       },
       "pv_details": {
         "title": "Haier BWWP – PV-Einstellungen",
-        "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen, Tagesplan und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
+        "description": "Die Integration regelt nach PV-Überschuss: morgens ein Start auf die Normaltemperatur, bei Überschuss und laufender Wärmepumpe Anhebung auf die erhöhte Temperatur. Oben die wichtigsten Felder, darunter einklappbar die Feineinstellungen. Später jederzeit unter „Konfigurieren“ änderbar.",
         "data": {
           "pv_sensor": "PV-Überschuss-Sensor (W)",
-          "pv_battery_sensor": "Akku-Leistungssensor (optional, Akku-Vorrang)",
-          "pv_battery_sign": "Vorzeichen des Akku-Sensors",
-          "pv_battery_soc_sensor": "Akku-Ladestand-Sensor (optional)",
-          "pv_battery_soc_limit": "Akku-Vorrang bis Ladestand (%)",
-          "pv_priority_lock": "Vorrang-Sperre (optional)",
-          "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
           "pv_temp_base": "Normal-Zieltemperatur (°C)",
-          "pv_temp_high": "Boost-Zieltemperatur (°C, nur Executor)",
-          "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
-          "pv_high": "Boost-Schwelle – verfügbar (W)",
-          "pv_heater_power": "Heizstab-Nennleistung (W)",
-          "pv_power_entity": "Geräte-Gesamtleistung (optional, W)",
-          "pv_morning_enabled": "Fixer Morgen-Start",
-          "pv_morning_time": "Uhrzeit Morgen-Start",
-          "pv_coldstart": "Kaltstart-Schwelle – Überschuss (W)",
-          "pv_coldstart_delta": "Mindestdefizit Kaltstart (K)",
-          "pv_min_run": "Mindestlaufzeit (min)",
-          "pv_max_starts": "Max. Starts/Tag (Leiter)",
-          "pv_debounce": "Entprellzeit (Minuten)",
-          "pv_min_off": "Mindest-Stillstand vor Anhebung (min)",
-          "pv_escalation": "Eskalation bei hohem Überschuss",
-          "pv_boost_only_negative_price": "Boost nur bei Negativpreis",
-          "pv_negative_price_sensor": "Negativpreis-Sensor (optional)"
+          "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
+          "pv_temp_high": "Boost-Zieltemperatur (°C, nur Executor)"
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
-          "pv_battery_sensor": "Gibt dem Hausakku Vorrang: Die Regelung arbeitet dann mit **Überschuss − Akku-Ladeleistung**. Nötig, wenn dein Überschuss-Sensor als „PV − Hausverbrauch“ gerechnet ist – bei Hybrid-Wechselrichtern (Fronius, SMA, Huawei …) steckt die Akku-Ladung nicht im Hausverbrauch und erscheint sonst als Überschuss. **Leer lassen, wenn der Überschuss-Sensor bereits die Netzeinspeisung ist** (der Akku würde sonst doppelt abgezogen). Ist der Sensor nicht lesbar, gilt der Überschuss als 0.",
-          "pv_battery_sign": "„Laden positiv“ für reine Ladesensoren (immer ≥ 0) und Netto-Sensoren mit + = Laden. „Laden negativ“ für Netto-Sensoren mit − = Laden (z. B. Fronius „Battery Power“).",
-          "pv_battery_soc_sensor": "Optional. Zusammen mit der Ladestand-Grenze: Ab dieser Grenze zählt die Akku-Ladung wieder als Überschuss – die Wärmepumpe darf dann den Rest vor dem Akku nehmen. Ist der Sensor nicht lesbar, bleibt der Akku-Vorrang bestehen.",
-          "pv_battery_soc_limit": "Nur mit Ladestand-Sensor wirksam. 100 % = Akku hat immer Vorrang.",
-          "pv_priority_lock": "Optionaler binary_sensor/input_boolean/switch. Solange er **an** ist, gilt der Überschuss als 0: kein Kaltstart, kein Anheben, kein Heizstab – nur der Morgen-Start auf Normal-Zieltemperatur in ECO. Gedacht z. B. für „Auto steckt und wartet auf PV-Überschuss“ oder eine HEMS-Sperre. Ein ladendes Auto braucht das in der Regel nicht: Hängt die Wallbox hinter dem Netzzähler, steckt ihre Leistung schon im Hausverbrauch.",
-          "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
           "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für den nächtlichen Rückfall bei Zyklusende.",
-          "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht.",
-          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und Boost aus ist.",
-          "pv_high": "Boost-Schwelle auf den **normalisierten** Überschuss („verfügbar“ = roher Überschuss + Heizstab-Leistung, solange Boost läuft – macht das Signal invariant gegen die eigene Schalthandlung). Muss mindestens Heizstab-Nennleistung + 50 W betragen, sonst schaltet der Heizstab in den Netzbezug hinein ab (wird sonst automatisch hochgeklemmt). Einschalten entprellt mit der vollen Entprellzeit, Ausschalten sofort (ein Poll) – strikte Bezugsvermeidung.",
-          "pv_heater_power": "Nennleistung des Heizstabs laut Datenblatt (1500 W) – Grundlage der Verfügbar-Normalisierung. Ein Messsensor ist dafür nicht erforderlich.",
-          "pv_power_entity": "Optional: Geräte-Gesamtleistung (W), um die Heizstab-Leistung aus dem real gemessenen Einschalt-Zuwachs zu bestimmen statt aus dem Nennwert. Nie Voraussetzung – ohne Entität wird der Nennwert verwendet.",
-          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet. Teilt sich das Tageskontingent (s. u.) mit dem Kaltstart.",
-          "pv_coldstart": "Schwelle (verfügbarer Überschuss), ab der tagsüber – zusätzlich zum fixen Morgen-Start – kalt gestartet wird, wenn das Wasser unter der Erhöht-Zieltemperatur liegt. Entprellt mit der vollen Entprellzeit, respektiert denselben Anti-Takt wie der Morgen-Start und dasselbe Tageskontingent.",
-          "pv_coldstart_delta": "Wie weit das Wasser unter der Erhöht-Zieltemperatur liegen muss, damit der überschussgetriebene Kaltstart die Wärmepumpe anwirft. Verhindert Starts für wenige Grad: Die obersten Grad sind die schlechteste Wärme des Tages (schlechtester COP, höchster Stillstandsverlust). Bei Ziel 65 °C und 10 K feuert der Kaltstart erst unter 55 °C. Kleiner = mehr PV-Nutzung, größer = nur noch substanzielle Ladungen.",
-          "pv_min_run": "Wie lange ein einmal gestarteter Zyklus MINDESTENS gehalten wird, unabhängig vom Überschuss. Läuft der Verdichter, ist sein Start schon bezahlt – eine durchziehende Wolke soll ihn nicht abwürgen. Symmetrisch zur Mindest-Standzeit (Anti-Takt) vor dem nächsten Start.",
-          "pv_max_starts": "Wie viele von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart zusammen) pro Tag erlaubt sind – Default 1, für „möglichst ein Lauf pro Tag“ (Verdichterschonung). Geräte-Eigenstarts zählen nicht mit.",
-          "pv_min_off": "Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND Kaltstart): wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber bei bereits laufender WP (Piggyback) bleibt davon unberührt.",
-          "pv_escalation": "Was ab der Boost-Schwelle zusätzlich zugeschaltet wird. Keine: nur die Erhöht-Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam**, bei gleicher Zieltemperatur wie Erhöht – eine reine Leistungssenke für deutlichen Überschuss, keine eigene Temperaturstufe.",
-          "pv_boost_only_negative_price": "Ist ein Negativpreis-Sensor gewählt (s. u.) und dieser Haken gesetzt, feuert Boost **nur** im Negativpreisfenster. Ohne gewählten Sensor feuert Boost dann **nie** – vorher prüfen, ob der Sensor gesetzt ist.",
-          "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). **Nur sinnvoll mit dynamischem Stromtarif** – ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis. Im Zweifel leer lassen (Standardverhalten bleibt unverändert)."
+          "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
+          "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht."
+        },
+        "sections": {
+          "battery": {
+            "name": "Hausakku & Vorrang",
+            "description": "Nur nötig, wenn ein Hausakku oder andere Verbraucher (z. B. E-Auto) Vorrang vor dem Warmwasser haben sollen.",
+            "data": {
+              "pv_battery_sensor": "Akku-Leistungssensor (optional, Akku-Vorrang)",
+              "pv_battery_sign": "Vorzeichen des Akku-Sensors",
+              "pv_battery_soc_sensor": "Akku-Ladestand-Sensor (optional)",
+              "pv_battery_soc_limit": "Akku-Vorrang bis Ladestand (%)",
+              "pv_priority_lock": "Vorrang-Sperre (optional)"
+            },
+            "data_description": {
+              "pv_battery_sensor": "Gibt dem Hausakku Vorrang: Die Regelung arbeitet dann mit **Überschuss − Akku-Ladeleistung**. Nötig, wenn dein Überschuss-Sensor als „PV − Hausverbrauch“ gerechnet ist – bei Hybrid-Wechselrichtern (Fronius, SMA, Huawei …) steckt die Akku-Ladung nicht im Hausverbrauch und erscheint sonst als Überschuss. **Leer lassen, wenn der Überschuss-Sensor bereits die Netzeinspeisung ist** (der Akku würde sonst doppelt abgezogen). Ist der Sensor nicht lesbar, gilt der Überschuss als 0.",
+              "pv_battery_sign": "„Laden positiv“ für reine Ladesensoren (immer ≥ 0) und Netto-Sensoren mit + = Laden. „Laden negativ“ für Netto-Sensoren mit − = Laden (z. B. Fronius „Battery Power“).",
+              "pv_battery_soc_sensor": "Optional. Zusammen mit der Ladestand-Grenze: Ab dieser Grenze zählt die Akku-Ladung wieder als Überschuss – die Wärmepumpe darf dann den Rest vor dem Akku nehmen. Ist der Sensor nicht lesbar, bleibt der Akku-Vorrang bestehen.",
+              "pv_battery_soc_limit": "Nur mit Ladestand-Sensor wirksam. 100 % = Akku hat immer Vorrang.",
+              "pv_priority_lock": "Optionaler binary_sensor/input_boolean/switch. Solange er **an** ist, gilt der Überschuss als 0: kein Kaltstart, kein Anheben, kein Heizstab – nur der Morgen-Start auf Normal-Zieltemperatur in ECO. Gedacht z. B. für „Auto steckt und wartet auf PV-Überschuss“ oder eine HEMS-Sperre. Ein ladendes Auto braucht das in der Regel nicht: Hängt die Wallbox hinter dem Netzzähler, steckt ihre Leistung schon im Hausverbrauch."
+            }
+          },
+          "heater": {
+            "name": "Heizstab & Strompreis",
+            "description": "Ob und ab wann bei viel Überschuss zusätzlich der Heizstab mitläuft.",
+            "data": {
+              "pv_escalation": "Eskalation bei hohem Überschuss",
+              "pv_high": "Boost-Schwelle – verfügbar (W)",
+              "pv_heater_power": "Heizstab-Nennleistung (W)",
+              "pv_power_entity": "Geräte-Gesamtleistung (optional, W)",
+              "pv_boost_only_negative_price": "Boost nur bei Negativpreis",
+              "pv_negative_price_sensor": "Negativpreis-Sensor (optional)"
+            },
+            "data_description": {
+              "pv_escalation": "Was ab der Boost-Schwelle zusätzlich zugeschaltet wird. Keine: nur die Erhöht-Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam**, bei gleicher Zieltemperatur wie Erhöht – eine reine Leistungssenke für deutlichen Überschuss, keine eigene Temperaturstufe.",
+              "pv_high": "Boost-Schwelle auf den **normalisierten** Überschuss („verfügbar“ = roher Überschuss + Heizstab-Leistung, solange Boost läuft – macht das Signal invariant gegen die eigene Schalthandlung). Muss mindestens Heizstab-Nennleistung + 50 W betragen, sonst schaltet der Heizstab in den Netzbezug hinein ab (wird sonst automatisch hochgeklemmt). Einschalten entprellt mit der vollen Entprellzeit, Ausschalten sofort (ein Poll) – strikte Bezugsvermeidung.",
+              "pv_heater_power": "Nennleistung des Heizstabs laut Datenblatt (1500 W) – Grundlage der Verfügbar-Normalisierung. Ein Messsensor ist dafür nicht erforderlich.",
+              "pv_power_entity": "Optional: Geräte-Gesamtleistung (W), um die Heizstab-Leistung aus dem real gemessenen Einschalt-Zuwachs zu bestimmen statt aus dem Nennwert. Nie Voraussetzung – ohne Entität wird der Nennwert verwendet.",
+              "pv_boost_only_negative_price": "Ist ein Negativpreis-Sensor gewählt (s. u.) und dieser Haken gesetzt, feuert Boost **nur** im Negativpreisfenster. Ohne gewählten Sensor feuert Boost dann **nie** – vorher prüfen, ob der Sensor gesetzt ist.",
+              "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). **Nur sinnvoll mit dynamischem Stromtarif** – ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis. Im Zweifel leer lassen (Standardverhalten bleibt unverändert)."
+            }
+          },
+          "timing": {
+            "name": "Zeiten & Starts (Experte)",
+            "description": "Feinabstimmung der Regelung. Die Standardwerte passen meist.",
+            "data": {
+              "pv_morning_enabled": "Fixer Morgen-Start",
+              "pv_morning_time": "Uhrzeit Morgen-Start",
+              "pv_coldstart": "Kaltstart-Schwelle – Überschuss (W)",
+              "pv_coldstart_delta": "Mindestdefizit Kaltstart (K)",
+              "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
+              "pv_min_run": "Mindestlaufzeit (min)",
+              "pv_max_starts": "Max. Starts/Tag (Leiter)",
+              "pv_debounce": "Entprellzeit (Minuten)",
+              "pv_min_off": "Mindest-Stillstand vor Anhebung (min)"
+            },
+            "data_description": {
+              "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet. Teilt sich das Tageskontingent (s. u.) mit dem Kaltstart.",
+              "pv_coldstart": "Schwelle (verfügbarer Überschuss), ab der tagsüber – zusätzlich zum fixen Morgen-Start – kalt gestartet wird, wenn das Wasser unter der Erhöht-Zieltemperatur liegt. Entprellt mit der vollen Entprellzeit, respektiert denselben Anti-Takt wie der Morgen-Start und dasselbe Tageskontingent.",
+              "pv_coldstart_delta": "Wie weit das Wasser unter der Erhöht-Zieltemperatur liegen muss, damit der überschussgetriebene Kaltstart die Wärmepumpe anwirft. Verhindert Starts für wenige Grad: Die obersten Grad sind die schlechteste Wärme des Tages (schlechtester COP, höchster Stillstandsverlust). Bei Ziel 65 °C und 10 K feuert der Kaltstart erst unter 55 °C. Kleiner = mehr PV-Nutzung, größer = nur noch substanzielle Ladungen.",
+              "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und Boost aus ist.",
+              "pv_min_run": "Wie lange ein einmal gestarteter Zyklus MINDESTENS gehalten wird, unabhängig vom Überschuss. Läuft der Verdichter, ist sein Start schon bezahlt – eine durchziehende Wolke soll ihn nicht abwürgen. Symmetrisch zur Mindest-Standzeit (Anti-Takt) vor dem nächsten Start.",
+              "pv_max_starts": "Wie viele von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart zusammen) pro Tag erlaubt sind – Default 1, für „möglichst ein Lauf pro Tag“ (Verdichterschonung). Geräte-Eigenstarts zählen nicht mit.",
+              "pv_min_off": "Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND Kaltstart): wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber bei bereits laufender WP (Piggyback) bleibt davon unberührt."
+            }
+          }
         }
       }
     },
@@ -130,8 +166,19 @@
   "options": {
     "step": {
       "init": {
-        "title": "Einstellungen (Verbindung, COP, PV)",
-        "description": "Verbindung, COP-/Energiequellen und optionale PV-Überschuss-Steuerung. Host/Port/Slave ändern die Anbindung an den Modbus-Konverter.",
+        "title": "Haier BWWP – Einstellungen",
+        "description": "Welchen Bereich möchtest du ändern?",
+        "menu_options": {
+          "connection": "Verbindung & Gerät",
+          "energy": "Energie & COP",
+          "pv_mode": "PV-Überschuss",
+          "protection": "Schutzfunktionen",
+          "dashboard": "Dashboard"
+        }
+      },
+      "connection": {
+        "title": "Verbindung & Gerät",
+        "description": "Anbindung an die Wärmepumpe. Es gelten nur die Felder der gewählten Verbindungsart.",
         "data": {
           "connection_type": "Verbindungsart",
           "host": "Host / IP-Adresse (Modbus-Konverter)",
@@ -141,14 +188,39 @@
           "slave": "Modbus-Slave-ID",
           "model": "Modell",
           "scan_interval": "Abfrageintervall (Sekunden)",
-          "ambient_offset": "Offset Umgebungstemperatur (°C)",
-          "dashboard_enabled": "Dashboard automatisch anlegen",
+          "ambient_offset": "Offset Umgebungstemperatur (°C)"
+        },
+        "data_description": {
+          "connection_type": "TCP: über einen Modbus-RTU→TCP-Konverter (Host/Port). Seriell: direkt per USB/RS-485-Adapter (serieller Port/Baudrate). Es gelten nur die Felder der gewählten Art.",
+          "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen.",
+          "model": "Nur für die Geräteanzeige. Für HP250 und andere Varianten „Anderes Modell“ wählen.",
+          "scan_interval": "Standard 5 s. Kürzere Intervalle füllen die Recorder-Datenbank schneller."
+        }
+      },
+      "energy": {
+        "title": "Energie & COP",
+        "description": "COP = erzeugte Wärme ÷ eingesetzter Strom. Zähler leer lassen = Modbus-Register; Entität wählen = externer Zähler. **Hinweis:** Ohne externen Wärmemengenzähler stammt die Wärme aus dem Geräteregister; erste Messungen zeigen dort ca. 2- bis 3,7-mal zu hohe Werte, COP/JAZ fallen entsprechend zu hoch aus (wird überarbeitet).",
+        "data": {
           "cop_enabled": "COP-Berechnung aktiv",
           "cop_elec_entity": "Externer Stromzähler (kWh) — leer = Modbus-Register",
           "cop_heat_entity": "Externer Wärmemengenzähler (kWh) — leer = Modbus-Register",
           "energy_scale": "Skalierung der kWh-Register (×)",
-          "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)",
-          "pv_mode": "PV-Modus",
+          "cop_ref_date": "COP-Bezugsdatum (leer = automatisch; Tag des Wärmezähler-Resets)"
+        },
+        "data_description": {}
+      },
+      "pv_mode": {
+        "title": "PV-Überschuss – Modus",
+        "description": "Soll die Integration Warmwasser bevorzugt mit Solarstrom bereiten? „Aus“: keine PV-Regelung (Notheizung und Legionellen-Schutz arbeiten trotzdem). „Integration regelt“: die Integration steuert Solltemperatur und Modus selbst nach PV-Überschuss. „Energiemanager regelt“: ein externes System wie evcc steuert über das Programm-Select. Die nächste Seite zeigt nur die Felder des gewählten Modus.",
+        "data": {
+          "pv_mode": "PV-Modus"
+        },
+        "data_description": {}
+      },
+      "protection": {
+        "title": "Schutzfunktionen",
+        "description": "Zwei optionale Schutzfunktionen. Schwellen, Zeiten und Zieltemperaturen lassen sich später unter „Konfigurieren → Schutzfunktionen“ anpassen.",
+        "data": {
           "emergency_enabled": "Notfall-Nachheizung (ECO→AUTO/ELEC bei kritischer Temperatur)",
           "emergency_critical": "Kritische Wassertemperatur (°C)",
           "emergency_recover": "Erholt-Wassertemperatur (°C)",
@@ -162,7 +234,6 @@
           "legionella_window_end": "Bevorzugtes Fenster – Ende (ECO)"
         },
         "data_description": {
-          "pv_mode": "Aus: Die Integration regelt nicht (nur rohe Entitäten + 38-°C-Guard). Coordinator: Die Integration regelt Sollwert und Modus nach PV-Überschuss – fixer Morgen-Start plus überschussgetriebener Kaltstart (zusammen i. d. R. ein Lauf/Tag), Anheben auf Erhöht nur bei bereits laufender WP (Piggyback), dazu Boost (WP + Heizstab gemeinsam) als Leistungssenke ab der Boost-Schwelle. Executor: Ein externes HEMS regelt über das Programm-Select; die Integration stellt nur die Programme bereit. Die nächste Seite zeigt die Felder des gewählten Modus (bei Aus übersprungen).",
           "emergency_enabled": "Schaltet bei kritisch niedriger Wassertemperatur vorübergehend ECO→AUTO/ELEC, damit sofort geheizt wird (auch außerhalb des ECO-Zeitfensters); bei Erholung zurück zu ECO.",
           "emergency_critical": "Unter dieser Wassertemperatur eskaliert die Notheizung.",
           "emergency_recover": "Ab dieser Wassertemperatur wird wieder auf ECO zurückgeschaltet.",
@@ -173,64 +244,97 @@
           "legionella_bottom_min": "Der Lauf gilt erst als erreicht, wenn Tank unten – die kälteste Schicht – diese Temperatur hält (etwas unter dem Sollwert).",
           "legionella_hold_min": "So lange muss Tank unten die Nachweis-Schwelle halten, bevor der Lauf als erfolgreich zählt.",
           "legionella_window_start": "Bevorzugtes Zeitfenster (i. d. R. das ECO-Fenster des Geräts): Der Lauf startet nach Möglichkeit hier und heizt zunächst effizient in ECO mit; kommt er nicht ans Ziel, eskaliert er auf AUTO. Überfällig wird der Schutz notfalls auch außerhalb erzwungen.",
-          "legionella_window_end": "Ende des bevorzugten Fensters (i. d. R. das ECO-Fenster des Geräts).",
-          "dashboard_enabled": "Legt beim Setup das Dashboard „Haier BWWP“ an (editierbar, wenn Home Assistant das zulässt). Aus: kein Dashboard mehr anlegen; ein nicht editierbares YAML-Dashboard der Integration wird entfernt, ein bereits angelegtes editierbares bleibt bestehen und lässt sich unter Einstellungen → Dashboards löschen.",
-          "connection_type": "TCP: über einen Modbus-RTU→TCP-Konverter (Host/Port). Seriell: direkt per USB/RS-485-Adapter (serieller Port/Baudrate). Es gelten nur die Felder der gewählten Art.",
-          "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen."
+          "legionella_window_end": "Ende des bevorzugten Fensters (i. d. R. das ECO-Fenster des Geräts)."
+        }
+      },
+      "dashboard": {
+        "title": "Dashboard",
+        "description": "Mitgeliefertes Dashboard „Haier BWWP“.",
+        "data": {
+          "dashboard_enabled": "Dashboard automatisch anlegen"
+        },
+        "data_description": {
+          "dashboard_enabled": "Legt beim Setup das Dashboard „Haier BWWP“ an (editierbar, wenn Home Assistant das zulässt). Aus: kein Dashboard mehr anlegen; ein nicht editierbares YAML-Dashboard der Integration wird entfernt, ein bereits angelegtes editierbares bleibt bestehen und lässt sich unter Einstellungen → Dashboards löschen."
         }
       },
       "pv": {
-        "title": "Haier BWWP – PV-Einstellungen",
-        "description": "Einstellungen für den gewählten PV-Modus. Coordinator: Überschuss-Sensor, Zieltemperaturen, Tagesplan und die Regel-Schwellen. Executor: nur die Zieltemperaturen (Mechanik fürs Programm-Select).",
+        "title": "PV-Überschuss – Einstellungen",
+        "description": "Die Integration regelt nach PV-Überschuss: morgens ein Start auf die Normaltemperatur, bei Überschuss und laufender Wärmepumpe Anhebung auf die erhöhte Temperatur. Oben die wichtigsten Felder, darunter einklappbar die Feineinstellungen. Später jederzeit unter „Konfigurieren“ änderbar.",
         "data": {
           "pv_sensor": "PV-Überschuss-Sensor (W)",
-          "pv_battery_sensor": "Akku-Leistungssensor (optional, Akku-Vorrang)",
-          "pv_battery_sign": "Vorzeichen des Akku-Sensors",
-          "pv_battery_soc_sensor": "Akku-Ladestand-Sensor (optional)",
-          "pv_battery_soc_limit": "Akku-Vorrang bis Ladestand (%)",
-          "pv_priority_lock": "Vorrang-Sperre (optional)",
-          "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
           "pv_temp_base": "Normal-Zieltemperatur (°C)",
-          "pv_temp_high": "Boost-Zieltemperatur (°C, nur Executor)",
-          "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
-          "pv_high": "Boost-Schwelle – verfügbar (W)",
-          "pv_heater_power": "Heizstab-Nennleistung (W)",
-          "pv_power_entity": "Geräte-Gesamtleistung (optional, W)",
-          "pv_morning_enabled": "Fixer Morgen-Start",
-          "pv_morning_time": "Uhrzeit Morgen-Start",
-          "pv_coldstart": "Kaltstart-Schwelle – Überschuss (W)",
-          "pv_coldstart_delta": "Mindestdefizit Kaltstart (K)",
-          "pv_min_run": "Mindestlaufzeit (min)",
-          "pv_max_starts": "Max. Starts/Tag (Leiter)",
-          "pv_debounce": "Entprellzeit (Minuten)",
-          "pv_min_off": "Mindest-Stillstand vor Anhebung (min)",
-          "pv_escalation": "Eskalation bei hohem Überschuss",
-          "pv_boost_only_negative_price": "Boost nur bei Negativpreis",
-          "pv_negative_price_sensor": "Negativpreis-Sensor (optional)"
+          "pv_temp_normal": "Erhöht-Zieltemperatur (°C)",
+          "pv_temp_high": "Boost-Zieltemperatur (°C, nur Executor)"
         },
         "data_description": {
           "pv_sensor": "Roher PV-Überschuss in W (≥ 0). Im Coordinator-Modus erforderlich.",
-          "pv_battery_sensor": "Gibt dem Hausakku Vorrang: Die Regelung arbeitet dann mit **Überschuss − Akku-Ladeleistung**. Nötig, wenn dein Überschuss-Sensor als „PV − Hausverbrauch“ gerechnet ist – bei Hybrid-Wechselrichtern (Fronius, SMA, Huawei …) steckt die Akku-Ladung nicht im Hausverbrauch und erscheint sonst als Überschuss. **Leer lassen, wenn der Überschuss-Sensor bereits die Netzeinspeisung ist** (der Akku würde sonst doppelt abgezogen). Ist der Sensor nicht lesbar, gilt der Überschuss als 0.",
-          "pv_battery_sign": "„Laden positiv“ für reine Ladesensoren (immer ≥ 0) und Netto-Sensoren mit + = Laden. „Laden negativ“ für Netto-Sensoren mit − = Laden (z. B. Fronius „Battery Power“).",
-          "pv_battery_soc_sensor": "Optional. Zusammen mit der Ladestand-Grenze: Ab dieser Grenze zählt die Akku-Ladung wieder als Überschuss – die Wärmepumpe darf dann den Rest vor dem Akku nehmen. Ist der Sensor nicht lesbar, bleibt der Akku-Vorrang bestehen.",
-          "pv_battery_soc_limit": "Nur mit Ladestand-Sensor wirksam. 100 % = Akku hat immer Vorrang.",
-          "pv_priority_lock": "Optionaler binary_sensor/input_boolean/switch. Solange er **an** ist, gilt der Überschuss als 0: kein Kaltstart, kein Anheben, kein Heizstab – nur der Morgen-Start auf Normal-Zieltemperatur in ECO. Gedacht z. B. für „Auto steckt und wartet auf PV-Überschuss“ oder eine HEMS-Sperre. Ein ladendes Auto braucht das in der Regel nicht: Hängt die Wallbox hinter dem Netzzähler, steckt ihre Leistung schon im Hausverbrauch.",
-          "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
           "pv_temp_base": "Normal-Zieltemperatur (ohne Überschuss) – zugleich der Bezugspunkt für den nächtlichen Rückfall bei Zyklusende.",
-          "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht.",
-          "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und Boost aus ist.",
-          "pv_high": "Boost-Schwelle auf den **normalisierten** Überschuss („verfügbar“ = roher Überschuss + Heizstab-Leistung, solange Boost läuft – macht das Signal invariant gegen die eigene Schalthandlung). Muss mindestens Heizstab-Nennleistung + 50 W betragen, sonst schaltet der Heizstab in den Netzbezug hinein ab (wird sonst automatisch hochgeklemmt). Einschalten entprellt mit der vollen Entprellzeit, Ausschalten sofort (ein Poll) – strikte Bezugsvermeidung.",
-          "pv_heater_power": "Nennleistung des Heizstabs laut Datenblatt (1500 W) – Grundlage der Verfügbar-Normalisierung. Ein Messsensor ist dafür nicht erforderlich.",
-          "pv_power_entity": "Optional: Geräte-Gesamtleistung (W), um die Heizstab-Leistung aus dem real gemessenen Einschalt-Zuwachs zu bestimmen statt aus dem Nennwert. Nie Voraussetzung – ohne Entität wird der Nennwert verwendet.",
-          "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet. Teilt sich das Tageskontingent (s. u.) mit dem Kaltstart.",
-          "pv_coldstart": "Schwelle (verfügbarer Überschuss), ab der tagsüber – zusätzlich zum fixen Morgen-Start – kalt gestartet wird, wenn das Wasser unter der Erhöht-Zieltemperatur liegt. Entprellt mit der vollen Entprellzeit, respektiert denselben Anti-Takt wie der Morgen-Start und dasselbe Tageskontingent.",
-          "pv_coldstart_delta": "Wie weit das Wasser unter der Erhöht-Zieltemperatur liegen muss, damit der überschussgetriebene Kaltstart die Wärmepumpe anwirft. Verhindert Starts für wenige Grad: Die obersten Grad sind die schlechteste Wärme des Tages (schlechtester COP, höchster Stillstandsverlust). Bei Ziel 65 °C und 10 K feuert der Kaltstart erst unter 55 °C. Kleiner = mehr PV-Nutzung, größer = nur noch substanzielle Ladungen.",
-          "pv_min_run": "Wie lange ein einmal gestarteter Zyklus MINDESTENS gehalten wird, unabhängig vom Überschuss. Läuft der Verdichter, ist sein Start schon bezahlt – eine durchziehende Wolke soll ihn nicht abwürgen. Symmetrisch zur Mindest-Standzeit (Anti-Takt) vor dem nächsten Start.",
-          "pv_max_starts": "Wie viele von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart zusammen) pro Tag erlaubt sind – Default 1, für „möglichst ein Lauf pro Tag“ (Verdichterschonung). Geräte-Eigenstarts zählen nicht mit.",
-          "pv_min_off": "Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND Kaltstart): wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber bei bereits laufender WP (Piggyback) bleibt davon unberührt.",
-          "pv_escalation": "Was ab der Boost-Schwelle zusätzlich zugeschaltet wird. Keine: nur die Erhöht-Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam**, bei gleicher Zieltemperatur wie Erhöht – eine reine Leistungssenke für deutlichen Überschuss, keine eigene Temperaturstufe.",
-          "pv_boost_only_negative_price": "Ist ein Negativpreis-Sensor gewählt (s. u.) und dieser Haken gesetzt, feuert Boost **nur** im Negativpreisfenster. Ohne gewählten Sensor feuert Boost dann **nie** – vorher prüfen, ob der Sensor gesetzt ist.",
-          "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). **Nur sinnvoll mit dynamischem Stromtarif** – ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis. Im Zweifel leer lassen (Standardverhalten bleibt unverändert)."
+          "pv_temp_normal": "Erhöht-Zieltemperatur, vom **Verdichter allein** zu erreichen – daher auf 65 °C begrenzt (Datenblatt: max. Temperaturausgabe nur Wärmepumpe). Zugleich die Boost-Zieltemperatur: Boost ist eine Leistungssenke (WP + Heizstab gemeinsam), keine eigene Temperaturstufe. Muss höher liegen als die Normal-Zieltemperatur.",
+          "pv_temp_high": "Nur noch für das Executor-Programm relevant (select.haier_hwhp_pv_program, Programm „Boost“) – im Coordinator-Modus nutzt Boost dieselbe Zieltemperatur wie Erhöht."
+        },
+        "sections": {
+          "battery": {
+            "name": "Hausakku & Vorrang",
+            "description": "Nur nötig, wenn ein Hausakku oder andere Verbraucher (z. B. E-Auto) Vorrang vor dem Warmwasser haben sollen.",
+            "data": {
+              "pv_battery_sensor": "Akku-Leistungssensor (optional, Akku-Vorrang)",
+              "pv_battery_sign": "Vorzeichen des Akku-Sensors",
+              "pv_battery_soc_sensor": "Akku-Ladestand-Sensor (optional)",
+              "pv_battery_soc_limit": "Akku-Vorrang bis Ladestand (%)",
+              "pv_priority_lock": "Vorrang-Sperre (optional)"
+            },
+            "data_description": {
+              "pv_battery_sensor": "Gibt dem Hausakku Vorrang: Die Regelung arbeitet dann mit **Überschuss − Akku-Ladeleistung**. Nötig, wenn dein Überschuss-Sensor als „PV − Hausverbrauch“ gerechnet ist – bei Hybrid-Wechselrichtern (Fronius, SMA, Huawei …) steckt die Akku-Ladung nicht im Hausverbrauch und erscheint sonst als Überschuss. **Leer lassen, wenn der Überschuss-Sensor bereits die Netzeinspeisung ist** (der Akku würde sonst doppelt abgezogen). Ist der Sensor nicht lesbar, gilt der Überschuss als 0.",
+              "pv_battery_sign": "„Laden positiv“ für reine Ladesensoren (immer ≥ 0) und Netto-Sensoren mit + = Laden. „Laden negativ“ für Netto-Sensoren mit − = Laden (z. B. Fronius „Battery Power“).",
+              "pv_battery_soc_sensor": "Optional. Zusammen mit der Ladestand-Grenze: Ab dieser Grenze zählt die Akku-Ladung wieder als Überschuss – die Wärmepumpe darf dann den Rest vor dem Akku nehmen. Ist der Sensor nicht lesbar, bleibt der Akku-Vorrang bestehen.",
+              "pv_battery_soc_limit": "Nur mit Ladestand-Sensor wirksam. 100 % = Akku hat immer Vorrang.",
+              "pv_priority_lock": "Optionaler binary_sensor/input_boolean/switch. Solange er **an** ist, gilt der Überschuss als 0: kein Kaltstart, kein Anheben, kein Heizstab – nur der Morgen-Start auf Normal-Zieltemperatur in ECO. Gedacht z. B. für „Auto steckt und wartet auf PV-Überschuss“ oder eine HEMS-Sperre. Ein ladendes Auto braucht das in der Regel nicht: Hängt die Wallbox hinter dem Netzzähler, steckt ihre Leistung schon im Hausverbrauch."
+            }
+          },
+          "heater": {
+            "name": "Heizstab & Strompreis",
+            "description": "Ob und ab wann bei viel Überschuss zusätzlich der Heizstab mitläuft.",
+            "data": {
+              "pv_escalation": "Eskalation bei hohem Überschuss",
+              "pv_high": "Boost-Schwelle – verfügbar (W)",
+              "pv_heater_power": "Heizstab-Nennleistung (W)",
+              "pv_power_entity": "Geräte-Gesamtleistung (optional, W)",
+              "pv_boost_only_negative_price": "Boost nur bei Negativpreis",
+              "pv_negative_price_sensor": "Negativpreis-Sensor (optional)"
+            },
+            "data_description": {
+              "pv_escalation": "Was ab der Boost-Schwelle zusätzlich zugeschaltet wird. Keine: nur die Erhöht-Zieltemperatur (die WP bleibt bei max. 65 °C). Boost: WP + Heizstab **gemeinsam**, bei gleicher Zieltemperatur wie Erhöht – eine reine Leistungssenke für deutlichen Überschuss, keine eigene Temperaturstufe.",
+              "pv_high": "Boost-Schwelle auf den **normalisierten** Überschuss („verfügbar“ = roher Überschuss + Heizstab-Leistung, solange Boost läuft – macht das Signal invariant gegen die eigene Schalthandlung). Muss mindestens Heizstab-Nennleistung + 50 W betragen, sonst schaltet der Heizstab in den Netzbezug hinein ab (wird sonst automatisch hochgeklemmt). Einschalten entprellt mit der vollen Entprellzeit, Ausschalten sofort (ein Poll) – strikte Bezugsvermeidung.",
+              "pv_heater_power": "Nennleistung des Heizstabs laut Datenblatt (1500 W) – Grundlage der Verfügbar-Normalisierung. Ein Messsensor ist dafür nicht erforderlich.",
+              "pv_power_entity": "Optional: Geräte-Gesamtleistung (W), um die Heizstab-Leistung aus dem real gemessenen Einschalt-Zuwachs zu bestimmen statt aus dem Nennwert. Nie Voraussetzung – ohne Entität wird der Nennwert verwendet.",
+              "pv_boost_only_negative_price": "Ist ein Negativpreis-Sensor gewählt (s. u.) und dieser Haken gesetzt, feuert Boost **nur** im Negativpreisfenster. Ohne gewählten Sensor feuert Boost dann **nie** – vorher prüfen, ob der Sensor gesetzt ist.",
+              "pv_negative_price_sensor": "Optionaler binary_sensor/input_boolean, der die aktuelle Viertelstunde als Negativ-/Null-Preis kennzeichnet (z. B. eigenes Template über Tibber/aWATTar/Nordpool – die Integration berechnet den Preis nicht selbst). **Nur sinnvoll mit dynamischem Stromtarif** – ein negativer Börsenpreis senkt den Einspeiseerlös, nicht automatisch den Bezugspreis. Im Zweifel leer lassen (Standardverhalten bleibt unverändert)."
+            }
+          },
+          "timing": {
+            "name": "Zeiten & Starts (Experte)",
+            "description": "Feinabstimmung der Regelung. Die Standardwerte passen meist.",
+            "data": {
+              "pv_morning_enabled": "Fixer Morgen-Start",
+              "pv_morning_time": "Uhrzeit Morgen-Start",
+              "pv_coldstart": "Kaltstart-Schwelle – Überschuss (W)",
+              "pv_coldstart_delta": "Mindestdefizit Kaltstart (K)",
+              "pv_hold": "Halte-/Piggyback-Puffer – Überschuss (W)",
+              "pv_min_run": "Mindestlaufzeit (min)",
+              "pv_max_starts": "Max. Starts/Tag (Leiter)",
+              "pv_debounce": "Entprellzeit (Minuten)",
+              "pv_min_off": "Mindest-Stillstand vor Anhebung (min)"
+            },
+            "data_description": {
+              "pv_morning_time": "Einmal täglich zu dieser Uhrzeit, wenn das Wasser unter der Normal-Zieltemperatur liegt, den Sollwert auf die Erhöht-Zieltemperatur anstoßen – damit die WP im ECO-Fenster des Geräts startet. Teilt sich das Tageskontingent (s. u.) mit dem Kaltstart.",
+              "pv_coldstart": "Schwelle (verfügbarer Überschuss), ab der tagsüber – zusätzlich zum fixen Morgen-Start – kalt gestartet wird, wenn das Wasser unter der Erhöht-Zieltemperatur liegt. Entprellt mit der vollen Entprellzeit, respektiert denselben Anti-Takt wie der Morgen-Start und dasselbe Tageskontingent.",
+              "pv_coldstart_delta": "Wie weit das Wasser unter der Erhöht-Zieltemperatur liegen muss, damit der überschussgetriebene Kaltstart die Wärmepumpe anwirft. Verhindert Starts für wenige Grad: Die obersten Grad sind die schlechteste Wärme des Tages (schlechtester COP, höchster Stillstandsverlust). Bei Ziel 65 °C und 10 K feuert der Kaltstart erst unter 55 °C. Kleiner = mehr PV-Nutzung, größer = nur noch substanzielle Ladungen.",
+              "pv_hold": "Puffer, oberhalb dessen der WP-Zyklus auf die Erhöht-Zieltemperatur angehoben und dort gehalten wird – das Anheben tagsüber aber nur bei bereits laufender WP (Piggyback), also keine zusätzlichen Kaltstarts. Senkt nach der Entprellzeit zurück auf Normal, sobald der Überschuss darunter bleibt und Boost aus ist.",
+              "pv_min_run": "Wie lange ein einmal gestarteter Zyklus MINDESTENS gehalten wird, unabhängig vom Überschuss. Läuft der Verdichter, ist sein Start schon bezahlt – eine durchziehende Wolke soll ihn nicht abwürgen. Symmetrisch zur Mindest-Standzeit (Anti-Takt) vor dem nächsten Start.",
+              "pv_max_starts": "Wie viele von der Leiter ausgelöste Starts (Morgen-Start + Kaltstart zusammen) pro Tag erlaubt sind – Default 1, für „möglichst ein Lauf pro Tag“ (Verdichterschonung). Geräte-Eigenstarts zählen nicht mit.",
+              "pv_min_off": "Anti-Takt für JEDE Sollwert-Anhebung bei stehender WP (Morgen-Start UND Kaltstart): wartet, bis der Verdichter mindestens so lange aus war. Das Anheben tagsüber bei bereits laufender WP (Piggyback) bleibt davon unberührt."
+            }
+          }
         }
       }
     },
@@ -247,8 +351,8 @@
     "pv_mode": {
       "options": {
         "off": "Aus",
-        "coordinator": "Coordinator (Integration regelt)",
-        "executor": "Executor (externes HEMS)"
+        "coordinator": "Integration regelt (PV-Überschuss)",
+        "executor": "Energiemanager regelt (z. B. evcc)"
       }
     },
     "pv_escalation": {

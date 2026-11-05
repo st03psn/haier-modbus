@@ -57,7 +57,7 @@ if not any(isinstance(f, _PymodbusRetryNoise) for f in _pymodbus_logger.filters)
 
 
 # (card_name, url_substring, hacs_repo, fs_fallback_path)
-# Ab v1.24.0 braucht das mitgelieferte Dashboard nur noch button-card
+# Ab v2.0.0 braucht das mitgelieferte Dashboard nur noch button-card
 # (Speicher-Grafik, JAZ/COP-Karte). ApexCharts/card-mod nutzt es nicht mehr;
 # ältere, vom Nutzer behaltene Dashboards haben sie ohnehin schon installiert.
 # Bis HA 2026.10 wird über HACS nachinstalliert. Ab HA 2026.11 ersetzt der

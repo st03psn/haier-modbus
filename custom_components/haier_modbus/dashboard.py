@@ -52,7 +52,7 @@ _LEGACY_DASH_DIR = "haier_bwwp"  # alter Ort unter <config>/ – wird aufgeräum
 # Layout-Generation des mitgelieferten Dashboards. Ein bestehendes (Nutzer-)
 # Dashboard wird NIE automatisch überschrieben; ist die gespeicherte Generation
 # älter, gibt es einmalig einen Hinweis auf den Dienst ``rebuild_dashboard``.
-DASHBOARD_LAYOUT_VERSION = 2  # 2 = Ein-Seiten-Layout ab v1.24.0
+DASHBOARD_LAYOUT_VERSION = 2  # 2 = Ein-Seiten-Layout ab v2.0.0
 _LAYOUT_STORE_KEY = f"{DOMAIN}.dashboard_layout"
 _NOTIFY_ID = f"{DOMAIN}_dashboard_layout"
 
@@ -359,7 +359,7 @@ async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -
     bleibt es unangetastet; ist seine Generation älter, meldet die Update-Entität
     ``update.<…>_dashboard`` ein Update (dauerhaft sichtbar unter Einstellungen
     und – im neuen Layout – als Kachel im Dashboard) und es gibt einmalig eine
-    Benachrichtigung. Dashboards vor v1.24.0 haben keinen Fingerabdruck und
+    Benachrichtigung. Dashboards vor v2.0.0 haben keinen Fingerabdruck und
     gelten als angepasst (Generation 1).
     """
     meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)

@@ -15,12 +15,12 @@
           "host": "Host / IP address",
           "port": "Port",
           "slave": "Modbus slave ID",
-          "scan_interval": "Polling interval (seconds)",
           "model": "Model"
         },
         "data_description": {
           "host": "Usually the IP of the Modbus RTU-to-TCP converter, not the heat pump itself.",
-          "slave": "Modbus address of the heat pump on the RTU bus (default 1)."
+          "slave": "Modbus address of the heat pump on the RTU bus (default 1).",
+          "model": "Only used for the device display. For HP250 and other variants choose “Other model”."
         }
       },
       "serial": {
@@ -30,29 +30,39 @@
           "serial_port": "Serial port",
           "baudrate": "Baud rate",
           "slave": "Modbus slave ID",
-          "scan_interval": "Polling interval (seconds)",
           "model": "Model"
         },
         "data_description": {
           "serial_port": "Prefer the stable path under /dev/serial/by-id/…; /dev/ttyUSB0 can change after a reboot.",
           "baudrate": "9600 according to the manufacturer.",
-          "slave": "Modbus address of the heat pump on the RTU bus (default 1)."
+          "slave": "Modbus address of the heat pump on the RTU bus (default 1).",
+          "model": "Only used for the device display. For HP250 and other variants choose “Other model”."
         }
       },
       "cop": {
         "title": "Haier HWHP – COP & energy",
-        "description": "COP = produced heat / electricity used. Leave a meter empty to use the device's integrated Modbus register; pick an entity to use an external meter. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total. Changeable later via \"Configure\".",
+        "description": "COP = produced heat / electricity used. Leave a meter empty to use the device's integrated Modbus register; pick an entity to use an external meter. Tip: for an external electricity meter, pick a yearly-resetting counter (utility_meter, cycle: yearly) so the window matches the device's yearly heat total. Changeable later via \"Configure\". **Note:** without an external heat meter the heat comes from the device register; first measurements show values about 2 to 3.7 times too high, so COP/SCOP are correspondingly too high (to be revised).",
         "data": {
           "cop_enabled": "Enable COP calculation",
           "cop_elec_entity": "External electricity meter (kWh) — empty = Modbus register",
-          "cop_heat_entity": "External heat meter (kWh) — empty = Modbus register",
-          "energy_scale": "kWh register scaling (x)",
-          "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)"
+          "cop_heat_entity": "External heat meter (kWh) — empty = Modbus register"
+        }
+      },
+      "protection": {
+        "title": "Haier HWHP – protection",
+        "description": "Two optional protection functions. Thresholds, times and target temperatures can be adjusted later under “Configure → Protection”.",
+        "data": {
+          "emergency_enabled": "Emergency reheat (ECO→AUTO/ELEC at critical temperature)",
+          "legionella_enabled": "Legionella protection (periodic 65 °C disinfection)"
+        },
+        "data_description": {
+          "emergency_enabled": "If the water drops below a critical temperature (default 38 °C), the integration temporarily switches from ECO to AUTO so that it heats immediately – also outside the ECO time window. Recommended.",
+          "legionella_enabled": "Regularly heats the whole tank to 65 °C (default every 7 days), preferably in the ECO time window."
         }
       },
       "pv": {
         "title": "Haier HWHP – PV mode",
-        "description": "Optional PV-surplus control. Pick the operating mode: Off (only the raw entities + 38 °C guard), Coordinator (the integration controls setpoint and mode itself from PV surplus + a daily plan), or Executor (an external HEMS controls it via select.haier_hwhp_pv_program). The next page shows exactly the fields for the chosen mode. Changeable later via \"Configure\".",
+        "description": "Should the integration prefer solar power for hot water? “Off”: no PV control (emergency heating and legionella protection still work). “Integration controls”: the integration sets setpoint and mode itself based on PV surplus. “Energy manager controls”: an external system such as evcc controls via the program select. The next page shows only the fields of the selected mode.",
         "data": {
           "pv_mode": "PV mode"
         },
@@ -62,56 +72,82 @@
       },
       "pv_details": {
         "title": "Haier HWHP – PV settings",
-        "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps, daily plan and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
+        "description": "The integration controls by PV surplus: one start to the normal temperature in the morning, raised to the elevated temperature when there is surplus and the heat pump is already running. The most important fields are at the top; fine-tuning is in the collapsible sections below. Can be changed any time under “Configure”.",
         "data": {
           "pv_sensor": "PV surplus sensor (W)",
-          "pv_battery_sensor": "Battery power sensor (optional, battery priority)",
-          "pv_battery_sign": "Battery sensor sign",
-          "pv_battery_soc_sensor": "Battery state-of-charge sensor (optional)",
-          "pv_battery_soc_limit": "Battery priority up to SoC (%)",
-          "pv_priority_lock": "Priority lock (optional)",
-          "pv_temp_normal": "Elevated target temperature (°C)",
           "pv_temp_base": "Normal target temperature (°C)",
-          "pv_temp_high": "Boost target temperature (°C, Executor only)",
-          "pv_hold": "Hold / piggyback buffer – surplus (W)",
-          "pv_high": "Boost threshold – available (W)",
-          "pv_heater_power": "Electric heater rated power (W)",
-          "pv_power_entity": "Device total power (optional, W)",
-          "pv_morning_enabled": "Fixed morning start",
-          "pv_morning_time": "Morning start time",
-          "pv_coldstart": "Cold-start threshold – surplus (W)",
-          "pv_coldstart_delta": "Cold-start minimum deficit (K)",
-          "pv_min_run": "Minimum run time (min)",
-          "pv_max_starts": "Max. starts/day (ladder)",
-          "pv_debounce": "Debounce time (minutes)",
-          "pv_min_off": "Minimum off-time before a raise (min)",
-          "pv_escalation": "Escalation at high surplus",
-          "pv_boost_only_negative_price": "Boost only on negative price",
-          "pv_negative_price_sensor": "Negative-price sensor (optional)"
+          "pv_temp_normal": "Elevated target temperature (°C)",
+          "pv_temp_high": "Boost target temperature (°C, Executor only)"
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
-          "pv_battery_sensor": "Gives the home battery priority: control then works on **surplus − battery charging power**. Needed if your surplus sensor is computed as “PV − house consumption” — with hybrid inverters (Fronius, SMA, Huawei …) battery charging is not part of house consumption and otherwise shows up as surplus. **Leave empty if your surplus sensor already is the grid feed-in** (the battery would be subtracted twice). If the sensor can't be read, surplus counts as 0.",
-          "pv_battery_sign": "“Charging positive” for pure charge sensors (always ≥ 0) and net sensors with + = charging. “Charging negative” for net sensors with − = charging (e.g. Fronius “Battery Power”).",
-          "pv_battery_soc_sensor": "Optional. Together with the SoC limit: from that limit on, battery charging counts as surplus again — the heat pump may then take the rest before the battery. If the sensor can't be read, battery priority stays in effect.",
-          "pv_battery_soc_limit": "Only effective with a SoC sensor. 100 % = battery always has priority.",
-          "pv_priority_lock": "Optional binary_sensor/input_boolean/switch. While it is **on**, surplus counts as 0: no cold start, no raise, no heater — only the morning start to the normal target in ECO. Meant e.g. for “car plugged in and waiting for PV surplus” or an HEMS lock. A charging car usually doesn't need it: if the wallbox sits behind the grid meter, its power is already in house consumption.",
-          "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
           "pv_temp_base": "Normal target temperature (no surplus) — also the setpoint the controller falls back to when a cycle ends.",
-          "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated.",
-          "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and Boost is off.",
-          "pv_high": "Boost threshold on the **normalized** surplus (\"available\" = raw surplus + heater power while Boost is running — makes the signal invariant to its own switching action). Must be at least the heater's rated power + 50 W, otherwise the heater would switch off into grid draw (auto-raised otherwise). Turning on debounces for the full time, turning off is immediate (one poll) — strict grid-draw avoidance.",
-          "pv_heater_power": "Rated power of the electric heater per the data sheet (1500 W) — basis of the available-surplus normalization. No power meter required.",
-          "pv_power_entity": "Optional: device total power (W), to derive the heater's power from the real measured step-up on switch-on instead of the rated value. Never a requirement — without an entity the rated value is used.",
-          "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window. Shares the daily quota (below) with the cold start.",
-          "pv_coldstart": "Threshold (available surplus) above which — in addition to the fixed morning start — a cold start happens during the day if the water is below the elevated target. Debounces with the full debounce time, honours the same anti-short-cycle guard as the morning start and the same daily quota.",
-          "pv_coldstart_delta": "How far below the raised target temperature the water must be before the surplus-driven cold start fires the heat pump. Prevents starts for a few degrees: the topmost degrees are the worst heat of the day (worst COP, highest standing loss). With a 65 °C target and 10 K, the cold start only fires below 55 °C. Smaller = more PV usage, larger = only substantial charges.",
-          "pv_min_run": "How long an already-started cycle is held AT MINIMUM, regardless of surplus. Once the compressor runs, its start is already paid for — a passing cloud should not kill it. Symmetric to the minimum stand time (anti-cycling) before the next start.",
-          "pv_max_starts": "How many ladder-triggered starts (morning start + cold start together) are allowed per day — default 1, for \"as few compressor cycles as possible\". Device-initiated starts don't count.",
-          "pv_min_off": "Anti-short-cycle for EVERY setpoint raise while the pump is off (morning start AND cold start): waits until the compressor has been off at least this long. Daytime raises while already running (piggyback) are unaffected.",
-          "pv_escalation": "What gets added once surplus passes the boost threshold. None: just the elevated target (the pump stays at max. 65 °C). Boost: heat pump + heater **together**, at the same target as Elevated — a pure power sink for substantial surplus, not its own temperature tier.",
-          "pv_boost_only_negative_price": "If a negative-price sensor is selected (below) and this is checked, Boost fires **only** during the negative-price window. Without a selected sensor Boost then **never** fires — check the sensor is set first.",
-          "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). **Only sensible with a dynamic tariff** — a negative exchange price cuts your feed-in revenue, not automatically your purchase price. When in doubt leave empty (default behaviour unchanged)."
+          "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
+          "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated."
+        },
+        "sections": {
+          "battery": {
+            "name": "Home battery & priority",
+            "description": "Only needed if a home battery or other loads (e.g. an EV) should take priority over hot water.",
+            "data": {
+              "pv_battery_sensor": "Battery power sensor (optional, battery priority)",
+              "pv_battery_sign": "Battery sensor sign",
+              "pv_battery_soc_sensor": "Battery state-of-charge sensor (optional)",
+              "pv_battery_soc_limit": "Battery priority up to SoC (%)",
+              "pv_priority_lock": "Priority lock (optional)"
+            },
+            "data_description": {
+              "pv_battery_sensor": "Gives the home battery priority: control then works on **surplus − battery charging power**. Needed if your surplus sensor is computed as “PV − house consumption” — with hybrid inverters (Fronius, SMA, Huawei …) battery charging is not part of house consumption and otherwise shows up as surplus. **Leave empty if your surplus sensor already is the grid feed-in** (the battery would be subtracted twice). If the sensor can't be read, surplus counts as 0.",
+              "pv_battery_sign": "“Charging positive” for pure charge sensors (always ≥ 0) and net sensors with + = charging. “Charging negative” for net sensors with − = charging (e.g. Fronius “Battery Power”).",
+              "pv_battery_soc_sensor": "Optional. Together with the SoC limit: from that limit on, battery charging counts as surplus again — the heat pump may then take the rest before the battery. If the sensor can't be read, battery priority stays in effect.",
+              "pv_battery_soc_limit": "Only effective with a SoC sensor. 100 % = battery always has priority.",
+              "pv_priority_lock": "Optional binary_sensor/input_boolean/switch. While it is **on**, surplus counts as 0: no cold start, no raise, no heater — only the morning start to the normal target in ECO. Meant e.g. for “car plugged in and waiting for PV surplus” or an HEMS lock. A charging car usually doesn't need it: if the wallbox sits behind the grid meter, its power is already in house consumption."
+            }
+          },
+          "heater": {
+            "name": "Heater & electricity price",
+            "description": "Whether, and from what surplus, the heater runs in addition.",
+            "data": {
+              "pv_escalation": "Escalation at high surplus",
+              "pv_high": "Boost threshold – available (W)",
+              "pv_heater_power": "Electric heater rated power (W)",
+              "pv_power_entity": "Device total power (optional, W)",
+              "pv_boost_only_negative_price": "Boost only on negative price",
+              "pv_negative_price_sensor": "Negative-price sensor (optional)"
+            },
+            "data_description": {
+              "pv_escalation": "What gets added once surplus passes the boost threshold. None: just the elevated target (the pump stays at max. 65 °C). Boost: heat pump + heater **together**, at the same target as Elevated — a pure power sink for substantial surplus, not its own temperature tier.",
+              "pv_high": "Boost threshold on the **normalized** surplus (\"available\" = raw surplus + heater power while Boost is running — makes the signal invariant to its own switching action). Must be at least the heater's rated power + 50 W, otherwise the heater would switch off into grid draw (auto-raised otherwise). Turning on debounces for the full time, turning off is immediate (one poll) — strict grid-draw avoidance.",
+              "pv_heater_power": "Rated power of the electric heater per the data sheet (1500 W) — basis of the available-surplus normalization. No power meter required.",
+              "pv_power_entity": "Optional: device total power (W), to derive the heater's power from the real measured step-up on switch-on instead of the rated value. Never a requirement — without an entity the rated value is used.",
+              "pv_boost_only_negative_price": "If a negative-price sensor is selected (below) and this is checked, Boost fires **only** during the negative-price window. Without a selected sensor Boost then **never** fires — check the sensor is set first.",
+              "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). **Only sensible with a dynamic tariff** — a negative exchange price cuts your feed-in revenue, not automatically your purchase price. When in doubt leave empty (default behaviour unchanged)."
+            }
+          },
+          "timing": {
+            "name": "Timing & starts (expert)",
+            "description": "Fine-tuning of the control. The defaults usually fit.",
+            "data": {
+              "pv_morning_enabled": "Fixed morning start",
+              "pv_morning_time": "Morning start time",
+              "pv_coldstart": "Cold-start threshold – surplus (W)",
+              "pv_coldstart_delta": "Cold-start minimum deficit (K)",
+              "pv_hold": "Hold / piggyback buffer – surplus (W)",
+              "pv_min_run": "Minimum run time (min)",
+              "pv_max_starts": "Max. starts/day (ladder)",
+              "pv_debounce": "Debounce time (minutes)",
+              "pv_min_off": "Minimum off-time before a raise (min)"
+            },
+            "data_description": {
+              "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window. Shares the daily quota (below) with the cold start.",
+              "pv_coldstart": "Threshold (available surplus) above which — in addition to the fixed morning start — a cold start happens during the day if the water is below the elevated target. Debounces with the full debounce time, honours the same anti-short-cycle guard as the morning start and the same daily quota.",
+              "pv_coldstart_delta": "How far below the raised target temperature the water must be before the surplus-driven cold start fires the heat pump. Prevents starts for a few degrees: the topmost degrees are the worst heat of the day (worst COP, highest standing loss). With a 65 °C target and 10 K, the cold start only fires below 55 °C. Smaller = more PV usage, larger = only substantial charges.",
+              "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and Boost is off.",
+              "pv_min_run": "How long an already-started cycle is held AT MINIMUM, regardless of surplus. Once the compressor runs, its start is already paid for — a passing cloud should not kill it. Symmetric to the minimum stand time (anti-cycling) before the next start.",
+              "pv_max_starts": "How many ladder-triggered starts (morning start + cold start together) are allowed per day — default 1, for \"as few compressor cycles as possible\". Device-initiated starts don't count.",
+              "pv_min_off": "Anti-short-cycle for EVERY setpoint raise while the pump is off (morning start AND cold start): waits until the compressor has been off at least this long. Daytime raises while already running (piggyback) are unaffected."
+            }
+          }
         }
       }
     },
@@ -130,8 +166,19 @@
   "options": {
     "step": {
       "init": {
-        "title": "Settings (connection, COP, PV)",
-        "description": "Connection, COP/energy sources and optional PV surplus control. Host/port/slave change the link to the Modbus converter.",
+        "title": "Haier HWHP – settings",
+        "description": "Which area do you want to change?",
+        "menu_options": {
+          "connection": "Connection & device",
+          "energy": "Energy & COP",
+          "pv_mode": "PV surplus",
+          "protection": "Protection",
+          "dashboard": "Dashboard"
+        }
+      },
+      "connection": {
+        "title": "Connection & device",
+        "description": "Connection to the heat pump. Only the fields of the selected connection type apply.",
         "data": {
           "connection_type": "Connection type",
           "host": "Host / IP address (Modbus converter)",
@@ -141,14 +188,39 @@
           "slave": "Modbus slave ID",
           "model": "Model",
           "scan_interval": "Polling interval (seconds)",
-          "ambient_offset": "Ambient temperature offset (°C)",
-          "dashboard_enabled": "Create dashboard automatically",
+          "ambient_offset": "Ambient temperature offset (°C)"
+        },
+        "data_description": {
+          "connection_type": "TCP: via a Modbus RTU-to-TCP converter (host/port). Serial: directly via a USB/RS-485 adapter (serial port/baud rate). Only the fields of the selected type apply.",
+          "serial_port": "Prefer the stable path under /dev/serial/by-id/….",
+          "model": "Only used for the device display. For HP250 and other variants choose “Other model”.",
+          "scan_interval": "Default 5 s. Shorter intervals fill the recorder database faster."
+        }
+      },
+      "energy": {
+        "title": "Energy & COP",
+        "description": "COP = heat produced ÷ electricity used. Leave a meter empty = Modbus register; select an entity = external meter. **Note:** without an external heat meter the heat comes from the device register; first measurements show values about 2 to 3.7 times too high, so COP/SCOP are correspondingly too high (to be revised).",
+        "data": {
           "cop_enabled": "Enable COP calculation",
           "cop_elec_entity": "External electricity meter (kWh) — empty = Modbus register",
           "cop_heat_entity": "External heat meter (kWh) — empty = Modbus register",
           "energy_scale": "kWh register scaling (x)",
-          "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)",
-          "pv_mode": "PV mode",
+          "cop_ref_date": "COP reference date (empty = auto; day the heat counter was reset)"
+        },
+        "data_description": {}
+      },
+      "pv_mode": {
+        "title": "PV surplus – mode",
+        "description": "Should the integration prefer solar power for hot water? “Off”: no PV control (emergency heating and legionella protection still work). “Integration controls”: the integration sets setpoint and mode itself based on PV surplus. “Energy manager controls”: an external system such as evcc controls via the program select. The next page shows only the fields of the selected mode.",
+        "data": {
+          "pv_mode": "PV mode"
+        },
+        "data_description": {}
+      },
+      "protection": {
+        "title": "Protection",
+        "description": "Two optional protection functions. Thresholds, times and target temperatures can be adjusted later under “Configure → Protection”.",
+        "data": {
           "emergency_enabled": "Emergency reheat (ECO→AUTO/ELEC at critical temperature)",
           "emergency_critical": "Critical water temperature (°C)",
           "emergency_recover": "Recovered water temperature (°C)",
@@ -162,7 +234,6 @@
           "legionella_window_end": "Preferred window – end (ECO)"
         },
         "data_description": {
-          "pv_mode": "Off: the integration does not regulate (only the raw entities + 38 °C guard). Coordinator: the integration controls setpoint and mode from PV surplus — fixed morning start plus a surplus-driven cold start (together usually one run/day), raise to the elevated target only while the heat pump already runs (piggyback), plus Boost (heat pump + heater together) as a power sink above the boost threshold. Executor: an external HEMS controls it via the pv_program select; the integration only provides the programs. The next page shows the fields for the chosen mode (skipped for Off).",
           "emergency_enabled": "When the water gets critically cold, temporarily switches ECO→AUTO/ELEC to heat immediately (even outside the ECO time window); back to ECO on recovery.",
           "emergency_critical": "Below this water temperature the emergency reheat escalates.",
           "emergency_recover": "At/above this water temperature it switches back to ECO.",
@@ -173,64 +244,97 @@
           "legionella_bottom_min": "The run only counts as reached once the tank bottom – the coldest layer – holds this temperature (slightly below the setpoint).",
           "legionella_hold_min": "How long the tank bottom must hold the verification threshold before the run counts as successful.",
           "legionella_window_start": "Preferred time window (usually the device's ECO window): the run starts here if possible and first heats efficiently in ECO; if it can't reach the target it escalates to AUTO. When overdue, protection is forced even outside this window.",
-          "legionella_window_end": "End of the preferred window (usually the device's ECO window).",
-          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards.",
-          "connection_type": "TCP: via a Modbus RTU-to-TCP converter (host/port). Serial: directly via a USB/RS-485 adapter (serial port/baud rate). Only the fields of the selected type apply.",
-          "serial_port": "Prefer the stable path under /dev/serial/by-id/…."
+          "legionella_window_end": "End of the preferred window (usually the device's ECO window)."
+        }
+      },
+      "dashboard": {
+        "title": "Dashboard",
+        "description": "Bundled dashboard “Haier HWHP”.",
+        "data": {
+          "dashboard_enabled": "Create dashboard automatically"
+        },
+        "data_description": {
+          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards."
         }
       },
       "pv": {
-        "title": "Haier HWHP – PV settings",
-        "description": "Settings for the selected PV mode. Coordinator: surplus sensor, target temps, daily plan and the control thresholds. Executor: only the target temps (the mechanic for the program select).",
+        "title": "PV surplus – settings",
+        "description": "The integration controls by PV surplus: one start to the normal temperature in the morning, raised to the elevated temperature when there is surplus and the heat pump is already running. The most important fields are at the top; fine-tuning is in the collapsible sections below. Can be changed any time under “Configure”.",
         "data": {
           "pv_sensor": "PV surplus sensor (W)",
-          "pv_battery_sensor": "Battery power sensor (optional, battery priority)",
-          "pv_battery_sign": "Battery sensor sign",
-          "pv_battery_soc_sensor": "Battery state-of-charge sensor (optional)",
-          "pv_battery_soc_limit": "Battery priority up to SoC (%)",
-          "pv_priority_lock": "Priority lock (optional)",
-          "pv_temp_normal": "Elevated target temperature (°C)",
           "pv_temp_base": "Normal target temperature (°C)",
-          "pv_temp_high": "Boost target temperature (°C, Executor only)",
-          "pv_hold": "Hold / piggyback buffer – surplus (W)",
-          "pv_high": "Boost threshold – available (W)",
-          "pv_heater_power": "Electric heater rated power (W)",
-          "pv_power_entity": "Device total power (optional, W)",
-          "pv_morning_enabled": "Fixed morning start",
-          "pv_morning_time": "Morning start time",
-          "pv_coldstart": "Cold-start threshold – surplus (W)",
-          "pv_coldstart_delta": "Cold-start minimum deficit (K)",
-          "pv_min_run": "Minimum run time (min)",
-          "pv_max_starts": "Max. starts/day (ladder)",
-          "pv_debounce": "Debounce time (minutes)",
-          "pv_min_off": "Minimum off-time before a raise (min)",
-          "pv_escalation": "Escalation at high surplus",
-          "pv_boost_only_negative_price": "Boost only on negative price",
-          "pv_negative_price_sensor": "Negative-price sensor (optional)"
+          "pv_temp_normal": "Elevated target temperature (°C)",
+          "pv_temp_high": "Boost target temperature (°C, Executor only)"
         },
         "data_description": {
           "pv_sensor": "Raw PV surplus in W (≥ 0). Required for Coordinator mode.",
-          "pv_battery_sensor": "Gives the home battery priority: control then works on **surplus − battery charging power**. Needed if your surplus sensor is computed as “PV − house consumption” — with hybrid inverters (Fronius, SMA, Huawei …) battery charging is not part of house consumption and otherwise shows up as surplus. **Leave empty if your surplus sensor already is the grid feed-in** (the battery would be subtracted twice). If the sensor can't be read, surplus counts as 0.",
-          "pv_battery_sign": "“Charging positive” for pure charge sensors (always ≥ 0) and net sensors with + = charging. “Charging negative” for net sensors with − = charging (e.g. Fronius “Battery Power”).",
-          "pv_battery_soc_sensor": "Optional. Together with the SoC limit: from that limit on, battery charging counts as surplus again — the heat pump may then take the rest before the battery. If the sensor can't be read, battery priority stays in effect.",
-          "pv_battery_soc_limit": "Only effective with a SoC sensor. 100 % = battery always has priority.",
-          "pv_priority_lock": "Optional binary_sensor/input_boolean/switch. While it is **on**, surplus counts as 0: no cold start, no raise, no heater — only the morning start to the normal target in ECO. Meant e.g. for “car plugged in and waiting for PV surplus” or an HEMS lock. A charging car usually doesn't need it: if the wallbox sits behind the grid meter, its power is already in house consumption.",
-          "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
           "pv_temp_base": "Normal target temperature (no surplus) — also the setpoint the controller falls back to when a cycle ends.",
-          "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated.",
-          "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and Boost is off.",
-          "pv_high": "Boost threshold on the **normalized** surplus (\"available\" = raw surplus + heater power while Boost is running — makes the signal invariant to its own switching action). Must be at least the heater's rated power + 50 W, otherwise the heater would switch off into grid draw (auto-raised otherwise). Turning on debounces for the full time, turning off is immediate (one poll) — strict grid-draw avoidance.",
-          "pv_heater_power": "Rated power of the electric heater per the data sheet (1500 W) — basis of the available-surplus normalization. No power meter required.",
-          "pv_power_entity": "Optional: device total power (W), to derive the heater's power from the real measured step-up on switch-on instead of the rated value. Never a requirement — without an entity the rated value is used.",
-          "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window. Shares the daily quota (below) with the cold start.",
-          "pv_coldstart": "Threshold (available surplus) above which — in addition to the fixed morning start — a cold start happens during the day if the water is below the elevated target. Debounces with the full debounce time, honours the same anti-short-cycle guard as the morning start and the same daily quota.",
-          "pv_coldstart_delta": "How far below the raised target temperature the water must be before the surplus-driven cold start fires the heat pump. Prevents starts for a few degrees: the topmost degrees are the worst heat of the day (worst COP, highest standing loss). With a 65 °C target and 10 K, the cold start only fires below 55 °C. Smaller = more PV usage, larger = only substantial charges.",
-          "pv_min_run": "How long an already-started cycle is held AT MINIMUM, regardless of surplus. Once the compressor runs, its start is already paid for — a passing cloud should not kill it. Symmetric to the minimum stand time (anti-cycling) before the next start.",
-          "pv_max_starts": "How many ladder-triggered starts (morning start + cold start together) are allowed per day — default 1, for \"as few compressor cycles as possible\". Device-initiated starts don't count.",
-          "pv_min_off": "Anti-short-cycle for EVERY setpoint raise while the pump is off (morning start AND cold start): waits until the compressor has been off at least this long. Daytime raises while already running (piggyback) are unaffected.",
-          "pv_escalation": "What gets added once surplus passes the boost threshold. None: just the elevated target (the pump stays at max. 65 °C). Boost: heat pump + heater **together**, at the same target as Elevated — a pure power sink for substantial surplus, not its own temperature tier.",
-          "pv_boost_only_negative_price": "If a negative-price sensor is selected (below) and this is checked, Boost fires **only** during the negative-price window. Without a selected sensor Boost then **never** fires — check the sensor is set first.",
-          "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). **Only sensible with a dynamic tariff** — a negative exchange price cuts your feed-in revenue, not automatically your purchase price. When in doubt leave empty (default behaviour unchanged)."
+          "pv_temp_normal": "Elevated target, must be reachable by the **compressor alone** — hence capped at 65 °C (data sheet: max. temperature output, heat pump only). Also the boost target: Boost is a power sink (heat pump + heater together), not its own temperature tier. Must be higher than the normal target temperature.",
+          "pv_temp_high": "Only relevant for the Executor program now (select.haier_hwhp_pv_program, \"Boost\" program) — in Coordinator mode, Boost uses the same target as Elevated."
+        },
+        "sections": {
+          "battery": {
+            "name": "Home battery & priority",
+            "description": "Only needed if a home battery or other loads (e.g. an EV) should take priority over hot water.",
+            "data": {
+              "pv_battery_sensor": "Battery power sensor (optional, battery priority)",
+              "pv_battery_sign": "Battery sensor sign",
+              "pv_battery_soc_sensor": "Battery state-of-charge sensor (optional)",
+              "pv_battery_soc_limit": "Battery priority up to SoC (%)",
+              "pv_priority_lock": "Priority lock (optional)"
+            },
+            "data_description": {
+              "pv_battery_sensor": "Gives the home battery priority: control then works on **surplus − battery charging power**. Needed if your surplus sensor is computed as “PV − house consumption” — with hybrid inverters (Fronius, SMA, Huawei …) battery charging is not part of house consumption and otherwise shows up as surplus. **Leave empty if your surplus sensor already is the grid feed-in** (the battery would be subtracted twice). If the sensor can't be read, surplus counts as 0.",
+              "pv_battery_sign": "“Charging positive” for pure charge sensors (always ≥ 0) and net sensors with + = charging. “Charging negative” for net sensors with − = charging (e.g. Fronius “Battery Power”).",
+              "pv_battery_soc_sensor": "Optional. Together with the SoC limit: from that limit on, battery charging counts as surplus again — the heat pump may then take the rest before the battery. If the sensor can't be read, battery priority stays in effect.",
+              "pv_battery_soc_limit": "Only effective with a SoC sensor. 100 % = battery always has priority.",
+              "pv_priority_lock": "Optional binary_sensor/input_boolean/switch. While it is **on**, surplus counts as 0: no cold start, no raise, no heater — only the morning start to the normal target in ECO. Meant e.g. for “car plugged in and waiting for PV surplus” or an HEMS lock. A charging car usually doesn't need it: if the wallbox sits behind the grid meter, its power is already in house consumption."
+            }
+          },
+          "heater": {
+            "name": "Heater & electricity price",
+            "description": "Whether, and from what surplus, the heater runs in addition.",
+            "data": {
+              "pv_escalation": "Escalation at high surplus",
+              "pv_high": "Boost threshold – available (W)",
+              "pv_heater_power": "Electric heater rated power (W)",
+              "pv_power_entity": "Device total power (optional, W)",
+              "pv_boost_only_negative_price": "Boost only on negative price",
+              "pv_negative_price_sensor": "Negative-price sensor (optional)"
+            },
+            "data_description": {
+              "pv_escalation": "What gets added once surplus passes the boost threshold. None: just the elevated target (the pump stays at max. 65 °C). Boost: heat pump + heater **together**, at the same target as Elevated — a pure power sink for substantial surplus, not its own temperature tier.",
+              "pv_high": "Boost threshold on the **normalized** surplus (\"available\" = raw surplus + heater power while Boost is running — makes the signal invariant to its own switching action). Must be at least the heater's rated power + 50 W, otherwise the heater would switch off into grid draw (auto-raised otherwise). Turning on debounces for the full time, turning off is immediate (one poll) — strict grid-draw avoidance.",
+              "pv_heater_power": "Rated power of the electric heater per the data sheet (1500 W) — basis of the available-surplus normalization. No power meter required.",
+              "pv_power_entity": "Optional: device total power (W), to derive the heater's power from the real measured step-up on switch-on instead of the rated value. Never a requirement — without an entity the rated value is used.",
+              "pv_boost_only_negative_price": "If a negative-price sensor is selected (below) and this is checked, Boost fires **only** during the negative-price window. Without a selected sensor Boost then **never** fires — check the sensor is set first.",
+              "pv_negative_price_sensor": "Optional binary_sensor/input_boolean flagging the current quarter-hour as negative/zero-price (e.g. your own template built on Tibber/aWATTar/Nordpool — this integration doesn't compute the price itself). **Only sensible with a dynamic tariff** — a negative exchange price cuts your feed-in revenue, not automatically your purchase price. When in doubt leave empty (default behaviour unchanged)."
+            }
+          },
+          "timing": {
+            "name": "Timing & starts (expert)",
+            "description": "Fine-tuning of the control. The defaults usually fit.",
+            "data": {
+              "pv_morning_enabled": "Fixed morning start",
+              "pv_morning_time": "Morning start time",
+              "pv_coldstart": "Cold-start threshold – surplus (W)",
+              "pv_coldstart_delta": "Cold-start minimum deficit (K)",
+              "pv_hold": "Hold / piggyback buffer – surplus (W)",
+              "pv_min_run": "Minimum run time (min)",
+              "pv_max_starts": "Max. starts/day (ladder)",
+              "pv_debounce": "Debounce time (minutes)",
+              "pv_min_off": "Minimum off-time before a raise (min)"
+            },
+            "data_description": {
+              "pv_morning_time": "Once per day at this time, if the water is below the normal target, kick the setpoint to the elevated target so the heat pump starts within the device ECO window. Shares the daily quota (below) with the cold start.",
+              "pv_coldstart": "Threshold (available surplus) above which — in addition to the fixed morning start — a cold start happens during the day if the water is below the elevated target. Debounces with the full debounce time, honours the same anti-short-cycle guard as the morning start and the same daily quota.",
+              "pv_coldstart_delta": "How far below the raised target temperature the water must be before the surplus-driven cold start fires the heat pump. Prevents starts for a few degrees: the topmost degrees are the worst heat of the day (worst COP, highest standing loss). With a 65 °C target and 10 K, the cold start only fires below 55 °C. Smaller = more PV usage, larger = only substantial charges.",
+              "pv_hold": "Buffer above which the heat-pump cycle is raised to and held at the elevated target — but the daytime raise happens only while the pump already runs (piggyback), so no extra cold starts. Drops back to normal after the debounce time once surplus stays below this and Boost is off.",
+              "pv_min_run": "How long an already-started cycle is held AT MINIMUM, regardless of surplus. Once the compressor runs, its start is already paid for — a passing cloud should not kill it. Symmetric to the minimum stand time (anti-cycling) before the next start.",
+              "pv_max_starts": "How many ladder-triggered starts (morning start + cold start together) are allowed per day — default 1, for \"as few compressor cycles as possible\". Device-initiated starts don't count.",
+              "pv_min_off": "Anti-short-cycle for EVERY setpoint raise while the pump is off (morning start AND cold start): waits until the compressor has been off at least this long. Daytime raises while already running (piggyback) are unaffected."
+            }
+          }
         }
       }
     },
@@ -247,8 +351,8 @@
     "pv_mode": {
       "options": {
         "off": "Off",
-        "coordinator": "Coordinator (integration controls)",
-        "executor": "Executor (external HEMS)"
+        "coordinator": "Integration controls (PV surplus)",
+        "executor": "Energy manager controls (e.g. evcc)"
       }
     },
     "pv_escalation": {

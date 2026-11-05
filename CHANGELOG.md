@@ -1,11 +1,30 @@
 # Changelog
 
 Nennenswerte Änderungen dieser Integration. Format lose nach
-[Keep a Changelog](https://keepachangelog.com/de/). Versionierung: **Feature = 2. Stelle**,
-**Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
+[Keep a Changelog](https://keepachangelog.com/de/). Versionierung: **große Umbauten =
+1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
-## [1.24.0] - 2026-11-05
+## [2.0.0] - 2026-11-05
+
+Großes Update: neues Dashboard, neu aufgebauter Einrichtungsassistent und Options-Dialog.
+**Benötigt Home Assistant ab 2024.7** (vorher 2024.2). Entwickelt und geprüft auf
+HA 2026.10/2026.11.
+
+**Neu: Einrichtungsassistent und Optionen übersichtlicher.**
+- Ablauf: Verbindungsart → Verbindung → Energie & COP → **Schutzfunktionen** (neu:
+  Notfall-Nachheizung und Legionellen-Schutz direkt bei der Einrichtung, mit Erklärung)
+  → PV-Modus → PV-Einstellungen.
+- **PV-Einstellungen:** oben nur Überschuss-Sensor und Zieltemperaturen, die übrigen
+  Felder in einklappbaren Abschnitten *Hausakku & Vorrang*, *Heizstab & Strompreis* und
+  *Zeiten & Starts (Experte)* – statt 24 Feldern auf einer Seite.
+- **Optionen als Menü:** *Verbindung & Gerät · Energie & COP · PV-Überschuss ·
+  Schutzfunktionen · Dashboard*. Jeder Bereich speichert nur seine eigenen Felder.
+- Expertenfelder (Abfrageintervall, Skalierung der kWh-Register, COP-Bezugsdatum) nur
+  noch in den Optionen, nicht in der Ersteinrichtung.
+- Verständlichere Texte: PV-Modi heißen jetzt „Integration regelt“ bzw. „Energiemanager
+  regelt (z. B. evcc)“; Hinweis zum Modell (nur Anzeige; HP250 & Co. → „Anderes Modell“);
+  Hinweis im COP-Schritt zum vermutlich zu hohen Wärmeregister.
 
 **Neu: Dashboard im neuen Design.** Eine Seite in drei Spalten, Deutsch/Englisch nach
 Systemsprache:
@@ -15,11 +34,15 @@ Systemsprache:
   Boost, Leise, Sterilisation, aktive Regelung inkl. PV-Stufe und Überschuss, nächster
   Legionellen-Termin, Umgebung), Problemfälle (Gerät aus) zuerst. Darunter eine
   Statusleiste: Modbus, Fehler, Geräteuhr (als „+63 min“), Notheizung („bereit · < 38 °C“).
+- **Statusleiste** unter der Speicher-Grafik einzeilig: Modbus, Fehler, Geräteuhr,
+  Notheizung („bereit <38°“).
 - **Betrieb:** Schalter, Solltemperatur (+/–) und Modus als kleine Kacheln,
   PV-Regelung (nur mit PV), **Regelverlauf** (Logbuch für Sollwert, Modus, Boost,
   Legionellen, Notheizung, PV).
 - **Jahresarbeitszahl & COP:** Kennzahlen (JAZ laufendes Jahr, COP Monat, Wärme und
   Strom des Jahres), COP pro Monat (bis 12 Monate), JAZ pro Jahr ab dem zweiten Jahr.
+  Kommt die Wärme aus dem Geräteregister, weist die Karte darauf hin, dass COP/JAZ
+  vermutlich zu hoch sind (Korrektur geplant, [#27](https://github.com/st03psn/haier-modbus/issues/27)).
 - **Verlauf (7 Tage)** und Energie pro Tag/Monat.
 
 Gebaut mit HA-Bordmitteln und **button-card**; ApexCharts und card-mod werden nicht
@@ -33,8 +56,12 @@ die neue Update-Entität **„Dashboard“** (`update.haier_hwhp_dashboard`) ein
 dauerhaft unter *Einstellungen* (wie andere Updates) und im neuen Layout zusätzlich als
 Kachel im Dashboard, bis es installiert ist – eine weggeklickte Benachrichtigung geht so nicht
 verloren. *Installieren* übernimmt das neue Layout (ersetzt eigene Anpassungen am
-Haier-Dashboard); dasselbe macht der Dienst `haier_modbus.rebuild_dashboard`. Dashboards aus
-Versionen vor 1.24.0 haben noch keinen Fingerabdruck und gelten als angepasst – dort bitte
+Haier-Dashboard); dasselbe macht der Dienst `haier_modbus.rebuild_dashboard`.
+**Erst vergleichen:** Der Button „Neues Dashboard zum Vergleich anlegen“ legt das neue
+Layout zusätzlich als „Haier BWWP (neu)“ an, das alte bleibt. Gefällt es (gern auch
+angepasst), macht „Vergleichs-Dashboard übernehmen“ es zum Standard – inklusive der
+Änderungen daran. Dashboards aus
+Versionen vor 2.0.0 haben noch keinen Fingerabdruck und gelten als angepasst – dort bitte
 einmal über das Update übernehmen, danach läuft es automatisch.
 
 **HA 2026.11 / Marketplace:** HACS wird dort durch den eingebauten Marketplace ersetzt.
