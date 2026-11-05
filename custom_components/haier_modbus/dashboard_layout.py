@@ -85,6 +85,17 @@ _TEXT: dict[str, dict[str, str]] = {
 }
 
 # --- JS-Bausteine (button-card) --------------------------------------------
+# ``mi(entity_id)``: Attribute, die bei Tipp das HA-Detailfenster (mit Verlauf) der
+# Entität öffnen. Das Ereignis wird gestoppt, damit nicht zusätzlich die Tipp-Aktion der
+# ganzen Karte (Warmwasserbereiter) auslöst. Leere ID (Entität fehlt) -> keine Aktion.
+_JS_MI = (
+    "const mi = (id) => id ? ` onpointerdown=\"event.stopPropagation();\" onmousedown=\"event.stopPropagation();\" "
+    "ontouchstart=\"event.stopPropagation();\" onpointerup=\"event.stopPropagation();\" "
+    "onmouseup=\"event.stopPropagation();\" ontouchend=\"event.stopPropagation();\" "
+    "onclick=\"event.stopPropagation();this.dispatchEvent(new CustomEvent('hass-more-info',"
+    "{bubbles:true,composed:true,detail:{entityId:'${id}'}}))\"` : ''; "
+)
+
 # Speicher-Grafik (#29): eigenes, schematisches Abbild der M7 (keine Haier-Fotos).
 # Maße nach Haier-Datenblatt, 1 SVG-Einheit = 5 mm: Ø 600 mm, Höhe je Modell
 # (``const.MODEL_HEIGHT_MM``). Kopfhöhe (~455 mm) aus dem Produktfoto geschätzt.
@@ -95,7 +106,7 @@ _TEXT: dict[str, dict[str, str]] = {
 IMAGE_URL_RE = re.compile(r"^(/local/|https?://)[A-Za-z0-9/._~:%?&=+#-]+$")
 
 _JS_TANK_HEAD = (
-    "[[[ const n = (id) => parseFloat(states[id] ? states[id].state : NaN); "
+    "[[[ " + _JS_MI + "const n = (id) => parseFloat(states[id] ? states[id].state : NaN); "
     "const top = n('@E:sensor.tank_top@'); const bot = n('@E:sensor.tank_bottom@'); "
     "const water = n('@E:sensor.water_temp@'); let pct = n('@E:sensor.hotwater_pct@'); "
     "if (isNaN(pct)) pct = 0; pct = Math.max(0, Math.min(100, pct)); "
@@ -208,9 +219,9 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     k = vbh / 348
     fs, fl = _f(13 * k), _f(30 * k)
     labels = (
-        f"<text x='{_f(cx)}' y='{_f(ty + 20 * k)}' font-size='{fs}' ${{lab}}>${{fmt(top)}}</text>"
-        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.40)}' font-size='{fl}' font-weight='600' ${{lab}}>${{fmt(water)}}</text>"
-        f"<text x='{_f(cx)}' y='{_f(ty + th - 10 * k)}' font-size='{fs}' ${{lab}}>${{fmt(bot)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + 20 * k)}' font-size='{fs}' ${{lab}}${{mi('@E:sensor.tank_top@')}}>${{fmt(top)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.40)}' font-size='{fl}' font-weight='600' ${{lab}}${{mi('@E:sensor.water_temp@')}}>${{fmt(water)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th - 10 * k)}' font-size='{fs}' ${{lab}}${{mi('@E:sensor.tank_bottom@')}}>${{fmt(bot)}}</text>"
     )
     svg_open = (f"<svg viewBox='0 0 {_f(vbw)} {_f(vbh)}' width='100%' height='100%' "
                 "preserveAspectRatio='xMidYMid meet'>")
@@ -287,7 +298,7 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
 
 
 _JS_INFO = (
-    "[[[ const st = (id) => states[id]; const s = (id) => st(id) ? st(id).state : ''; "
+    "[[[ " + _JS_MI + "const st = (id) => states[id]; const s = (id) => st(id) ? st(id).state : ''; "
     "const on = (id) => s(id) === 'on'; "
     "const fmt = (id) => { const o = st(id); if (!o) return '–'; "
     "try { return hass.formatEntityState(o); } catch (e) { return o.state; } }; "
@@ -298,46 +309,48 @@ _JS_INFO = (
     "const em = s('@E:sensor.emergency_status@') === 'forced'; "
     "const leg = ['due', 'running', 'holding'].includes(s('@E:sensor.legionella_status@')); "
     "const pv = s('@E:sensor.pv_status@'); "
-    "let reg, regIcon = 'mdi:tune-variant', regCol = 'var(--primary-color)'; "
-    "if (em) { reg = '§emergency§'; regIcon = 'mdi:fire-alert'; regCol = 'var(--deep-orange-color, #ff5722)'; } "
-    "else if (leg) { reg = '§legionella_run§'; regIcon = 'mdi:bacteria'; regCol = 'var(--purple-color, #9c27b0)'; } "
+    "let reg, regIcon = 'mdi:tune-variant', regCol = 'var(--primary-color)', regId = '@E:select.mode@'; "
+    "if (em) { reg = '§emergency§'; regIcon = 'mdi:fire-alert'; regCol = 'var(--deep-orange-color, #ff5722)'; regId = '@E:sensor.emergency_status@'; } "
+    "else if (leg) { reg = '§legionella_run§'; regIcon = 'mdi:bacteria'; regCol = 'var(--purple-color, #9c27b0)'; regId = '@E:sensor.legionella_status@'; } "
     "else if (pv && pv !== 'off') { const p = st('@E:sensor.pv_status@'); "
     "const sw = p ? parseFloat(p.attributes.surplus_w) : NaN; "
     "reg = '§pv§: ' + fmt('@E:sensor.pv_status@') + (isNaN(sw) ? '' : ' · ' + Math.round(sw) + ' W'); "
-    "regIcon = 'mdi:solar-power-variant'; regCol = 'var(--amber-color)'; } "
+    "regIcon = 'mdi:solar-power-variant'; regCol = 'var(--amber-color)'; regId = '@E:sensor.pv_status@'; } "
     "else { reg = '§unit§ (' + s('@E:select.mode@') + ')'; } "
     "const icon = (i, act, color, anim) => `<div style='width:34px;flex:0 0 34px;display:flex;justify-content:center'>"
     "<ha-icon icon='${i}' style='display:inline-flex;--mdc-icon-size:24px;"
     "color:${act ? color : 'var(--secondary-text-color)'};opacity:${act ? 1 : 0.55};"
     "${act && anim ? 'animation:' + anim : ''}'></ha-icon></div>`; "
-    "const row = (ic, label, val, vcol) => `<div style='display:flex;align-items:center;gap:8px;margin:6px 0'>"
+    "const row = (ic, label, val, vcol, eid) => `<div style='display:flex;align-items:center;gap:8px;margin:6px 0;"
+    "${eid ? 'cursor:pointer' : ''}'${mi(eid)}>"
     "${ic}<div style='min-width:0;text-align:left'><div style='font-size:12px;line-height:14px;color:var(--secondary-text-color)'>"
     "${label}</div><div style='font-size:14px;line-height:18px;font-weight:500;white-space:normal;overflow-wrap:anywhere;"
     "${vcol ? 'color:' + vcol : ''}'>${val}</div></div></div>`; "
     "let out = ''; "
-    "if (active === 'off') out += row(icon('mdi:power', true, 'var(--error-color)', ''), '§active§', '§unit_off§', 'var(--error-color)'); "
-    "out += row(icon('mdi:fan', wp, 'var(--green-color)', 'hwhp-spin 2s linear infinite'), '§heat_pump§', wp ? '§running§' : '§off§') "
-    "+ row(icon('mdi:lightning-bolt', el, 'var(--orange-color)', 'hwhp-pulse 1s ease-in-out infinite'), '§heater§', el ? '§on§' : '§off§'); "
-    "if (sol) out += row(icon('mdi:solar-power', true, 'var(--amber-color)', ''), '§solar§', '§is_active§'); "
-    "if (boiler) out += row(icon('mdi:water-boiler', true, 'var(--red-color)', ''), '§ext_source§', '§is_active§'); "
-    "if (boost) out += row(icon('mdi:rocket-launch', true, 'var(--orange-color)', ''), '§boost§', '§is_active§'); "
-    "if (mute) out += row(icon('mdi:volume-off', true, 'var(--blue-color, #2196f3)', ''), '§mute§', '§is_active§'); "
-    "if (steril) out += row(icon('mdi:bacteria', true, 'var(--purple-color, #9c27b0)', ''), '§sterilize§', '§is_active§'); "
-    "out += row(icon(regIcon, true, regCol, ''), '§control§', reg); "
+    "if (active === 'off') out += row(icon('mdi:power', true, 'var(--error-color)', ''), '§active§', '§unit_off§', 'var(--error-color)', '@E:switch.active@'); "
+    "out += row(icon('mdi:fan', wp, 'var(--green-color)', 'hwhp-spin 2s linear infinite'), '§heat_pump§', wp ? '§running§' : '§off§', '', '@E:binary_sensor.status_wp@') "
+    "+ row(icon('mdi:lightning-bolt', el, 'var(--orange-color)', 'hwhp-pulse 1s ease-in-out infinite'), '§heater§', el ? '§on§' : '§off§', '', '@E:binary_sensor.status_heater@'); "
+    "if (sol) out += row(icon('mdi:solar-power', true, 'var(--amber-color)', ''), '§solar§', '§is_active§', '', '@E:binary_sensor.status_solar@'); "
+    "if (boiler) out += row(icon('mdi:water-boiler', true, 'var(--red-color)', ''), '§ext_source§', '§is_active§', '', '@E:binary_sensor.status_boiler@'); "
+    "if (boost) out += row(icon('mdi:rocket-launch', true, 'var(--orange-color)', ''), '§boost§', '§is_active§', '', '@E:switch.boost@'); "
+    "if (mute) out += row(icon('mdi:volume-off', true, 'var(--blue-color, #2196f3)', ''), '§mute§', '§is_active§', '', '@E:switch.mute@'); "
+    "if (steril) out += row(icon('mdi:bacteria', true, 'var(--purple-color, #9c27b0)', ''), '§sterilize§', '§is_active§', '', '@E:switch.sterilize@'); "
+    "out += row(icon(regIcon, true, regCol, ''), '§control§', reg, '', regId); "
     "const lo = st('@E:sensor.legionella_status@'); "
     "if (lo && lo.state !== 'off' && lo.attributes.next_due) { const nd = new Date(lo.attributes.next_due); "
     "if (!isNaN(nd)) out += row(icon('mdi:bacteria-outline', true, 'var(--purple-color, #9c27b0)', ''), '§legionella§', "
-    "'§next§ ' + nd.toLocaleDateString(hass.language || 'en', {day: '2-digit', month: '2-digit'})); } "
-    "out += row(icon('mdi:home-thermometer-outline', true, 'var(--primary-color)', ''), '§ambient§', fmt('@E:sensor.ambient@')); "
+    "'§next§ ' + nd.toLocaleDateString(hass.language || 'en', {day: '2-digit', month: '2-digit'}), '', '@E:sensor.legionella_status@'); } "
+    "out += row(icon('mdi:home-thermometer-outline', true, 'var(--primary-color)', ''), '§ambient§', fmt('@E:sensor.ambient@'), '', '@E:sensor.ambient@'); "
     "return out; ]]]"
 )
 
 _JS_DIAG = (
-    "[[[ const st = (id) => states[id]; const s = (id) => st(id) ? st(id).state : ''; "
+    "[[[ " + _JS_MI + "const st = (id) => states[id]; const s = (id) => st(id) ? st(id).state : ''; "
     "const fmt = (id) => { const o = st(id); if (!o) return '\u2013'; "
     "try { return hass.formatEntityState(o); } catch (e) { return o.state; } }; "
     "const ok = 'var(--success-color, #43a047)', warn = 'var(--warning-color, #ff9800)', err = 'var(--error-color, #db4437)'; "
-    "const chip = (i, label, val, col) => `<div style='display:flex;align-items:center;gap:4px;min-width:0'>"
+    "const chip = (i, label, val, col, eid) => `<div style='display:flex;align-items:center;gap:4px;min-width:0;"
+    "${eid ? 'cursor:pointer' : ''}'${mi(eid)}>"
     "<ha-icon icon='${i}' style='display:inline-flex;--mdc-icon-size:16px;color:${col};flex:0 0 16px'></ha-icon>"
     "<div style='min-width:0;text-align:left'><div style='font-size:10px;line-height:12px;color:var(--secondary-text-color);"
     "white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>${label}</div>"
@@ -353,11 +366,11 @@ _JS_DIAG = (
     "const em = s('@E:sensor.emergency_status@'); "
     "const crit = Math.round(parseFloat(s('@E:number.emergency_critical@'))); "
     "return `<div style='display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 8px'>` "
-    "+ chip(link === 'ok' ? 'mdi:lan-connect' : 'mdi:lan-disconnect', '§modbus§', link === 'ok' ? '§ok§' : fmt('@E:sensor.link_status@'), link === 'ok' ? ok : err) "
-    "+ chip(fraw > 0 ? 'mdi:alert-circle' : 'mdi:check-circle-outline', '§fault§', fval, fraw > 0 ? err : ok) "
-    "+ chip(clockBad ? 'mdi:clock-alert-outline' : 'mdi:clock-check-outline', '§clock§', drTxt, clockBad ? warn : ok) "
+    "+ chip(link === 'ok' ? 'mdi:lan-connect' : 'mdi:lan-disconnect', '§modbus§', link === 'ok' ? '§ok§' : fmt('@E:sensor.link_status@'), link === 'ok' ? ok : err, '@E:sensor.link_status@') "
+    "+ chip(fraw > 0 ? 'mdi:alert-circle' : 'mdi:check-circle-outline', '§fault§', fval, fraw > 0 ? err : ok, '@E:sensor.fault@') "
+    "+ chip(clockBad ? 'mdi:clock-alert-outline' : 'mdi:clock-check-outline', '§clock§', drTxt, clockBad ? warn : ok, '@E:sensor.clock_drift@') "
     "+ chip('mdi:fire-alert', '§emergency_short§', em === 'idle' && !isNaN(crit) ? '§ready§ <' + crit + '\u00b0' "
-    ": fmt('@E:sensor.emergency_status@'), em === 'forced' ? warn : (em === 'disabled' ? 'var(--disabled-color)' : ok)) "
+    ": fmt('@E:sensor.emergency_status@'), em === 'forced' ? warn : (em === 'disabled' ? 'var(--disabled-color)' : ok), '@E:sensor.emergency_status@') "
     "+ `</div>`; ]]]"
 )
 
