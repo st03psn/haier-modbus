@@ -85,7 +85,15 @@ _TEXT: dict[str, dict[str, str]] = {
 }
 
 # --- JS-Bausteine (button-card) --------------------------------------------
-_JS_TANK = (
+# Speicher-Grafik (#29): eigenes, schematisches Abbild der M7 (keine Haier-Fotos).
+# Maße nach Haier-Datenblatt, 1 SVG-Einheit = 5 mm: Ø 600 mm, Höhe je Modell
+# (``const.MODEL_HEIGHT_MM``). Kopfhöhe (~455 mm) aus dem Produktfoto geschätzt.
+# Der Speicher ist ein „Fenster“ mit Füllstand + Farbskala Rot -> Grün; die
+# Rohrschlange (Solar-/Kessel-Register, Varianten „…M7C-F9“) leuchtet bei aktiver
+# Quelle (Reg 3 bit2/bit3). Mit eigenem Bild liegen die Werte als Overlay darüber.
+IMAGE_URL_RE = re.compile(r"^(/local/|https?://)[A-Za-z0-9/._~:%?&=+#-]+$")
+
+_JS_TANK_HEAD = (
     "[[[ const n = (id) => parseFloat(states[id] ? states[id].state : NaN); "
     "const top = n('@E:sensor.tank_top@'); const bot = n('@E:sensor.tank_bottom@'); "
     "const water = n('@E:sensor.water_temp@'); let pct = n('@E:sensor.hotwater_pct@'); "
@@ -96,22 +104,134 @@ _JS_TANK = (
     "const x = Math.max(0, Math.min(1, (t - lo) / (hi - lo))); "
     "return `hsl(${Math.round(120 * x)},70%,42%)`; }; "
     "const fmt = (t) => isNaN(t) ? '–' : Math.round(t) + '°'; "
-    "const X = 20, Y = 10, W = 110, H = 260, R = 36; const fy = Y + H * (1 - pct / 100); "
-    "const lab = `style='fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.45);stroke-width:3px' text-anchor='middle'`; "
-    "return `<svg viewBox='0 0 150 280' width='100%' height='100%' preserveAspectRatio='xMidYMid meet'>"
-    "<defs><linearGradient id='hwhpG' x1='0' y1='1' x2='0' y2='0'>"
-    "<stop offset='0%' stop-color='${col(bot)}'/><stop offset='100%' stop-color='${col(top)}'/>"
-    "</linearGradient><clipPath id='hwhpC'><rect x='${X}' y='${Y}' width='${W}' height='${H}' rx='${R}'/>"
-    "</clipPath></defs><rect x='${X}' y='${Y}' width='${W}' height='${H}' rx='${R}' "
-    "style='fill:var(--secondary-background-color)'/><g clip-path='url(#hwhpC)'>"
-    "<rect x='${X}' y='${fy}' width='${W}' height='${Y + H - fy}' fill='url(#hwhpG)'/></g>"
-    "<rect x='${X}' y='${Y}' width='${W}' height='${H}' rx='${R}' "
-    "style='fill:none;stroke:var(--divider-color);stroke-width:3'/>"
-    "<text x='${X + W / 2}' y='${Y + 36}' font-size='15' ${lab}>§top§ ${fmt(top)}</text>"
-    "<text x='${X + W / 2}' y='${Y + H / 2 + 6}' font-size='36' font-weight='600' ${lab}>${fmt(water)}</text>"
-    "<text x='${X + W / 2}' y='${Y + H / 2 + 30}' font-size='15' ${lab}>${Math.round(pct)} %</text>"
-    "<text x='${X + W / 2}' y='${Y + H - 20}' font-size='15' ${lab}>§bottom§ ${fmt(bot)}</text></svg>`; ]]]"
+    "const on = (id) => states[id] ? states[id].state === 'on' : false; "
+    "const hxAct = on('@E:binary_sensor.status_solar@') || on('@E:binary_sensor.status_boiler@'); "
+    "const lab = `style='fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:3px' text-anchor='middle'`; "
 )
+
+
+def _f(v: float) -> str:
+    return f"{v:.1f}".rstrip("0").rstrip(".")
+
+
+def _tank_js(height_mm: int, coil: str, image: str) -> str:
+    """JS für das Speicher-Feld bauen (Geometrie statisch, Werte live).
+
+    ``coil``: "auto" (zeigen, sobald Solar-/Kessel-Sensor freigeschaltet ist),
+    "yes", "no". ``image``: geprüfte URL eines eigenen Bildes oder "".
+    """
+    W, x0 = 120.0, 6.0
+    h = height_mm / 5
+    y0 = 4.0
+    vbw, vbh = W + 2 * x0, y0 + h + 1
+    head, foot = 91.0, 9.0
+    band = y0 + head
+    tx, tw = x0 + 9, W - 18
+    ty = band + 6
+    th = (y0 + h - foot - 3) - ty - 3
+    cx = x0 + W / 2
+    if coil == "yes":
+        hx = "true"
+    elif coil == "no":
+        hx = "false"
+    else:
+        hx = "(!!states['@E:binary_sensor.status_solar@'] || !!states['@E:binary_sensor.status_boiler@'])"
+    js = _JS_TANK_HEAD + f"const hx = {hx}; "
+    js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
+           "const fy = TY + TH * (1 - pct / 100); ")
+    defs = (
+        "<defs><linearGradient id='hwhpG' x1='0' y1='1' x2='0' y2='0'>"
+        "<stop offset='0%' stop-color='${col(bot)}'/><stop offset='100%' stop-color='${col(top)}'/>"
+        "</linearGradient>"
+        "<linearGradient id='hwhpB' x1='0' x2='1'><stop offset='0' stop-color='#c9ccd0'/>"
+        "<stop offset='.18' stop-color='#f4f5f6'/><stop offset='.55' stop-color='#ffffff'/>"
+        "<stop offset='.88' stop-color='#e3e5e8'/><stop offset='1' stop-color='#b9bdc2'/></linearGradient>"
+        "<linearGradient id='hwhpD' x1='0' x2='1'><stop offset='0' stop-color='#1f2226'/>"
+        "<stop offset='.5' stop-color='#3a3e44'/><stop offset='1' stop-color='#1b1d20'/></linearGradient>"
+        "<linearGradient id='hwhpL' x1='0' x2='1'><stop offset='0' stop-color='#000' stop-opacity='.18'/>"
+        "<stop offset='.3' stop-color='#fff' stop-opacity='.10'/><stop offset='1' stop-color='#000' stop-opacity='.22'/>"
+        "</linearGradient>"
+        f"<clipPath id='hwhpC'><rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10'/></clipPath>"
+        "</defs>"
+    )
+    # Rohrschlange im unteren Speicherdrittel (Vorder-/Rückseite je Windung)
+    turns, ry = 6, 5.5
+    c_top, c_bot = ty + th * 0.60, ty + th - 12
+    step = (c_bot - c_top) / turns
+    rx = tw / 2 - 9
+    coil_svg = ("<g clip-path='url(#hwhpC)' fill='none' stroke-linecap='round' "
+                "style='${hxAct ? \"animation:hwhp-glow 2s ease-in-out infinite\" : \"\"}'>")
+    for i in range(turns):
+        yy = c_top + step * i
+        coil_svg += (f"<path d='M{_f(cx - rx)},{_f(yy)} A{_f(rx)},{ry} 0 0 1 {_f(cx + rx)},{_f(yy + step / 2)}' "
+                     "stroke='${cb}' stroke-width='1.8' opacity='.5'/>"
+                     f"<path d='M{_f(cx + rx)},{_f(yy + step / 2)} A{_f(rx)},{ry} 0 0 1 {_f(cx - rx)},{_f(yy + step)}' "
+                     "stroke='${cf}' stroke-width='2.8'/>")
+    for yy in (c_top, c_bot):
+        coil_svg += f"<path d='M{_f(cx - rx)},{_f(yy)} H{_f(tx - 2)}' stroke='${{cf}}' stroke-width='2.6'/>"
+    coil_svg += "</g>"
+    for yy in (c_top, c_bot):
+        coil_svg += (f"<circle cx='{_f(x0 + 1)}' cy='{_f(yy)}' r='2.6' fill='${{cf}}' "
+                     "stroke='rgba(0,0,0,.35)' stroke-width='.6'/>")
+    js += ("const cf = hxAct ? '#ff8f00' : '#a1887f', cb = hxAct ? '#e65100' : '#6d4c41'; "
+           f"const coil = hx ? `{coil_svg}` : ''; ")
+    # Schrift mit der Bauhöhe mitwachsen lassen: die Karte hat feste Höhe, eine
+    # höhere Zeichnung wird also kleiner skaliert.
+    k = vbh / 348
+    fs, fl = _f(13 * k), _f(30 * k)
+    labels = (
+        f"<text x='{_f(cx)}' y='{_f(ty + 20 * k)}' font-size='{fs}' ${{lab}}>§top§ ${{fmt(top)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.42)}' font-size='{fl}' font-weight='600' ${{lab}}>${{fmt(water)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.42 + 20 * k)}' font-size='{fs}' ${{lab}}>${{Math.round(pct)}} %</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th - 10 * k)}' font-size='{fs}' ${{lab}}>§bottom§ ${{fmt(bot)}}</text>"
+    )
+    svg_open = (f"<svg viewBox='0 0 {_f(vbw)} {_f(vbh)}' width='100%' height='100%' "
+                "preserveAspectRatio='xMidYMid meet'>")
+    if image:
+        # Eigenes Bild: Foto als Hintergrund, Füllstand als schmale Säule rechts,
+        # Rohrschlange als kleines Symbol unten links (falls vorhanden).
+        bx, bw = vbw - 9, 6
+        body = (
+            f"<image href='{image}' x='0' y='0' width='{_f(vbw)}' height='{_f(vbh)}' "
+            "preserveAspectRatio='xMidYMid meet'/>"
+            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='{_f(th)}' rx='3' "
+            "style='fill:rgba(0,0,0,.25)'/>"
+            f"<rect x='{_f(bx)}' y='${{fy}}' width='{bw}' height='${{TY + TH - fy}}' rx='3' fill='url(#hwhpG)'/>"
+            "${hx ? `<g transform='translate(" + _f(tx - 6) + "," + _f(ty + th - 34) + ")' "
+            "style='${hxAct ? \"animation:hwhp-glow 2s ease-in-out infinite\" : \"\"}'>"
+            "<rect x='-3' y='-3' width='26' height='26' rx='6' style='fill:rgba(0,0,0,.45)'/>"
+            "<path d='M2,4 H18 M2,4 Q-1,7 2,10 H18 Q21,13 18,16 H2 Q-1,19 2,20' fill='none' "
+            "stroke='${cf}' stroke-width='2.2' stroke-linecap='round'/></g>` : ''}"
+        )
+    else:
+        dw = 160 / 5
+        body = (
+            f"<rect x='{_f(cx - 14 - dw / 2)}' y='{_f(y0 - 4)}' width='{_f(dw)}' height='7' rx='1.5' "
+            "fill='#e8eaec' stroke='#a9adb2' stroke-width='.6'/>"
+            f"<rect x='{_f(x0 + 2)}' y='{_f(y0 + h - foot)}' width='{_f(W - 4)}' height='{_f(foot)}' rx='3' fill='url(#hwhpD)'/>"
+            f"<path d='M{_f(x0)},{_f(y0 + 8)} Q{_f(x0)},{_f(y0)} {_f(x0 + 10)},{_f(y0)} H{_f(x0 + W - 10)} "
+            f"Q{_f(x0 + W)},{_f(y0)} {_f(x0 + W)},{_f(y0 + 8)} V{_f(y0 + h - foot)} H{_f(x0)} Z' "
+            "fill='url(#hwhpB)' stroke='#9ea3a9' stroke-width='.7'/>"
+            f"<rect x='{_f(x0)}' y='{_f(band)}' width='{_f(W)}' height='2.6' fill='url(#hwhpD)'/>"
+            f"<rect x='{_f(cx - 10.5)}' y='{_f(y0 + 4)}' width='21' height='61' rx='1.5' fill='url(#hwhpD)'/>"
+            f"<rect x='{_f(cx - 6)}' y='{_f(y0 + 30)}' width='12' height='7' rx='.8' "
+            "fill='${water >= lo || isNaN(water) ? \"#cfe3f2\" : \"#ffcc80\"}'/>"
+            f"<circle cx='{_f(cx)}' cy='{_f(y0 + 44)}' r='2.6' fill='none' stroke='#8a9097' stroke-width='.7'/>"
+            f"<rect x='{_f(x0 - 2.5)}' y='{_f(band - 3)}' width='4' height='3' rx='.6' fill='#2a2d31'/>"
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='#dfe3e7' opacity='.55'/>"
+            "<g clip-path='url(#hwhpC)'>"
+            f"<rect x='{_f(tx)}' y='${{fy}}' width='{_f(tw)}' height='${{TY + TH - fy}}' fill='url(#hwhpG)' opacity='.92'/>"
+            f"<line x1='{_f(tx + 8)}' y1='{_f(ty + th * .55)}' x2='{_f(cx + 10)}' y2='{_f(ty + th * .55 - 4)}' "
+            "stroke='#7b8087' stroke-width='2.2' stroke-linecap='round'/></g>"
+            "${coil}"
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='url(#hwhpL)' "
+            "stroke='#9ea3a9' stroke-width='.6'/>"
+            f"<circle cx='{_f(x0 + W - 1)}' cy='{_f(ty + 10)}' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>"
+            f"<circle cx='{_f(x0 + W - 1)}' cy='{_f(ty + th - 4)}' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>"
+        )
+    js += "return `" + svg_open + defs + body + labels + "</svg>`; ]]]"
+    return js
+
 
 _JS_INFO = (
     "[[[ const st = (id) => states[id]; const s = (id) => st(id) ? st(id).state : ''; "
@@ -254,7 +374,8 @@ _JS_YEARS = (
 
 _KEYFRAMES = (
     "@keyframes hwhp-pulse {0%,100% {opacity:1; transform:scale(1);} 50% {opacity:.45; transform:scale(.88);}} "
-    "@keyframes hwhp-spin {from {transform:rotate(0deg);} to {transform:rotate(360deg);}}"
+    "@keyframes hwhp-spin {from {transform:rotate(0deg);} to {transform:rotate(360deg);}} "
+    "@keyframes hwhp-glow {0%,100% {opacity:1;} 50% {opacity:.55;}}"
 )
 
 
@@ -264,7 +385,7 @@ def _tile(entity: str, name: str, **extra) -> dict:
     return card
 
 
-def _template(with_pv: bool, executor: bool, settings_path: str) -> dict:
+def _template(with_pv: bool, executor: bool, settings_path: str, tank_js: str) -> dict:
     """Dashboard mit Platzhaltern (siehe Modul-Docstring)."""
     pv_vis = [{"condition": "state", "entity": "@E:sensor.pv_status@", "state_not": "off"}]
     def toggle(confirm_key: str) -> dict:
@@ -303,7 +424,7 @@ def _template(with_pv: bool, executor: bool, settings_path: str) -> dict:
                          {"border-top": "1px solid var(--divider-color)"}],
             },
         },
-        "custom_fields": {"tank": _JS_TANK, "info": _JS_INFO, "diag": _JS_DIAG},
+        "custom_fields": {"tank": tank_js, "info": _JS_INFO, "diag": _JS_DIAG},
     }
 
     cop_card = {
@@ -476,13 +597,23 @@ def build_layout(
     with_pv: bool,
     settings_path: str,
     executor: bool = False,
+    height_mm: int = 1694,
+    heat_exchanger: str = "auto",
+    image: str = "",
 ) -> dict:
     """Fertige Dashboard-Konfiguration bauen.
 
     ``resolve(domain, key)`` liefert die entity_id zu ``<entry_id>_<key>`` oder None.
+    ``height_mm`` (Bauform), ``heat_exchanger`` (auto/yes/no) und ``image`` (eigenes
+    Bild, wird hier nochmals geprüft – landet in einem JS-String) steuern die
+    Speicher-Grafik.
     """
     text = text_for(language)
-    raw = json.dumps(_template(with_pv, executor, settings_path), ensure_ascii=False)
+    image = image.strip() if isinstance(image, str) else ""
+    if image and not IMAGE_URL_RE.match(image):
+        image = ""
+    tank_js = _tank_js(int(height_mm), heat_exchanger, image)
+    raw = json.dumps(_template(with_pv, executor, settings_path, tank_js), ensure_ascii=False)
     raw = _ENTITY_TOKEN.sub(lambda m: resolve(m.group(1), m.group(2)) or "", raw)
     raw = _TEXT_TOKEN.sub(lambda m: text[m.group(1)], raw)
     return _prune(json.loads(raw))

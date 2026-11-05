@@ -340,12 +340,34 @@ DASHBOARD_ICON: Final = "mdi:water-boiler"
 CONF_DASHBOARD_ENABLED: Final = "dashboard_enabled"
 DEFAULT_DASHBOARD_ENABLED: Final = True
 
+# #29: Speicher-Grafik als Geräteabbild. Eigene, schematische Zeichnung je Bauform
+# (keine Haier-Fotos, s. docs/m7-modelle.md); optional ein eigenes Bild des Nutzers.
+# Beide nur beim Bauen des Layouts gelesen (Setup/Reload) -> Reload ok.
+CONF_DASHBOARD_IMAGE: Final = "dashboard_image"          # "" = eigene Zeichnung
+CONF_HEAT_EXCHANGER: Final = "heat_exchanger"            # Rohrschlange zeigen?
+HEAT_EXCHANGER_AUTO: Final = "auto"   # sobald Solar/Kessel einmal aktiv war (Sensor frei)
+HEAT_EXCHANGER_YES: Final = "yes"
+HEAT_EXCHANGER_NO: Final = "no"
+HEAT_EXCHANGER_OPTIONS: Final = [HEAT_EXCHANGER_AUTO, HEAT_EXCHANGER_YES, HEAT_EXCHANGER_NO]
+DEFAULT_HEAT_EXCHANGER: Final = HEAT_EXCHANGER_AUTO
+# Gesamthöhe laut Haier-Datenblatt (mm) je Modell-Schlüssel -> Proportion der Zeichnung.
+# HP160/HP260 sind in den Haier-Unterlagen nicht auffindbar (docs/m7-modelle.md);
+# zugeordnet nach Größe: 160 -> 200er-Bauform, 260 -> 250er-Bauform.
+MODEL_HEIGHT_MM: Final = {
+    "hp160m7_f9": 1694,
+    "hp200m7_f9": 1694,
+    "hp250m7_f9": 1989,
+    "hp260m7_f9": 1989,
+    "other": 1694,
+}
+
 # Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte).
 # Schlüssel slug-konform (hassfest-Anforderung an Selector-Keys) -> Anzeigename.
 # Tankvolumen wird bewusst nicht erfasst (am Modell erkennbar). "other" = generisch.
 MODELS: Final = {
     "hp160m7_f9": "HP160M7-F9",
     "hp200m7_f9": "HP200M7-F9",
+    "hp250m7_f9": "HP250M7-F9",
     "hp260m7_f9": "HP260M7-F9",
     "other": "Haier BWWP",
 }

@@ -29,6 +29,12 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     CONF_DASHBOARD_ENABLED,
+    CONF_DASHBOARD_IMAGE,
+    CONF_HEAT_EXCHANGER,
+    CONF_MODEL,
+    DEFAULT_HEAT_EXCHANGER,
+    DEFAULT_MODEL_KEY,
+    MODEL_HEIGHT_MM,
     CONF_PV_MODE,
     DASHBOARD_ICON,
     DASHBOARD_LEGACY_URL_PATH,
@@ -54,7 +60,7 @@ _LEGACY_DASH_DIR = "haier_bwwp"  # alter Ort unter <config>/ – wird aufgeräum
 # Layout-Generation des mitgelieferten Dashboards. Ein bestehendes (Nutzer-)
 # Dashboard wird NIE automatisch überschrieben; ist die gespeicherte Generation
 # älter, gibt es einmalig einen Hinweis auf den Dienst ``rebuild_dashboard``.
-DASHBOARD_LAYOUT_VERSION = 2  # 2 = Ein-Seiten-Layout ab v2.0.0
+DASHBOARD_LAYOUT_VERSION = 3  # 2 = Ein-Seiten-Layout ab v2.0.0, 3 = Geräteabbild (#29)
 _LAYOUT_STORE_KEY = f"{DOMAIN}.dashboard_layout"
 _NOTIFY_ID = f"{DOMAIN}_dashboard_layout"  # nur noch zum Entfernen (2.0.0)
 DASHBOARD_ISSUE_ID = "dashboard_layout_update"
@@ -74,12 +80,16 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         return ent_id
 
     pv_mode = entry.options.get(CONF_PV_MODE, DEFAULT_PV_MODE)
+    model = entry.options.get(CONF_MODEL, entry.data.get(CONF_MODEL, DEFAULT_MODEL_KEY))
     return build_layout(
         resolve,
         hass.config.language,
         with_pv=pv_mode != PV_MODE_OFF,
         executor=pv_mode == PV_MODE_EXECUTOR,
         settings_path=f"/config/integrations/integration/{DOMAIN}",
+        height_mm=MODEL_HEIGHT_MM.get(model, MODEL_HEIGHT_MM[DEFAULT_MODEL_KEY]),
+        heat_exchanger=entry.options.get(CONF_HEAT_EXCHANGER, DEFAULT_HEAT_EXCHANGER),
+        image=entry.options.get(CONF_DASHBOARD_IMAGE, ""),
     )
 
 

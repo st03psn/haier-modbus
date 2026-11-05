@@ -5,6 +5,24 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.1.0] - 2026-11-05
+
+**Speicher-Grafik als Geräteabbild (#29).**
+- Statt der generischen Tonne zeigt das Dashboard eine eigene, schematische Zeichnung der
+  M7 in der Bauform des gewählten Modells (200er: 1694 mm, 250er/HP260: 1989 mm hoch; Maße
+  laut Haier-Datenblatt). Füllstand, Temperaturen oben/unten und die Farbskala bleiben.
+  Keine Haier-Fotos – Begründung und Quellen in `docs/m7-modelle.md`.
+- **Wärmetauscher:** Die Varianten mit Solar-/Kessel-Register heißen laut Haier
+  „…M7**C**-F9“. Eine Rohrschlange im Speicher leuchtet, solange Solar oder Kessel heizt
+  (Reg 3 bit2/bit3). Neue Option *Optionen → Dashboard → „Wärmetauscher zeigen“*:
+  Automatisch (sobald die Quelle einmal aktiv war) / Ja / Nein.
+- **Eigenes Gerätebild** (optional, *Optionen → Dashboard*): z. B. ein Foto unter
+  `/local/…`; Füllstand als Säule und Werte liegen darüber.
+- Neues Modell **HP250M7-F9** in der Auswahl (laut Haier-Datenblatt; HP160/HP260 bleiben
+  wählbar, sind in den Haier-Unterlagen aber nicht auffindbar).
+- Dashboard-Layout-Generation 3: unveränderte Dashboards ziehen automatisch nach,
+  angepasste bekommen den Reparatur-Hinweis (Ja / Erst vergleichen / Nein).
+
 ## [2.0.3] - 2026-11-05
 
 - **Optionen → Verbindung & Gerät** in zwei Schritten: erst die Verbindungsart, danach nur
