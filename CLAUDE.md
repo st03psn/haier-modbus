@@ -5,7 +5,7 @@ Arbeitshinweise für Claude Code in diesem Repository.
 ## Projekt
 
 Home-Assistant-Custom-Integration (HACS) für **Haier Brauchwasserwärmepumpen der
-M7-Familie** (HP160/200/260M7-F9) über **Modbus RTU→TCP**. Sprache im Code, in Kommentaren,
+M7-Familie** (HP200/250M7-F9 und HP200/250M7C-F9 mit Wärmetauscher; HP160/260 in `const.MODELS`, aber in Haier-Unterlagen nicht auffindbar – s. `docs/m7-modelle.md`) über **Modbus RTU→TCP**. Sprache im Code, in Kommentaren,
 Doku und Commits: **Deutsch**.
 
 ## Aufbau
