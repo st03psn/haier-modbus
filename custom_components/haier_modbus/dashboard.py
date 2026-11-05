@@ -22,7 +22,6 @@ from homeassistant.components import frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
@@ -340,15 +339,11 @@ def _dashboards(hass: HomeAssistant) -> dict:
 
 
 def _device_link(hass: HomeAssistant, entry: ConfigEntry | None, de: bool) -> str:
-    """Markdown-Link zur Geräteseite (dort liegen die Vergleichs-Buttons); ohne Gerät nur der Name."""
-    dev = (
-        dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
-        if entry is not None else None
-    )
-    if dev is None:
-        return "„Haier BWWP“" if de else "“Haier BWWP”"
-    name = dev.name_by_user or dev.name or "Haier BWWP"
-    return f"[{name}](/config/devices/device/{dev.id})"
+    """Markdown-Link zur Integrationsseite (dort Zahnrad → Dashboard)."""
+    label = "Integration Haier" if de else "Haier integration"
+    if entry is None:
+        return f"*{label}*"
+    return f"[{label}](/config/integrations/integration/{DOMAIN})"
 
 
 def _publish_status(hass: HomeAssistant, applied: int | None) -> None:
@@ -428,8 +423,8 @@ async def _async_sync_layout(
                 "*Einstellungen* → Update „Dashboard“ der Haier-Integration → *Installieren* "
                 "(bleibt dort sichtbar, bis es übernommen ist). **Achtung:** Das ersetzt "
                 "eigene Anpassungen am Haier-Dashboard.\n\n**Erst vergleichen?** "
-                f"Geräteseite {dev_link} → Abschnitt *Konfiguration* → "
-                "„Neues Dashboard zum Vergleich anlegen“ drücken – es erscheint zusätzlich als "
+                f"{dev_link} → Zahnrad (*Konfigurieren*) → *Dashboard* → Aktion "
+                "„Neues Dashboard zum Vergleich anlegen“ – es erscheint zusätzlich als "
                 "„… (neu)“, dein altes bleibt. Gefällt es (gern auch angepasst), dort mit "
                 "„Vergleichs-Dashboard übernehmen“ zum Standard machen. Danach hält die Integration das "
                 "Dashboard automatisch aktuell, solange du es nicht veränderst."
@@ -439,7 +434,7 @@ async def _async_sync_layout(
                 "may contain your own changes.\n\n**To apply it:** *Settings* → update "
                 "“Dashboard” of the Haier integration → *Install* (it stays listed there until "
                 "applied). **Note:** this replaces your own changes to the Haier dashboard.\n\n"
-                f"**Compare first?** Device page {dev_link} → section *Configuration* → press "
+                f"**Compare first?** {dev_link} → gear icon (*Configure*) → *Dashboard* → action "
                 "“Create new dashboard for comparison” – it appears additionally as “… (new)”, your old one stays. If you like "
                 "it (edited or not), make it the default there with “Adopt comparison dashboard”. "
                 "Afterwards the integration keeps the dashboard up to date as long as you do "

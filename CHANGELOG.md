@@ -7,14 +7,15 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 
 ## [2.0.1] - 2026-11-05
 
-**Korrekturen am Dashboard.**
-- Der Text der Update-Entität „Dashboard“ war zu lang. HA kürzt ihn auf 255 Zeichen, sodass
-  das Ende fehlte. Er ist jetzt gekürzt und nennt den Weg zu den Vergleichs-Buttons:
-  Geräteseite *Haier BWWP* → Abschnitt *Konfiguration*.
-- Die Benachrichtigung zum neuen Dashboard-Design verlinkt jetzt direkt auf diese
-  Geräteseite (vorher nur „am Haier-Gerät“).
+**Dashboard-Vergleich leichter zu finden.**
+- **Neu:** Optionen → *Dashboard* hat eine **Aktion**: *Neues Dashboard zum Vergleich
+  anlegen*, *Vergleichs-Dashboard übernehmen* oder *Haier-Dashboard durch neues Layout
+  ersetzen*. Bisher gab es das nur als Buttons auf der Geräteseite, die man dort kaum fand.
+  Die Aktion wird nicht gespeichert und lädt die Integration nicht neu.
+- Update-Text und Benachrichtigung zeigen jetzt diesen Weg; die Benachrichtigung verlinkt
+  auf die Integrationsseite. Der Update-Text war außerdem zu lang (HA kürzt auf 255 Zeichen).
 - COP-Hinweis in der Karte „Jahresarbeitszahl & COP“: Text steht jetzt bündig links neben
-  dem Warnsymbol (vorher mittig/rechts abgesetzt).
+  dem Warnsymbol.
 
 ## [2.0.0] - 2026-11-05
 

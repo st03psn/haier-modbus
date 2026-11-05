@@ -249,12 +249,14 @@
       },
       "dashboard": {
         "title": "Dashboard",
-        "description": "Mitgeliefertes Dashboard „Haier BWWP“.",
+        "description": "Mitgeliefertes Dashboard „Haier BWWP“. Unter „Aktion“ lässt sich das neue Layout erst zum Vergleich anlegen und danach übernehmen.",
         "data": {
-          "dashboard_enabled": "Dashboard automatisch anlegen"
+          "dashboard_enabled": "Dashboard automatisch anlegen",
+          "dashboard_action": "Aktion"
         },
         "data_description": {
-          "dashboard_enabled": "Legt beim Setup das Dashboard „Haier BWWP“ an (editierbar, wenn Home Assistant das zulässt). Aus: kein Dashboard mehr anlegen; ein nicht editierbares YAML-Dashboard der Integration wird entfernt, ein bereits angelegtes editierbares bleibt bestehen und lässt sich unter Einstellungen → Dashboards löschen."
+          "dashboard_enabled": "Legt beim Setup das Dashboard „Haier BWWP“ an (editierbar, wenn Home Assistant das zulässt). Aus: kein Dashboard mehr anlegen; ein nicht editierbares YAML-Dashboard der Integration wird entfernt, ein bereits angelegtes editierbares bleibt bestehen und lässt sich unter Einstellungen → Dashboards löschen.",
+          "dashboard_action": "Einmalig ausführen, wird nicht gespeichert. **Vergleich anlegen:** neues Layout zusätzlich als „Haier BWWP (neu)“, dein Dashboard bleibt. **Übernehmen:** das Vergleichs-Dashboard (samt deiner Änderungen daran) wird zum Standard. **Ersetzen:** Haier-Dashboard direkt durch das neue Layout ersetzen – eigene Anpassungen gehen verloren."
         }
       },
       "pv": {
@@ -344,7 +346,15 @@
       "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen.",
       "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab.",
       "host_required": "Für die Verbindungsart TCP ist ein Host nötig.",
-      "serial_port_required": "Für die serielle Verbindung ist ein serieller Port nötig."
+      "serial_port_required": "Für die serielle Verbindung ist ein serieller Port nötig.",
+      "dashboard_disabled": "Für diese Aktion muss „Dashboard automatisch anlegen“ eingeschaltet sein.",
+      "dashboard_action_failed": "Die Dashboard-Aktion ist fehlgeschlagen – Details im Log."
+    },
+    "abort": {
+      "dashboard_none": "Keine Änderung.",
+      "dashboard_compare": "Vergleichs-Dashboard „Haier BWWP (neu)“ angelegt – es steht jetzt in der Seitenleiste. Zum Übernehmen hier erneut „Dashboard“ öffnen.",
+      "dashboard_promote": "Vergleichs-Dashboard übernommen und als „Haier BWWP“ gespeichert.",
+      "dashboard_replace": "Haier-Dashboard durch das neue Layout ersetzt."
     }
   },
   "selector": {
@@ -385,6 +395,14 @@
       "options": {
         "tcp": "TCP (Modbus-RTU→TCP-Konverter)",
         "serial": "Seriell (USB/RS-485-Adapter)"
+      }
+    },
+    "dashboard_action": {
+      "options": {
+        "none": "Keine",
+        "compare": "Neues Dashboard zum Vergleich anlegen",
+        "promote": "Vergleichs-Dashboard übernehmen",
+        "replace": "Haier-Dashboard durch neues Layout ersetzen"
       }
     }
   },

@@ -12,6 +12,7 @@ inklusive Host/Port/Slave des Modbus-Konverters.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
@@ -132,6 +133,8 @@ from .const import (
 )
 from .modbus_client import connection_settings, create_client, unit_kwargs
 
+_LOGGER = logging.getLogger(__name__)
+
 _ENERGY_ENTITY = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor", device_class="energy")
 )
@@ -201,6 +204,13 @@ _MODEL = selector.SelectSelector(
         mode=selector.SelectSelectorMode.DROPDOWN,
     )
 )
+# Einmalige Dashboard-Aktionen im Options-Schritt „Dashboard“ (nicht gespeichert).
+_DASH_ACTION = "dashboard_action"
+_DASH_ACTION_NONE = "none"
+_DASH_ACTION_COMPARE = "compare"
+_DASH_ACTION_PROMOTE = "promote"
+_DASH_ACTION_REPLACE = "replace"
+
 _CONNECTION_TYPE = selector.SelectSelector(
     selector.SelectSelectorConfig(
         options=[CONNECTION_TCP, CONNECTION_SERIAL],
@@ -783,13 +793,61 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_dashboard(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        """Dashboard an/aus + einmalige Aktionen (Vergleich anlegen/übernehmen, ersetzen).
+
+        Die Aktion wird nicht in den Optionen gespeichert. Ändert sich nur sie, endet
+        der Dialog ohne Speichern – sonst würde ein Options-Update die Integration neu
+        laden (und dabei In-Memory-Zustände der Regler verwerfen).
+        """
+        from .dashboard import (  # lokal: zieht Frontend-Module erst bei Bedarf
+            LAYOUT_STATUS_KEY,
+            async_create_compare_dashboard,
+            async_promote_compare_dashboard,
+            async_rebuild_dashboard,
+        )
+
+        status = self.hass.data.get(LAYOUT_STATUS_KEY) or {}
+        actions = [_DASH_ACTION_NONE, _DASH_ACTION_COMPARE]
+        if status.get("compare"):
+            actions.append(_DASH_ACTION_PROMOTE)
+        actions.append(_DASH_ACTION_REPLACE)
+        enabled = self._cur(CONF_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_ENABLED)
         schema = vol.Schema({
-            vol.Optional(CONF_DASHBOARD_ENABLED,
-                         default=self._cur(CONF_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_ENABLED)): bool,
+            vol.Optional(CONF_DASHBOARD_ENABLED, default=enabled): bool,
+            vol.Optional(_DASH_ACTION, default=_DASH_ACTION_NONE): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=actions,
+                    translation_key="dashboard_action",
+                    mode=selector.SelectSelectorMode.LIST,
+                )
+            ),
         })
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self._save(schema, user_input)
-        return self.async_show_form(step_id="dashboard", data_schema=schema)
+            action = user_input.get(_DASH_ACTION, _DASH_ACTION_NONE)
+            new_enabled = user_input.get(CONF_DASHBOARD_ENABLED, enabled)
+            if action != _DASH_ACTION_NONE and not new_enabled:
+                errors["base"] = "dashboard_disabled"
+            else:
+                handler = {
+                    _DASH_ACTION_COMPARE: async_create_compare_dashboard,
+                    _DASH_ACTION_PROMOTE: async_promote_compare_dashboard,
+                    _DASH_ACTION_REPLACE: async_rebuild_dashboard,
+                }.get(action)
+                try:
+                    if handler is not None:
+                        await handler(self.hass, self.config_entry)
+                except Exception:  # noqa: BLE001 – Grund steht im Log
+                    _LOGGER.exception("Dashboard-Aktion %s fehlgeschlagen", action)
+                    errors["base"] = "dashboard_action_failed"
+                else:
+                    if new_enabled != enabled:
+                        return self._save(
+                            vol.Schema({vol.Optional(CONF_DASHBOARD_ENABLED): bool}),
+                            {CONF_DASHBOARD_ENABLED: new_enabled},
+                        )
+                    return self.async_abort(reason=f"dashboard_{action}")
+        return self.async_show_form(step_id="dashboard", data_schema=schema, errors=errors)
 
     async def async_step_pv_mode(
         self, user_input: dict[str, Any] | None = None

@@ -249,12 +249,14 @@
       },
       "dashboard": {
         "title": "Dashboard",
-        "description": "Bundled dashboard “Haier HWHP”.",
+        "description": "Bundled dashboard “Haier BWWP”. Under “Action” you can first create the new layout for comparison and adopt it afterwards.",
         "data": {
-          "dashboard_enabled": "Create dashboard automatically"
+          "dashboard_enabled": "Create dashboard automatically",
+          "dashboard_action": "Action"
         },
         "data_description": {
-          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards."
+          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards.",
+          "dashboard_action": "Runs once, not saved. **Create for comparison:** new layout additionally as “Haier BWWP (new)”, your dashboard stays. **Adopt:** the comparison dashboard (including your changes to it) becomes the default. **Replace:** replace the Haier dashboard with the new layout right away – your own changes are lost."
         }
       },
       "pv": {
@@ -344,7 +346,15 @@
       "temp_order_high": "The boost target temperature must not be below the elevated target temperature.",
       "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw.",
       "host_required": "The TCP connection type needs a host.",
-      "serial_port_required": "The serial connection type needs a serial port."
+      "serial_port_required": "The serial connection type needs a serial port.",
+      "dashboard_disabled": "This action requires “Create dashboard automatically” to be enabled.",
+      "dashboard_action_failed": "The dashboard action failed – see the log for details."
+    },
+    "abort": {
+      "dashboard_none": "Nothing changed.",
+      "dashboard_compare": "Comparison dashboard “Haier BWWP (new)” created – it is now in the sidebar. To adopt it, open “Dashboard” here again.",
+      "dashboard_promote": "Comparison dashboard adopted and saved as “Haier BWWP”.",
+      "dashboard_replace": "Haier dashboard replaced with the new layout."
     }
   },
   "selector": {
@@ -385,6 +395,14 @@
       "options": {
         "tcp": "TCP (Modbus RTU-to-TCP converter)",
         "serial": "Serial (USB/RS-485 adapter)"
+      }
+    },
+    "dashboard_action": {
+      "options": {
+        "none": "None",
+        "compare": "Create new dashboard for comparison",
+        "promote": "Adopt comparison dashboard",
+        "replace": "Replace Haier dashboard with new layout"
       }
     }
   },
