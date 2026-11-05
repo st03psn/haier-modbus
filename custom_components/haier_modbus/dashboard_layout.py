@@ -106,7 +106,6 @@ _JS_TANK_HEAD = (
     "const x = Math.max(0, Math.min(1, (t - lo) / (hi - lo))); "
     "const c = x < 0.5 ? mix([30, 120, 220], [255, 152, 0], x / 0.5) : mix([255, 152, 0], [211, 47, 47], (x - 0.5) / 0.5); "
     "return `rgb(${c.join(',')})`; }; "
-    "const mid = isNaN(water) ? (isNaN(top) ? bot : top) : water; "
     "const fmt = (t) => isNaN(t) ? '–' : Math.round(t) + '°'; "
     "const on = (id) => states[id] ? states[id].state === 'on' : false; "
     "const hxAct = on('@E:binary_sensor.status_solar@') || on('@E:binary_sensor.status_boiler@'); "
@@ -180,12 +179,7 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
            "const hh = TH * pct / 100; ")
     defs = (
-        "<defs><linearGradient id='hwhpG' x1='0' y1='0' x2='0' y2='1'>"
-        "<stop offset='0%' stop-color='${col(top)}'/><stop offset='100%' stop-color='${col(mid)}'/>"
-        "</linearGradient>"
-        "<linearGradient id='hwhpK' x1='0' y1='0' x2='0' y2='1'>"
-        "<stop offset='0%' stop-color='${col(mid)}'/><stop offset='100%' stop-color='${col(bot)}'/>"
-        "</linearGradient>"
+        "<defs>"
         "<linearGradient id='hwhpB' x1='0' x2='1'><stop offset='0' stop-color='#c9ccd0'/>"
         "<stop offset='.18' stop-color='#f4f5f6'/><stop offset='.55' stop-color='#ffffff'/>"
         "<stop offset='.88' stop-color='#e3e5e8'/><stop offset='1' stop-color='#b9bdc2'/></linearGradient>"
@@ -220,8 +214,8 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
         body = (
             f"<image href='{image}' x='0' y='0' width='{_f(vbw)}' height='{_f(vbh)}' "
             "preserveAspectRatio='xMidYMid meet'/>"
-            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='{_f(th)}' rx='3' fill='url(#hwhpK)'/>"
-            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='${{hh}}' rx='3' fill='url(#hwhpG)'/>"
+            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='{_f(th)}' rx='3' fill='${{col(bot)}}'/>"
+            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='${{hh}}' rx='3' fill='${{col(top)}}'/>"
             "${hx ? `<g transform='translate(" + _f(tx - 6) + "," + _f(ty + th - 34) + ")' "
             "style='${hxAct ? \"animation:hwhp-glow 2s ease-in-out infinite\" : \"\"}'>"
             "<rect x='-3' y='-3' width='26' height='26' rx='6' style='fill:rgba(0,0,0,.45)'/>"
@@ -246,8 +240,9 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='#dfe3e7' opacity='.55'/>"
             "<g clip-path='url(#hwhpC)'>"
             # Schichtung: Warmwasser liegt oben (Füllstand = Anteil von oben), darunter kalt
-            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' fill='url(#hwhpK)' opacity='.8'/>"
-            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='${{hh}}' fill='url(#hwhpG)' opacity='.92'/>"
+            # Je Zone eine Farbe: gemessen werden nur „Tank oben“ und „Tank unten“
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' fill='${{col(bot)}}' opacity='.8'/>"
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='${{hh}}' fill='${{col(top)}}' opacity='.92'/>"
             f"${{pct > 0 && pct < 100 ? `<line x1='{_f(tx)}' x2='{_f(tx + tw)}' y1='${{TY + hh}}' y2='${{TY + hh}}' "
             "stroke='rgba(255,255,255,.8)' stroke-width='1' stroke-dasharray='3 2'/>` : ''}</g>"
             "${coil}"
@@ -271,12 +266,8 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     # (z. B. eigene Vergleichs-Ansichten) dürfen sich Verlauf/Clip-Pfad nicht teilen,
     # falls ein Browser die IDs nicht je Shadow-Root trennt.
     suffix = f"{int(height_mm)}{'c' if coil else ''}{'i' if image else ''}"
-    for ident in ("hwhpG", "hwhpK", "hwhpB", "hwhpD", "hwhpL", "hwhpC"):
+    for ident in ("hwhpB", "hwhpD", "hwhpL", "hwhpC"):
         js = js.replace(ident, ident + suffix)
-    # Der Farbverlauf hängt von den Live-Werten ab: zusätzlich je Darstellung eindeutig,
-    # sonst übernähme eine zweite Karte desselben Modells den Verlauf der ersten.
-    js = js.replace(f"hwhpG{suffix}", f"hwhpG{suffix}${{gu}}").replace(f"hwhpK{suffix}", f"hwhpK{suffix}${{gu}}")
-    js = js.replace("[[[ ", "[[[ const gu = Math.random().toString(36).slice(2, 8); ", 1)
     return js
 
 

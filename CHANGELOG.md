@@ -12,7 +12,8 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   M7 in der Bauform des gewählten Modells (200er: 1694 mm, 250er/HP260: 1989 mm hoch; Maße
   laut Haier-Datenblatt).
 - **Füllstand als Schichtung:** Das Warmwasser liegt oben (Füllstand = Anteil von oben),
-  darunter die kalte Zone. Neue Farbskala **Blau (kalt) → Rot (heiß)** statt Rot → Grün;
+  darunter die kalte Zone, je Zone eine Farbe (nach Tank oben bzw. unten). Neue Farbskala
+  **Blau (kalt) → Rot (heiß)** statt Rot → Grün;
   Temperaturen oben/unten ohne Beschriftung, dafür kontrastreicher.
   Keine Haier-Fotos – Begründung und Quellen in `docs/m7-modelle.md`.
 - **Wärmetauscher:** Die Varianten mit Solar-/Kessel-Register heißen laut Haier
