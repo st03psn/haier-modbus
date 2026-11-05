@@ -21,6 +21,7 @@ from pathlib import Path
 from homeassistant.components import frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
@@ -30,6 +31,7 @@ from .const import (
     CONF_PV_MODE,
     DASHBOARD_ICON,
     DASHBOARD_LEGACY_URL_PATH,
+    DASHBOARD_COMPARE_URL_PATH,
     DASHBOARD_URL_PATH,
     DEFAULT_DASHBOARD_ENABLED,
     DEFAULT_PV_MODE,
@@ -330,9 +332,18 @@ LAYOUT_SIGNAL = f"{DOMAIN}_dashboard_layout"
 LAYOUT_STATUS_KEY = f"{DOMAIN}_dashboard_layout"
 
 
+def _dashboards(hass: HomeAssistant) -> dict:
+    dashboards = getattr(hass.data.get("lovelace"), "dashboards", None)
+    return dashboards if isinstance(dashboards, dict) else {}
+
+
 def _publish_status(hass: HomeAssistant, applied: int | None) -> None:
-    """Stand für die Update-Entität bereitstellen (None = kein Dashboard verwaltet)."""
-    hass.data[LAYOUT_STATUS_KEY] = {"applied": applied, "latest": DASHBOARD_LAYOUT_VERSION}
+    """Stand für Update-Entität und Buttons bereitstellen (None = kein Dashboard verwaltet)."""
+    hass.data[LAYOUT_STATUS_KEY] = {
+        "applied": applied,
+        "latest": DASHBOARD_LAYOUT_VERSION,
+        "compare": DASHBOARD_COMPARE_URL_PATH in _dashboards(hass),
+    }
     async_dispatcher_send(hass, LAYOUT_SIGNAL)
 
 
@@ -355,7 +366,7 @@ async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -
     meta = await meta_store.async_load() or {}
     new_hash = _config_hash(config)
     if not existed:  # gerade frisch angelegt
-        await meta_store.async_save({"applied": DASHBOARD_LAYOUT_VERSION, "hash": new_hash,
+        await meta_store.async_save({**meta, "applied": DASHBOARD_LAYOUT_VERSION, "hash": new_hash,
                                      "notified": DASHBOARD_LAYOUT_VERSION})
         _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
         return
@@ -376,7 +387,7 @@ async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -
         if cur_hash != new_hash:
             await dash.async_save(config)
             _LOGGER.info("Unverändertes Haier-Dashboard auf aktuelles Layout gebracht")
-        await meta_store.async_save({"applied": DASHBOARD_LAYOUT_VERSION, "hash": new_hash,
+        await meta_store.async_save({**meta, "applied": DASHBOARD_LAYOUT_VERSION, "hash": new_hash,
                                      "notified": DASHBOARD_LAYOUT_VERSION})
         _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
         return
@@ -400,14 +411,20 @@ async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -
                 "**nicht** verändert, weil es angepasst sein könnte.\n\n**Übernehmen:** "
                 "*Einstellungen* → Update „Dashboard“ der Haier-Integration → *Installieren* "
                 "(bleibt dort sichtbar, bis es übernommen ist). **Achtung:** Das ersetzt "
-                "eigene Anpassungen am Haier-Dashboard. Danach hält die Integration das "
+                "eigene Anpassungen am Haier-Dashboard.\n\n**Erst vergleichen?** Am Haier-Gerät "
+                "„Neues Dashboard zum Vergleich anlegen“ drücken – es erscheint zusätzlich als "
+                "„… (neu)“, dein altes bleibt. Gefällt es (gern auch angepasst), mit "
+                "„Vergleichs-Dashboard übernehmen“ zum Standard machen. Danach hält die Integration das "
                 "Dashboard automatisch aktuell, solange du es nicht veränderst."
                 if de else
                 "A new, more compact dashboard design is available (single page, tank "
                 "graphic, SCOP/COP card). Your existing dashboard was **not** changed, as it "
                 "may contain your own changes.\n\n**To apply it:** *Settings* → update "
                 "“Dashboard” of the Haier integration → *Install* (it stays listed there until "
-                "applied). **Note:** this replaces your own changes to the Haier dashboard. "
+                "applied). **Note:** this replaces your own changes to the Haier dashboard.\n\n"
+                "**Compare first?** Press “Create new dashboard for comparison” on the Haier "
+                "device – it appears additionally as “… (new)”, your old one stays. If you like "
+                "it (edited or not), make it the default with “Adopt comparison dashboard”. "
                 "Afterwards the integration keeps the dashboard up to date as long as you do "
                 "not edit it."
             ),
@@ -434,8 +451,10 @@ async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> No
         await async_register_dashboard(hass, entry)
     else:
         await store.async_save(config)
-    await Store(hass, 1, _LAYOUT_STORE_KEY).async_save(
-        {"applied": DASHBOARD_LAYOUT_VERSION, "hash": _config_hash(config),
+    meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
+    meta = await meta_store.async_load() or {}
+    await meta_store.async_save(
+        {**meta, "applied": DASHBOARD_LAYOUT_VERSION, "hash": _config_hash(config),
          "notified": DASHBOARD_LAYOUT_VERSION}
     )
     _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
@@ -443,6 +462,83 @@ async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> No
         "persistent_notification", "dismiss", {"notification_id": _NOTIFY_ID}, blocking=False
     )
     _LOGGER.info("Haier-Dashboard auf Layout %s neu aufgebaut", DASHBOARD_LAYOUT_VERSION)
+
+
+async def async_create_compare_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Neues Layout als zusätzliches Dashboard zum Vergleich anlegen (bzw. neu schreiben).
+
+    Das bestehende Haier-Dashboard bleibt unverändert. Der Fingerabdruck des
+    erzeugten Vergleichs-Dashboards wird gemerkt, damit „übernehmen“ erkennt, ob
+    der Nutzer es vorher angepasst hat.
+    """
+    config = _build_config(hass, entry)
+    dashboards = _dashboards(hass)
+    store = dashboards.get(DASHBOARD_COMPARE_URL_PATH)
+    if store is None:
+        collection = _find_dashboards_collection(hass, hass.data.get("lovelace"))
+        if collection is None:
+            raise HomeAssistantError("Lovelace-Dashboard-Liste nicht gefunden")
+        de = (hass.config.language or "en").lower().startswith("de")
+        await collection.async_create_item(
+            {
+                "url_path": DASHBOARD_COMPARE_URL_PATH,
+                "title": f"{localized_title(hass.config.language)} ({'neu' if de else 'new'})",
+                "icon": DASHBOARD_ICON,
+                "show_in_sidebar": True,
+                "require_admin": False,
+            }
+        )
+        store = _dashboards(hass).get(DASHBOARD_COMPARE_URL_PATH)
+        if store is None:
+            raise HomeAssistantError("Vergleichs-Dashboard wurde nicht registriert")
+    await store.async_save(config)
+    meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
+    meta = await meta_store.async_load() or {}
+    await meta_store.async_save({**meta, "compare_hash": _config_hash(config)})
+    _publish_status(hass, (hass.data.get(LAYOUT_STATUS_KEY) or {}).get("applied"))
+    _LOGGER.info("Vergleichs-Dashboard unter /%s angelegt", DASHBOARD_COMPARE_URL_PATH)
+
+
+async def async_promote_compare_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Vergleichs-Dashboard zum Standard machen (inkl. eigener Änderungen daran).
+
+    Kopiert den Inhalt nach ``/haier-hwhp`` und entfernt das Vergleichs-Dashboard.
+    War es unverändert, verwaltet die Integration das Dashboard danach wieder
+    automatisch; wurde es angepasst, gilt das Ergebnis als angepasst (geschützt).
+    """
+    dashboards = _dashboards(hass)
+    compare = dashboards.get(DASHBOARD_COMPARE_URL_PATH)
+    if compare is None:
+        raise HomeAssistantError("Kein Vergleichs-Dashboard vorhanden")
+    config = await compare.async_load(False)
+    main = dashboards.get(DASHBOARD_URL_PATH)
+    if main is None or _is_own_yaml_dashboard(dashboards, DASHBOARD_URL_PATH):
+        raise HomeAssistantError("Haier-Dashboard ist kein editierbares Dashboard")
+    await main.async_save(config)
+
+    meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
+    meta = await meta_store.async_load() or {}
+    cfg_hash = _config_hash(config)
+    unchanged = bool(meta.get("compare_hash")) and cfg_hash == meta.get("compare_hash")
+    meta.pop("compare_hash", None)
+    await meta_store.async_save({**meta, "applied": DASHBOARD_LAYOUT_VERSION,
+                                 "hash": cfg_hash if unchanged else None,
+                                 "notified": DASHBOARD_LAYOUT_VERSION})
+
+    collection = _find_dashboards_collection(hass, hass.data.get("lovelace"))
+    if collection is not None:
+        item_id = next(
+            (iid for iid, item in getattr(collection, "data", {}).items()
+             if (item or {}).get("url_path") == DASHBOARD_COMPARE_URL_PATH),
+            None,
+        )
+        if item_id is not None:
+            await collection.async_delete_item(item_id)
+    _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
+    await hass.services.async_call(
+        "persistent_notification", "dismiss", {"notification_id": _NOTIFY_ID}, blocking=False
+    )
+    _LOGGER.info("Vergleichs-Dashboard übernommen (angepasst: %s)", not unchanged)
 
 
 async def async_remove_dashboard(hass: HomeAssistant) -> None:

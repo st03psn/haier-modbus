@@ -530,6 +530,14 @@
       "dashboard": {
         "name": "Dashboard"
       }
+    },
+    "button": {
+      "dashboard_compare": {
+        "name": "Neues Dashboard zum Vergleich anlegen"
+      },
+      "dashboard_promote": {
+        "name": "Vergleichs-Dashboard übernehmen"
+      }
     }
   },
   "issues": {

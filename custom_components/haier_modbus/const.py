@@ -330,6 +330,9 @@ def localized_title(language: str | None) -> str:
 
 # Mitgeliefertes Dashboard (Storage-Modus = im UI editierbar)
 DASHBOARD_URL_PATH: Final = "haier-hwhp"
+# Vergleichs-Dashboard: neues Layout neben dem bestehenden (Button „vergleichen“),
+# per Button „übernehmen“ wird es zum Standard (inkl. eigener Änderungen daran).
+DASHBOARD_COMPARE_URL_PATH: Final = "haier-hwhp-new"
 DASHBOARD_LEGACY_URL_PATH: Final = "haier-bwwp"  # altes, gesperrtes YAML-Dashboard
 DASHBOARD_ICON: Final = "mdi:water-boiler"
 # #18: mitgeliefertes Dashboard abschaltbar (z. B. wenn HA nur den nicht
@@ -492,4 +495,5 @@ PLATFORMS: Final = [
     "binary_sensor",
     "time",
     "update",
+    "button",
 ]

@@ -45,6 +45,8 @@ _TEXT: dict[str, dict[str, str]] = {
         "jaz_per_year": "JAZ pro Jahr",
         "dash_update": "Dashboard-Update verfügbar",
         "ok": "OK", "emergency_short": "Notheizung",
+        "dash_compare": "Neu zum Vergleich anlegen", "dash_promote": "Vergleich übernehmen",
+        "dash_promote_confirm": "Das Vergleichs-Dashboard (inkl. deiner Änderungen daran) ersetzt das Haier-Dashboard. Fortfahren?",
         "cop_note": ("Wärme aus dem Geräteregister: COP/JAZ sind vermutlich deutlich zu hoch "
                      "(Messung: Faktor 2 bis 3,7). Wird in einem der nächsten Releases überarbeitet."),
     },
@@ -69,6 +71,8 @@ _TEXT: dict[str, dict[str, str]] = {
         "jaz_per_year": "SCOP per year",
         "dash_update": "Dashboard update available",
         "ok": "OK", "emergency_short": "Emergency",
+        "dash_compare": "Create new for comparison", "dash_promote": "Adopt comparison",
+        "dash_promote_confirm": "The comparison dashboard (incl. your changes to it) replaces the Haier dashboard. Continue?",
         "cop_note": ("Heat from the device register: COP/SCOP are probably far too high "
                      "(measured: factor 2 to 3.7). Will be revised in one of the next releases."),
     },
@@ -386,6 +390,18 @@ def _template(with_pv: bool, settings_path: str) -> dict:
               color="amber", features=[{"type": "update-actions"}], features_position="bottom",
               visibility=[{"condition": "state", "entity": "@E:update.dashboard@", "state": "on"}],
               grid_options={"columns": 12}),
+        _tile("@E:button.dashboard_compare@", "§dash_compare§", icon="mdi:view-dashboard-variant-outline",
+              tap_action={"action": "perform-action", "perform_action": "button.press",
+                          "target": {"entity_id": "@E:button.dashboard_compare@"}},
+              visibility=[{"condition": "state", "entity": "@E:update.dashboard@", "state": "on"}],
+              grid_options={"columns": 6}),
+        _tile("@E:button.dashboard_promote@", "§dash_promote§", icon="mdi:check-decagram-outline",
+              tap_action={"action": "perform-action", "perform_action": "button.press",
+                          "target": {"entity_id": "@E:button.dashboard_promote@"},
+                          "confirmation": {"text": "§dash_promote_confirm§"}},
+              visibility=[{"condition": "state", "entity": "@E:button.dashboard_promote@",
+                           "state_not": "unavailable"}],
+              grid_options={"columns": 6}),
         tank_card,
     ]
 

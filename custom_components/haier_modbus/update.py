@@ -73,10 +73,14 @@ class HaierDashboardUpdate(HaierModbusEntity, UpdateEntity):
         de = (self.hass.config.language or "en").lower().startswith("de")
         return (
             "Neues Dashboard-Layout. Installieren ersetzt das Haier-Dashboard durch die "
-            "aktuelle Fassung – eigene Anpassungen daran gehen verloren."
+            "aktuelle Fassung – eigene Anpassungen daran gehen verloren. Erst vergleichen: "
+            "Button „Neues Dashboard zum Vergleich anlegen“ am Haier-Gerät, danach "
+            "„Vergleichs-Dashboard übernehmen“."
             if de else
             "New dashboard layout. Installing replaces the Haier dashboard with the "
-            "current version – your own changes to it are lost."
+            "current version – your own changes to it are lost. To compare first: button "
+            "“Create new dashboard for comparison” on the Haier device, then "
+            "“Adopt comparison dashboard”."
         )
 
     async def async_added_to_hass(self) -> None:

@@ -530,6 +530,14 @@
       "dashboard": {
         "name": "Dashboard"
       }
+    },
+    "button": {
+      "dashboard_compare": {
+        "name": "Create new dashboard for comparison"
+      },
+      "dashboard_promote": {
+        "name": "Adopt comparison dashboard"
+      }
     }
   },
   "issues": {
