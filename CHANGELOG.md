@@ -32,10 +32,9 @@ Systemsprache:
   Rot (an/unter der kritischen Schwelle der Notheizung) bis Grün (ab Solltemperatur);
   daneben alle Betriebszustände (Wärmepumpe, Heizstab, Solar, externe Wärmequelle,
   Boost, Leise, Sterilisation, aktive Regelung inkl. PV-Stufe und Überschuss, nächster
-  Legionellen-Termin, Umgebung), Problemfälle (Gerät aus) zuerst. Darunter eine
-  Statusleiste: Modbus, Fehler, Geräteuhr (als „+63 min“), Notheizung („bereit · < 38 °C“).
-- **Statusleiste** unter der Speicher-Grafik einzeilig: Modbus, Fehler, Geräteuhr,
-  Notheizung („bereit <38°“).
+  Legionellen-Termin, Umgebung), Problemfälle (Gerät aus) zuerst.
+- **Statusleiste** unter der Speicher-Grafik, einzeilig: Modbus, Fehler, Geräteuhr
+  (als „+63 min“), Notheizung („bereit <38°“).
 - **Betrieb:** Schalter (Betrieb, Boost, Leise, Sterilisation) schalten erst **nach
   Rückfrage** – ein versehentlicher Tipp schaltet das Gerät nicht mehr aus. Im
   Executor-Modus (z. B. evcc) zusätzlich das **PV-Programm** als Auswahl.
