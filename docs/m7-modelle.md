@@ -62,12 +62,18 @@ HP200M7-F9 (enthält die C-Varianten), z. B. https://media.adeo.com/media/448812
 keine Haier-Fotos (die Produktbilder in den PDFs sind zwar schon freigestellt, aber
 urheberrechtlich geschützte Werbebilder). Maßstab 1 Einheit = 5 mm, beide Größen im selben
 Maßstab. Bauform nach Datenblatt: weißer Zylinder, schwarzes Bedienfeld im Kopf, dunkle
-Trennfuge Kopf/Speicher, dunkler Sockel, Luftkanal-Stutzen oben. Der Speicher ist als
-„Fenster“ gezeichnet (Füllstand + Farbskala wie im Dashboard), die C-Varianten zeigen die
-Rohrschlange im unteren Drittel.
+Trennfuge Kopf/Speicher, dunkler Sockel, zwei Luftkanal-Stutzen oben, Heizstab mit Stopfen
+am Mantel. Der Speicher ist als „Fenster“ gezeichnet (Warmwasser-Schicht oben, Kaltzone
+unten, wie im Dashboard); die C-Varianten zeigen die Rohrschlange im unteren Drittel – mit
+derselben Funktion wie das Dashboard (`dashboard_layout.coil_markup`).
+
+Im Dashboard selbst entsteht die Grafik zur Laufzeit in `dashboard_layout._tank_js`
+(button-card-JS): Farben nach Temperatur, Übergang je nach Unterschied oben/unten,
+Heizstab und Rohrschlange leuchten bei Betrieb, Werte per Tipp mit Verlauf.
 
 Geschätzt (nicht aus dem Datenblatt): Höhe des Wärmepumpen-Kopfes (~455 mm, aus dem
-Produktfoto abgeleitet) und die Lage der Rohrschlange.
+Produktfoto abgeleitet), Abstand der Luftstutzen, Lage von Heizstab und Rohrschlange. Das
+Bedienfeld ist bewusst größer als maßstäblich, damit es auf dem Handy erkennbar bleibt.
 
 ## Quellen
 

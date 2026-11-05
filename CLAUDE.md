@@ -21,13 +21,17 @@ custom_components/haier_modbus/
   config_flow.py   Setup-Assistent + Options-Flow (alles über die UI)
   number/sensor/select/switch/binary_sensor/water_heater.py   Entitäten
   dashboard.py     Registrierung des mitgelieferten Storage-Dashboards + Dienst rebuild_dashboard
-  dashboard_layout.py  Layout (Platzhalter @E:…@ für Entitäten, §…§ für de/en-Texte)
+  dashboard_layout.py  Layout (Platzhalter @E:…@ für Entitäten, §…§ für de/en-Texte);
+                       Speicher-Grafik = button-card-JS aus _tank_js/coil_markup, Tipp→Verlauf via _JS_MI
   const.py         Register-Karte, Options-Keys, Defaults
 docs/
   register-map.md     Modbus-Register (Quelle: Hersteller-PDF im selben Ordner)
   geraete-grenzen.md  Temperatur-/Leistungsgrenzen des Geräts – VOR Regelungsarbeit lesen
   fault-codes.md      Fehlercode-Tabelle
   pv-executor-evcc.md HEMS-Anbindung (evcc)
+  m7-modelle.md       Modelle/Varianten (…M7C-F9 = Wärmetauscher), externe Wärmequelle, Quellen
+  images/models/      eigene SVG-Geräteabbilder (erzeugt von tools/gen_model_svgs.py)
+tools/gen_model_svgs.py  Generator der Einzelbilder (nutzt dashboard_layout.coil_markup)
 ```
 
 Die drei Controller (`pv`, `emergency`, `legionella`) werden vom Coordinator **in dieser
@@ -101,6 +105,24 @@ Diese Punkte haben in der Vergangenheit reale Fehler verursacht:
 - **Entprellung:** ein gemeinsamer `_debounced()`-Mechanismus für alle Stufen; jeder
   Stufenwechsel braucht die volle Entprellzeit.
 
+## Dashboard-Grafik – Fallstricke
+
+- **Keine Haier-Fotos mitliefern** (urheberrechtlich geschützt, s. `docs/m7-modelle.md`);
+  eigene Zeichnung oder ein Nutzerbild per Option (`/local/…`, Regex `IMAGE_URL_RE`, landet
+  in einem JS-String).
+- **SVG-IDs eindeutig halten:** Verlauf/Clip-Pfad je Bauform suffixen, der von Live-Werten
+  abhängige Verlauf zusätzlich je Darstellung (`${gu}`) – sonst übernimmt eine zweite Karte
+  desselben Modells die Werte der ersten.
+- **Rohrschlange nach Modell** (`MODELS_WITH_COIL`), nicht nach Solar-/Kessel-Sensoren: Die
+  sind bei Bestandsinstallationen teils aktiv, obwohl kein Register verbaut ist.
+- **Grafik-Variante** (`dashboard._variant`: Bauform, Rohrschlange, Bild) wird in der
+  Layout-Meta gespeichert; ändert sie sich, bekommt ein angepasstes Dashboard den
+  Reparatur-Hinweis `dashboard_variant_update`.
+- Tipp→Verlauf (`_JS_MI`) stoppt Pointer-/Maus-/Touch-Ereignisse, damit die Karten-Aktion
+  nicht zusätzlich auslöst – in HA bestätigt (v2.1.2).
+- Prüfen ohne HA: `build_layout` per `importlib` laden, die custom_fields in Node mit
+  gestubbten `states` ausführen und mit dem vorinstallierten Chromium rendern.
+
 ## Testen
 
 Es gibt **kein** automatisiertes Testsetup; CI fährt nur `hassfest` + HACS-Validierung.
@@ -135,6 +157,10 @@ Ist der Branch bereits gemergt, für Folgearbeit **frisch von `main` aufsetzen**
 > Konflikt. Prüfen mit `pull_request_read method=get` (Feld `mergeable_state`), nicht
 > nur mit `get_check_runs`. Reparatur: Branch von `origin/main` neu aufsetzen und die
 > eigenen Commits per `git cherry-pick` übertragen.
+>
+> Ist Force-Push nicht erlaubt (Cloud-Sitzung): stattdessen `git merge origin/main` in den
+> gemergten Branch – der Baum entspricht dann `main`, der PR-Diff zeigt nur die neue Arbeit,
+> und der Squash-Merge räumt den Zwischen-Merge wieder weg.
 
 **HACS zieht Versionen aus GitHub-Releases, nicht aus `main`.** Nach dem Merge ist noch ein
 Release mit passendem Tag (`vX.Y.Z`) nötig, sonst bleibt die Integration bei der alten

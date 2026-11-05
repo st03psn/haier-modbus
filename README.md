@@ -13,7 +13,7 @@ Vollständig **lokal** über Modbus – kein hOn-Cloud-Konto nötig. Gegenüber 
 Cloud bietet der lokale Weg **Schreibzugriff**, direkten Zugriff auf die
 **Energieregister** und läuft **ohne Internet-/Cloud-Abhängigkeit**.
 
-![Mitgeliefertes Dashboard (v2.0.0)](docs/images/dashboard.webp)
+![Mitgeliefertes Dashboard (Aufnahme aus v2.0.0 – die Speicher-Grafik ist seit v2.1.0 ein Geräteabbild, siehe docs/images/models)](docs/images/dashboard.webp)
 
 ---
 
@@ -301,11 +301,15 @@ nach Systemsprache):
 
 - **Speicher:** Geräteabbild des gewählten Modells (seit v2.1.0; eigene Zeichnung, siehe
   [`docs/m7-modelle.md`](docs/m7-modelle.md)). Das Warmwasser liegt als Schicht oben
-  (Füllstand = Anteil von oben), darunter die kalte Zone; Farbe Blau (unter der kritischen
-  Schwelle der Notheizung), Gelb (warm) bis Rot (≥ Solltemperatur), Temperatur oben/unten am Rand.
+  (Füllstand = Anteil von oben), darunter die kalte Zone. Der Übergang ist sanft, wenn oben
+  und unten fast gleich warm sind, und wird ab ~10 K Unterschied zur Kante. Farbe nach
+  Temperatur: Blau (unter der kritischen Schwelle der Notheizung), Gelb (warm) bis Rot
+  (Solltemperatur erreicht); Temperatur oben, Wasser und unten stehen in der Grafik.
   Der Heizstab leuchtet, solange er läuft. Daneben alle Betriebszustände
   (Wärmepumpe, Heizstab, Boost, Leise, Sterilisation, aktive Regelung, Legionellen,
   Umgebung), darunter eine Statusleiste (Modbus, Fehler, Geräteuhr, Notheizung).
+  **Ein Tipp auf eine Anzeige öffnet deren Verlauf** (seit v2.1.2); ein Tipp daneben öffnet
+  den Warmwasserbereiter.
   Varianten mit Wärmetauscher (…M7C-F9) zeigen die Rohrschlange, die bei Solar-/Kesselbetrieb
   leuchtet. Unter *Optionen → Dashboard* lässt sich das einstellen (Automatisch = nach Modell/Ja/Nein) und
   ein **eigenes Foto** hinterlegen (z. B. `/local/haier.png`); die Werte liegen dann darüber.
@@ -365,7 +369,7 @@ Fully **local** over Modbus – no hOn cloud account required. Versus the cloud,
 local path offers write access, direct access to the energy registers and runs
 **without any internet/cloud dependency**.
 
-The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards (and all from versions before 2.0.0) are never overwritten without asking. Instead a **repair notice** under *Settings → Repairs* asks “Adopt the new dashboard layout?” – **Yes**, **Compare first** (adds the new layout as “… (new)”; adopt it there later, including your changes) or **No**. The same is available under *Configure → Dashboard* and via the update entity **“Dashboard”** (`update.haier_hwhp_dashboard`).
+The bundled dashboard (single page, German/English) shows the tank as a drawing of your model (since 2.1.0; variants with heat exchanger …M7C-F9 show the coil, lit while solar/boiler heats). Hot water is drawn as a layer from the top, blending into the cold zone – softly when top and bottom are almost equal, as an edge from ~10 K difference; colours go from blue (below the emergency-heating threshold) via yellow to red (setpoint reached). **Tapping a value opens its history** (since 2.1.2). It needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards (and all from versions before 2.0.0) are never overwritten without asking. Instead a **repair notice** under *Settings → Repairs* asks “Adopt the new dashboard layout?” – **Yes**, **Compare first** (adds the new layout as “… (new)”; adopt it there later, including your changes) or **No**. The same is available under *Configure → Dashboard* and via the update entity **“Dashboard”** (`update.haier_hwhp_dashboard`).
 
 ### ⚠️ Important: does your unit even have Modbus?
 **Not every** unit in this series has the Modbus interface – unofficially it is only
