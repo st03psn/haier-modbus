@@ -16,6 +16,8 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   „…M7**C**-F9“. Eine Rohrschlange im Speicher leuchtet, solange Solar oder Kessel heizt
   (Reg 3 bit2/bit3). Neue Option *Optionen → Dashboard → „Wärmetauscher zeigen“*:
   Automatisch (nach Modell) / Ja / Nein.
+- **Heizstab** sichtbar: seitlich eingeschraubt mit Stopfen am Gehäuse, leuchtet orange,
+  solange der Heizstab läuft.
 - **Eigenes Gerätebild** (optional, *Optionen → Dashboard*): z. B. ein Foto unter
   `/local/…`; Füllstand als Säule und Werte liegen darüber.
 - Neue Modelle in der Auswahl (laut Haier-Datenblatt): **HP250M7-F9** sowie die

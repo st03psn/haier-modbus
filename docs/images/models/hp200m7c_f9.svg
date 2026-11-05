@@ -11,7 +11,8 @@
 <rect x='17.5' y='155.2' width='4' height='3' rx='.6' fill='#2a2d31'/>
 <rect x='29' y='164.2' width='102.0' height='226.8' rx='10' fill='#dfe3e7' opacity='.55'/>
 <g clip-path='url(#win)'><rect x='29' y='232.2' width='102.0' height='158.8' fill='url(#water)' opacity='.9'/></g>
-<g clip-path='url(#win)'><line x1='37.0' y1='288.9' x2='90.0' y2='284.9' stroke='#7b8087' stroke-width='2.2' stroke-linecap='round'/></g>
+<line x1='23' y1='282.1' x2='98.0' y2='282.1' stroke='#8d9399' stroke-width='4.5' stroke-linecap='round'/>
+<line x1='25' y1='281.1' x2='96.0' y2='281.1' stroke='rgba(255,255,255,.45)' stroke-width='1.1' stroke-linecap='round'/>
 <g class='coil' clip-path='url(#win)' fill='none' stroke-linecap='round'>
 <path d='M38.0,300.3 A42.0,5.5 0 0 1 122.0,306.8' stroke='#8a4b16' stroke-width='1.8' opacity='.5'/>
 <path d='M122.0,306.8 A42.0,5.5 0 0 1 38.0,313.4' stroke='#d9792b' stroke-width='2.8'/>
@@ -31,6 +32,8 @@
 <circle cx='21.0' cy='300.3' r='2.6' fill='#d9792b' stroke='#7a3f10' stroke-width='.6'/>
 <circle cx='21.0' cy='379.0' r='2.6' fill='#d9792b' stroke='#7a3f10' stroke-width='.6'/>
 <rect x='29' y='164.2' width='102.0' height='226.8' rx='10' fill='url(#glass)' stroke='#9ea3a9' stroke-width='.6'/>
+<rect x='16' y='276.1' width='9' height='12' rx='1.8' fill='url(#dark)'/>
+<rect x='17.5' y='278.6' width='6' height='7' rx='1' fill='#5f656c'/>
 <circle cx='139.0' cy='174.2' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>
 <circle cx='139.0' cy='384.0' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>
 </svg>

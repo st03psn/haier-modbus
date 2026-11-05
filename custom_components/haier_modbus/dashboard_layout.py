@@ -106,6 +106,7 @@ _JS_TANK_HEAD = (
     "const fmt = (t) => isNaN(t) ? '–' : Math.round(t) + '°'; "
     "const on = (id) => states[id] ? states[id].state === 'on' : false; "
     "const hxAct = on('@E:binary_sensor.status_solar@') || on('@E:binary_sensor.status_boiler@'); "
+    "const hs = on('@E:binary_sensor.status_heater@'); const hc = hs ? '#ff6d00' : '#8d9399'; "
     "const lab = `style='fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:3px' text-anchor='middle'`; "
 )
 
@@ -130,6 +131,7 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     ty = band + 6
     th = (y0 + h - foot - 3) - ty - 3
     cx = x0 + W / 2
+    hy = ty + th * 0.52  # Heizstab-Höhe (Schnittbild Datenblatt: etwa Speichermitte)
     js = _JS_TANK_HEAD + f"const hx = {'true' if coil else 'false'}; "
     js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
            "const fy = TY + TH * (1 - pct / 100); ")
@@ -175,8 +177,8 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     fs, fl = _f(13 * k), _f(30 * k)
     labels = (
         f"<text x='{_f(cx)}' y='{_f(ty + 20 * k)}' font-size='{fs}' ${{lab}}>§top§ ${{fmt(top)}}</text>"
-        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.42)}' font-size='{fl}' font-weight='600' ${{lab}}>${{fmt(water)}}</text>"
-        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.42 + 20 * k)}' font-size='{fs}' ${{lab}}>${{Math.round(pct)}} %</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.36)}' font-size='{fl}' font-weight='600' ${{lab}}>${{fmt(water)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.36 + 20 * k)}' font-size='{fs}' ${{lab}}>${{Math.round(pct)}} %</text>"
         f"<text x='{_f(cx)}' y='{_f(ty + th - 10 * k)}' font-size='{fs}' ${{lab}}>§bottom§ ${{fmt(bot)}}</text>"
     )
     svg_open = (f"<svg viewBox='0 0 {_f(vbw)} {_f(vbh)}' width='100%' height='100%' "
@@ -214,12 +216,20 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
             f"<rect x='{_f(x0 - 2.5)}' y='{_f(band - 3)}' width='4' height='3' rx='.6' fill='#2a2d31'/>"
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='#dfe3e7' opacity='.55'/>"
             "<g clip-path='url(#hwhpC)'>"
-            f"<rect x='{_f(tx)}' y='${{fy}}' width='{_f(tw)}' height='${{TY + TH - fy}}' fill='url(#hwhpG)' opacity='.92'/>"
-            f"<line x1='{_f(tx + 8)}' y1='{_f(ty + th * .55)}' x2='{_f(cx + 10)}' y2='{_f(ty + th * .55 - 4)}' "
-            "stroke='#7b8087' stroke-width='2.2' stroke-linecap='round'/></g>"
+            f"<rect x='{_f(tx)}' y='${{fy}}' width='{_f(tw)}' height='${{TY + TH - fy}}' fill='url(#hwhpG)' opacity='.92'/></g>"
             "${coil}"
+            # Heizstab: seitlich eingeschraubt (Stopfen am Mantel), leuchtet bei Betrieb
+            "${hs ? `<line x1='" + _f(x0 + 3) + "' y1='" + _f(hy) + "' x2='" + _f(cx + 18) + "' y2='" + _f(hy) + "' "
+            "stroke='#ff9100' stroke-width='10' stroke-linecap='round' opacity='.35' "
+            "style='animation:hwhp-glow 1.2s ease-in-out infinite'/>` : ''}"
+            f"<line x1='{_f(x0 + 3)}' y1='{_f(hy)}' x2='{_f(cx + 18)}' y2='{_f(hy)}' stroke='${{hc}}' "
+            "stroke-width='4.5' stroke-linecap='round'/>"
+            f"<line x1='{_f(x0 + 5)}' y1='{_f(hy - 1)}' x2='{_f(cx + 16)}' y2='{_f(hy - 1)}' "
+            "stroke='rgba(255,255,255,.45)' stroke-width='1.1' stroke-linecap='round'/>"
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='url(#hwhpL)' "
             "stroke='#9ea3a9' stroke-width='.6'/>"
+            f"<rect x='{_f(x0 - 4)}' y='{_f(hy - 6)}' width='9' height='12' rx='1.8' fill='url(#hwhpD)'/>"
+            f"<rect x='{_f(x0 - 2.5)}' y='{_f(hy - 3.5)}' width='6' height='7' rx='1' fill='${{hs ? \"#ff6d00\" : \"#5f656c\"}}'/>"
             f"<circle cx='{_f(x0 + W - 1)}' cy='{_f(ty + 10)}' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>"
             f"<circle cx='{_f(x0 + W - 1)}' cy='{_f(ty + th - 4)}' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>"
         )

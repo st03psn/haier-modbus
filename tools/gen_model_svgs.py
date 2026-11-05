@@ -81,9 +81,12 @@ def svg(key: str, m: dict, fill_pct: float | None = 70) -> str:
         fy = ty + th * (1 - fill_pct / 100)
         p.append(f"<g clip-path='url(#win)'><rect x='{tx}' y='{fy:.1f}' width='{tw}' height='{ty + th - fy:.1f}' "
                  "fill='url(#water)' opacity='.9'/></g>")
-    # Heizstab (beide Varianten, oben im unteren Drittel des Kopfes eingeführt -> schräg im Speicher)
-    p.append(f"<g clip-path='url(#win)'><line x1='{tx + 8:.1f}' y1='{ty + th * .55:.1f}' x2='{cx + 10:.1f}' "
-             f"y2='{ty + th * .55 - 4:.1f}' stroke='#7b8087' stroke-width='2.2' stroke-linecap='round'/></g>")
+    # Heizstab (beide Varianten): seitlich eingeschraubt, Stopfen am Mantel, etwa Speichermitte
+    hy = ty + th * 0.52
+    p.append(f"<line x1='{x0 + 3}' y1='{hy:.1f}' x2='{cx + 18:.1f}' y2='{hy:.1f}' stroke='#8d9399' "
+             "stroke-width='4.5' stroke-linecap='round'/>")
+    p.append(f"<line x1='{x0 + 5}' y1='{hy - 1:.1f}' x2='{cx + 16:.1f}' y2='{hy - 1:.1f}' "
+             "stroke='rgba(255,255,255,.45)' stroke-width='1.1' stroke-linecap='round'/>")
     if m["coil"]:
         # Rohrschlange (Solar-/Kessel-Register) im unteren Speicherdrittel
         turns = 6
@@ -109,6 +112,8 @@ def svg(key: str, m: dict, fill_pct: float | None = 70) -> str:
             p.append(f"<circle cx='{x0 + 1:.1f}' cy='{yy:.1f}' r='2.6' fill='#d9792b' stroke='#7a3f10' stroke-width='.6'/>")
     p.append(f"<rect x='{tx}' y='{ty}' width='{tw}' height='{th}' rx='10' fill='url(#glass)' "
              "stroke='#9ea3a9' stroke-width='.6'/>")
+    p.append(f"<rect x='{x0 - 4}' y='{ty + th * 0.52 - 6:.1f}' width='9' height='12' rx='1.8' fill='url(#dark)'/>")
+    p.append(f"<rect x='{x0 - 2.5}' y='{ty + th * 0.52 - 3.5:.1f}' width='6' height='7' rx='1' fill='#5f656c'/>")
     # Wasseranschlüsse rechts (Rp 3/4) oben/unten
     for yy in (ty + 10, tank_bot - 10):
         p.append(f"<circle cx='{x0 + w - 1:.1f}' cy='{yy:.1f}' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>")
