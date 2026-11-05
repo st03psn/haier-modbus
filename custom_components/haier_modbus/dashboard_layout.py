@@ -44,6 +44,9 @@ _TEXT: dict[str, dict[str, str]] = {
         "cop_month": "COP Monat", "cop_per_month": "COP pro Monat",
         "jaz_per_year": "JAZ pro Jahr",
         "dash_update": "Dashboard-Update verfügbar",
+        "ok": "OK", "emergency_short": "Notheizung",
+        "cop_note": ("Wärme aus dem Geräteregister: COP/JAZ sind vermutlich deutlich zu hoch "
+                     "(Messung: Faktor 2 bis 3,7). Wird in einem der nächsten Releases überarbeitet."),
     },
     "en": {
         "view": "Hot water", "tank": "Tank", "operation": "Operation",
@@ -65,6 +68,9 @@ _TEXT: dict[str, dict[str, str]] = {
         "cop_month": "COP month", "cop_per_month": "COP per month",
         "jaz_per_year": "SCOP per year",
         "dash_update": "Dashboard update available",
+        "ok": "OK", "emergency_short": "Emergency",
+        "cop_note": ("Heat from the device register: COP/SCOP are probably far too high "
+                     "(measured: factor 2 to 3.7). Will be revised in one of the next releases."),
     },
 }
 
@@ -145,27 +151,29 @@ _JS_INFO = (
 
 _JS_DIAG = (
     "[[[ const st = (id) => states[id]; const s = (id) => st(id) ? st(id).state : ''; "
-    "const fmt = (id) => { const o = st(id); if (!o) return '–'; "
+    "const fmt = (id) => { const o = st(id); if (!o) return '\u2013'; "
     "try { return hass.formatEntityState(o); } catch (e) { return o.state; } }; "
     "const ok = 'var(--success-color, #43a047)', warn = 'var(--warning-color, #ff9800)', err = 'var(--error-color, #db4437)'; "
-    "const chip = (i, label, val, col) => `<div style='display:flex;align-items:center;gap:6px;min-width:0'>"
-    "<ha-icon icon='${i}' style='display:inline-flex;--mdc-icon-size:20px;color:${col};flex:0 0 20px'></ha-icon>"
-    "<div style='min-width:0;text-align:left'><div style='font-size:11px;line-height:13px;color:var(--secondary-text-color)'>${label}</div>"
-    "<div style='font-size:13px;line-height:16px;font-weight:500;white-space:normal;overflow-wrap:anywhere'>"
+    "const chip = (i, label, val, col) => `<div style='display:flex;align-items:center;gap:4px;min-width:0'>"
+    "<ha-icon icon='${i}' style='display:inline-flex;--mdc-icon-size:16px;color:${col};flex:0 0 16px'></ha-icon>"
+    "<div style='min-width:0;text-align:left'><div style='font-size:10px;line-height:12px;color:var(--secondary-text-color);"
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>${label}</div>"
+    "<div style='font-size:12px;line-height:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
     "${val}</div></div></div>`; "
     "const link = s('@E:sensor.link_status@'); const fo = st('@E:sensor.fault@'); "
     "const fraw = fo ? Number(fo.attributes.raw || 0) : 0; "
+    "const fval = !fo ? '\u2013' : (fraw > 0 ? (fo.attributes.code || String(fraw)) : '§ok§'); "
     "const dr = parseFloat(s('@E:sensor.clock_drift@')); "
-    "const clockBad = s('@E:binary_sensor.clock_drift_problem@') === 'on'; let drTxt = '–'; "
-    "if (!isNaN(dr)) { const a = Math.abs(dr); const sign = dr > 0 ? '+' : (dr < 0 ? '−' : '±'); "
+    "const clockBad = s('@E:binary_sensor.clock_drift_problem@') === 'on'; let drTxt = '\u2013'; "
+    "if (!isNaN(dr)) { const a = Math.abs(dr); const sign = dr > 0 ? '+' : (dr < 0 ? '\u2212' : '\u00b1'); "
     "drTxt = a >= 60 ? sign + Math.round(a / 60) + ' min' : sign + Math.round(a) + ' s'; } "
     "const em = s('@E:sensor.emergency_status@'); "
     "const crit = Math.round(parseFloat(s('@E:number.emergency_critical@'))); "
-    "return `<div style='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px'>` "
-    "+ chip(link === 'ok' ? 'mdi:lan-connect' : 'mdi:lan-disconnect', '§modbus§', fmt('@E:sensor.link_status@'), link === 'ok' ? ok : err) "
-    "+ chip(fraw > 0 ? 'mdi:alert-circle' : 'mdi:check-circle-outline', '§fault§', fo ? fmt('@E:sensor.fault@') : '–', fraw > 0 ? err : ok) "
+    "return `<div style='display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 8px'>` "
+    "+ chip(link === 'ok' ? 'mdi:lan-connect' : 'mdi:lan-disconnect', '§modbus§', link === 'ok' ? '§ok§' : fmt('@E:sensor.link_status@'), link === 'ok' ? ok : err) "
+    "+ chip(fraw > 0 ? 'mdi:alert-circle' : 'mdi:check-circle-outline', '§fault§', fval, fraw > 0 ? err : ok) "
     "+ chip(clockBad ? 'mdi:clock-alert-outline' : 'mdi:clock-check-outline', '§clock§', drTxt, clockBad ? warn : ok) "
-    "+ chip('mdi:fire-alert', '§emergency§', em === 'idle' && !isNaN(crit) ? '§ready§ · < ' + crit + ' °C' "
+    "+ chip('mdi:fire-alert', '§emergency_short§', em === 'idle' && !isNaN(crit) ? '§ready§ <' + crit + '\u00b0' "
     ": fmt('@E:sensor.emergency_status@'), em === 'forced' ? warn : (em === 'disabled' ? 'var(--disabled-color)' : ok)) "
     "+ `</div>`; ]]]"
 )
@@ -183,7 +191,11 @@ _JS_KPI = (
     "+ k('§jaz§ ' + cy + ' (§ytd§)', num(y && y.state, 2), 'var(--green-color)') "
     "+ k('§cop_month§', num(m && m.state, 2), 'var(--light-green-color, #8bc34a)') "
     "+ k('§heat§ ' + cy, num(y && y.attributes.heat_kwh, 0) + ' kWh') "
-    "+ k('§elec§ ' + cy, num(y && y.attributes.electricity_kwh, 0) + ' kWh') + `</div>`; ]]]"
+    "+ k('§elec§ ' + cy, num(y && y.attributes.electricity_kwh, 0) + ' kWh') "
+    "+ (y && y.attributes.heat_source === 'modbus' ? `<div style='grid-column:1/-1;display:flex;gap:6px;"
+    "align-items:flex-start;font-size:11px;line-height:14px;color:var(--warning-color, #ff9800);text-align:left'>"
+    "<ha-icon icon='mdi:alert-outline' style='--mdc-icon-size:14px;flex:0 0 14px'></ha-icon><span>§cop_note§</span></div>` : '') "
+    "+ `</div>`; ]]]"
 )
 
 # Säulengrafik (Monate bzw. Jahre); ``{SRC}``/``{TITLE}``/``{MIN}``/``{DIGITS}``
