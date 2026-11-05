@@ -5,6 +5,15 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.1.2] - 2026-11-05
+
+- **Verlauf direkt aus dem Speicher-Bereich:** Ein Tipp auf eine Anzeige öffnet das
+  Detailfenster der Entität mit Verlauf – Statusleiste (Modbus, Fehler, Geräteuhr,
+  Notheizung), Statusspalte (Wärmepumpe, Heizstab, Solar/Kessel, Betrieb, Boost, Leise,
+  Sterilisation, Regelung, Legionellen, Umgebung) und die Temperaturen in der Grafik
+  (oben, Wasser, unten). Seit 2.0 war dort nur der aktuelle Stand zu sehen. Ein Tipp
+  daneben öffnet wie bisher den Warmwasserbereiter.
+
 ## [2.1.1] - 2026-11-05
 
 - **Speicher-Grafik:** Die gestrichelte Füllstandslinie entfällt. Stattdessen geht die
