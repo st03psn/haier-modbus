@@ -88,7 +88,8 @@ _TEXT: dict[str, dict[str, str]] = {
 # Speicher-Grafik (#29): eigenes, schematisches Abbild der M7 (keine Haier-Fotos).
 # Maße nach Haier-Datenblatt, 1 SVG-Einheit = 5 mm: Ø 600 mm, Höhe je Modell
 # (``const.MODEL_HEIGHT_MM``). Kopfhöhe (~455 mm) aus dem Produktfoto geschätzt.
-# Der Speicher ist ein „Fenster“ mit Füllstand + Farbskala Rot -> Grün; die
+# Der Speicher ist ein „Fenster“ mit Schichtung (Warmwasser oben) + Farbskala
+# Blau (kalt, ≤ kritische Schwelle) -> Rot (heiß, ≥ Soll); die
 # Rohrschlange (Solar-/Kessel-Register, Varianten „…M7C-F9“) leuchtet bei aktiver
 # Quelle (Reg 3 bit2/bit3). Mit eigenem Bild liegen die Werte als Overlay darüber.
 IMAGE_URL_RE = re.compile(r"^(/local/|https?://)[A-Za-z0-9/._~:%?&=+#-]+$")
@@ -100,14 +101,17 @@ _JS_TANK_HEAD = (
     "if (isNaN(pct)) pct = 0; pct = Math.max(0, Math.min(100, pct)); "
     "const crit = n('@E:number.emergency_critical@'); const soll = n('@E:number.set_temp@'); "
     "const lo = isNaN(crit) ? 38 : crit; const hi = (isNaN(soll) || soll <= lo) ? lo + 12 : soll; "
+    "const mix = (a, b, f) => a.map((v, i) => Math.round(v + (b[i] - v) * f)); "
     "const col = (t) => { if (isNaN(t)) return '#9e9e9e'; "
     "const x = Math.max(0, Math.min(1, (t - lo) / (hi - lo))); "
-    "return `hsl(${Math.round(120 * x)},70%,42%)`; }; "
+    "const c = x < 0.5 ? mix([30, 120, 220], [255, 152, 0], x / 0.5) : mix([255, 152, 0], [211, 47, 47], (x - 0.5) / 0.5); "
+    "return `rgb(${c.join(',')})`; }; "
+    "const mid = isNaN(water) ? (isNaN(top) ? bot : top) : water; "
     "const fmt = (t) => isNaN(t) ? '–' : Math.round(t) + '°'; "
     "const on = (id) => states[id] ? states[id].state === 'on' : false; "
     "const hxAct = on('@E:binary_sensor.status_solar@') || on('@E:binary_sensor.status_boiler@'); "
     "const hs = on('@E:binary_sensor.status_heater@'); const hc = hs ? '#ff6d00' : '#8d9399'; "
-    "const lab = `style='fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:3px' text-anchor='middle'`; "
+    "const lab = `style='fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.65);stroke-width:3.5px;font-weight:600' text-anchor='middle'`; "
 )
 
 
@@ -174,10 +178,13 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     hy = ty + th * 0.52  # Heizstab-Höhe (Schnittbild Datenblatt: etwa Speichermitte)
     js = _JS_TANK_HEAD + f"const hx = {'true' if coil else 'false'}; "
     js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
-           "const fy = TY + TH * (1 - pct / 100); ")
+           "const hh = TH * pct / 100; ")
     defs = (
-        "<defs><linearGradient id='hwhpG' x1='0' y1='1' x2='0' y2='0'>"
-        "<stop offset='0%' stop-color='${col(bot)}'/><stop offset='100%' stop-color='${col(top)}'/>"
+        "<defs><linearGradient id='hwhpG' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0%' stop-color='${col(top)}'/><stop offset='100%' stop-color='${col(mid)}'/>"
+        "</linearGradient>"
+        "<linearGradient id='hwhpK' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0%' stop-color='${col(mid)}'/><stop offset='100%' stop-color='${col(bot)}'/>"
         "</linearGradient>"
         "<linearGradient id='hwhpB' x1='0' x2='1'><stop offset='0' stop-color='#c9ccd0'/>"
         "<stop offset='.18' stop-color='#f4f5f6'/><stop offset='.55' stop-color='#ffffff'/>"
@@ -199,10 +206,10 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     k = vbh / 348
     fs, fl = _f(13 * k), _f(30 * k)
     labels = (
-        f"<text x='{_f(cx)}' y='{_f(ty + 20 * k)}' font-size='{fs}' ${{lab}}>§top§ ${{fmt(top)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + 20 * k)}' font-size='{fs}' ${{lab}}>${{fmt(top)}}</text>"
         f"<text x='{_f(cx)}' y='{_f(ty + th * 0.36)}' font-size='{fl}' font-weight='600' ${{lab}}>${{fmt(water)}}</text>"
         f"<text x='{_f(cx)}' y='{_f(ty + th * 0.36 + 20 * k)}' font-size='{fs}' ${{lab}}>${{Math.round(pct)}} %</text>"
-        f"<text x='{_f(cx)}' y='{_f(ty + th - 10 * k)}' font-size='{fs}' ${{lab}}>§bottom§ ${{fmt(bot)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th - 10 * k)}' font-size='{fs}' ${{lab}}>${{fmt(bot)}}</text>"
     )
     svg_open = (f"<svg viewBox='0 0 {_f(vbw)} {_f(vbh)}' width='100%' height='100%' "
                 "preserveAspectRatio='xMidYMid meet'>")
@@ -213,9 +220,8 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
         body = (
             f"<image href='{image}' x='0' y='0' width='{_f(vbw)}' height='{_f(vbh)}' "
             "preserveAspectRatio='xMidYMid meet'/>"
-            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='{_f(th)}' rx='3' "
-            "style='fill:rgba(0,0,0,.25)'/>"
-            f"<rect x='{_f(bx)}' y='${{fy}}' width='{bw}' height='${{TY + TH - fy}}' rx='3' fill='url(#hwhpG)'/>"
+            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='{_f(th)}' rx='3' fill='url(#hwhpK)'/>"
+            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='${{hh}}' rx='3' fill='url(#hwhpG)'/>"
             "${hx ? `<g transform='translate(" + _f(tx - 6) + "," + _f(ty + th - 34) + ")' "
             "style='${hxAct ? \"animation:hwhp-glow 2s ease-in-out infinite\" : \"\"}'>"
             "<rect x='-3' y='-3' width='26' height='26' rx='6' style='fill:rgba(0,0,0,.45)'/>"
@@ -239,7 +245,11 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
             f"<rect x='{_f(x0 - 2.5)}' y='{_f(band - 3)}' width='4' height='3' rx='.6' fill='#2a2d31'/>"
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='#dfe3e7' opacity='.55'/>"
             "<g clip-path='url(#hwhpC)'>"
-            f"<rect x='{_f(tx)}' y='${{fy}}' width='{_f(tw)}' height='${{TY + TH - fy}}' fill='url(#hwhpG)' opacity='.92'/></g>"
+            # Schichtung: Warmwasser liegt oben (Füllstand = Anteil von oben), darunter kalt
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' fill='url(#hwhpK)' opacity='.8'/>"
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='${{hh}}' fill='url(#hwhpG)' opacity='.92'/>"
+            f"${{pct > 0 && pct < 100 ? `<line x1='{_f(tx)}' x2='{_f(tx + tw)}' y1='${{TY + hh}}' y2='${{TY + hh}}' "
+            "stroke='rgba(255,255,255,.8)' stroke-width='1' stroke-dasharray='3 2'/>` : ''}</g>"
             "${coil}"
             # Heizstab: seitlich eingeschraubt (Stopfen am Mantel), leuchtet bei Betrieb
             "${hs ? `<line x1='" + _f(x0 + 3) + "' y1='" + _f(hy) + "' x2='" + _f(cx + 18) + "' y2='" + _f(hy) + "' "
@@ -261,11 +271,11 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     # (z. B. eigene Vergleichs-Ansichten) dürfen sich Verlauf/Clip-Pfad nicht teilen,
     # falls ein Browser die IDs nicht je Shadow-Root trennt.
     suffix = f"{int(height_mm)}{'c' if coil else ''}{'i' if image else ''}"
-    for ident in ("hwhpG", "hwhpB", "hwhpD", "hwhpL", "hwhpC"):
+    for ident in ("hwhpG", "hwhpK", "hwhpB", "hwhpD", "hwhpL", "hwhpC"):
         js = js.replace(ident, ident + suffix)
     # Der Farbverlauf hängt von den Live-Werten ab: zusätzlich je Darstellung eindeutig,
     # sonst übernähme eine zweite Karte desselben Modells den Verlauf der ersten.
-    js = js.replace(f"hwhpG{suffix}", f"hwhpG{suffix}${{gu}}")
+    js = js.replace(f"hwhpG{suffix}", f"hwhpG{suffix}${{gu}}").replace(f"hwhpK{suffix}", f"hwhpK{suffix}${{gu}}")
     js = js.replace("[[[ ", "[[[ const gu = Math.random().toString(36).slice(2, 8); ", 1)
     return js
 

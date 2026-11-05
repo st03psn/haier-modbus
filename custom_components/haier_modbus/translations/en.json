@@ -737,6 +737,36 @@
           "compare_created": "Comparison dashboard “Haier HWHP (new)” created – you will find it in the sidebar. Open this notice again later to adopt it."
         }
       }
+    },
+    "dashboard_variant_update": {
+      "title": "Tank graphic no longer matches the unit (Haier HWHP)",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Update the tank graphic in the dashboard?",
+            "description": "The model or dashboard options (heat exchanger, own image) were changed. Your Haier dashboard was not updated automatically because you have modified it.\n\n**Yes, adopt:** The Haier dashboard is rebuilt with the matching graphic. Your own changes to it are lost.\n\n**Compare first:** The updated dashboard is added as “Haier HWHP (new)” in the sidebar, your dashboard stays. This notice remains.\n\n**No, keep:** Your dashboard stays as it is. You will not be asked again for this setting.",
+            "menu_options": {
+              "adopt": "Yes, adopt the new layout",
+              "compare": "Compare first – create comparison dashboard",
+              "keep": "No, keep my current dashboard"
+            }
+          },
+          "compare_ready": {
+            "title": "Adopt the comparison dashboard?",
+            "description": "The new layout is in the sidebar as “Haier HWHP (new)”.\n\n**Adopt comparison dashboard:** it becomes the Haier dashboard including your changes to it; the previous one is replaced and “(new)” disappears.\n\n**Adopt fresh layout:** the Haier dashboard gets the unmodified new layout.\n\n**No, keep:** your dashboard stays; you can delete the comparison dashboard under Settings → Dashboards.",
+            "menu_options": {
+              "adopt_compare": "Adopt comparison dashboard",
+              "adopt": "Adopt fresh new layout",
+              "keep": "No, keep my current dashboard"
+            }
+          }
+        },
+        "abort": {
+          "entry_missing": "The Haier integration is not set up.",
+          "adopt_failed": "Action failed – see the log for details. The notice stays.",
+          "compare_created": "Comparison dashboard “Haier HWHP (new)” created – you will find it in the sidebar. Open this notice again later to adopt it."
+        }
+      }
     }
   }
 }

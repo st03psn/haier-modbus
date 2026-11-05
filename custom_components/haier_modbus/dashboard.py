@@ -67,6 +67,8 @@ DASHBOARD_LAYOUT_VERSION = 3  # 2 = Ein-Seiten-Layout ab v2.0.0, 3 = Geräteabbi
 _LAYOUT_STORE_KEY = f"{DOMAIN}.dashboard_layout"
 _NOTIFY_ID = f"{DOMAIN}_dashboard_layout"  # nur noch zum Entfernen (2.0.0)
 DASHBOARD_ISSUE_ID = "dashboard_layout_update"
+# Gleicher Hinweis/Ablauf, eigener Text: Grafik-Variante (Modell/Optionen) geändert.
+DASHBOARD_VARIANT_ISSUE_KEY = "dashboard_variant_update"
 
 
 def _show_coil(setting: str, model: str) -> bool:
@@ -76,6 +78,20 @@ def _show_coil(setting: str, model: str) -> bool:
     if setting == HEAT_EXCHANGER_NO:
         return False
     return model in MODELS_WITH_COIL
+
+
+def _variant(entry: ConfigEntry | None) -> str | None:
+    """Fingerabdruck der Speicher-Grafik (Bauform, Rohrschlange, eigenes Bild).
+
+    Ändert er sich (Modell- oder Optionswechsel), bekommt ein angepasstes Dashboard
+    den Reparatur-Hinweis – ein unverändertes wird ohnehin still neu geschrieben.
+    """
+    if entry is None:
+        return None
+    model = entry.options.get(CONF_MODEL, entry.data.get(CONF_MODEL, DEFAULT_MODEL_KEY))
+    height = MODEL_HEIGHT_MM.get(model, MODEL_HEIGHT_MM[DEFAULT_MODEL_KEY])
+    coil = _show_coil(entry.options.get(CONF_HEAT_EXCHANGER, DEFAULT_HEAT_EXCHANGER), model)
+    return f"{height}|{int(coil)}|{entry.options.get(CONF_DASHBOARD_IMAGE, '')}"
 
 
 def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
@@ -381,6 +397,9 @@ async def _async_sync_layout(
       ``applied``  Layout-Generation, die zuletzt ins Dashboard geschrieben wurde
       ``hash``     Fingerabdruck dieses geschriebenen Dashboards
       ``declined`` Generation, die der Nutzer im Reparatur-Hinweis abgelehnt hat
+      ``variant``  Grafik-Variante (``_variant``: Bauform, Rohrschlange, Bild), mit der
+                   das Dashboard zuletzt geschrieben wurde (ab 2.1.0, #29);
+                   ``pending_variant``/``declined_variant`` für den Hinweis
       (``notified`` stammt aus 2.0.0 und wird nicht mehr ausgewertet)
     Entspricht das gespeicherte Dashboard noch dem Fingerabdruck, hat der Nutzer
     nichts verändert -> es wird still auf das aktuelle Layout gebracht. Sonst
@@ -389,14 +408,17 @@ async def _async_sync_layout(
     und – im neuen Layout – als Kachel im Dashboard), und unter *Reparaturen*
     fragt ein Hinweis mit Ja/Nein (``repairs.py``), bis er beantwortet ist.
     Dashboards vor v2.0.0 haben keinen Fingerabdruck und gelten als angepasst
-    (Generation 1).
+    (Generation 1). Ist die Generation aktuell, aber die Grafik-Variante gewechselt
+    (z. B. anderes Modell), fragt derselbe Hinweis mit eigenem Text; „Nein“ gilt
+    dann für diese Variante.
     """
     meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
     meta = await meta_store.async_load() or {}
     new_hash = _config_hash(config)
+    variant = _variant(entry)
     if not existed:  # gerade frisch angelegt
         await meta_store.async_save({**meta, "applied": DASHBOARD_LAYOUT_VERSION, "hash": new_hash,
-                                     "notified": DASHBOARD_LAYOUT_VERSION})
+                                     "notified": DASHBOARD_LAYOUT_VERSION, "variant": variant})
         _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
         return
 
@@ -416,7 +438,7 @@ async def _async_sync_layout(
             await dash.async_save(config)
             _LOGGER.info("Unverändertes Haier-Dashboard auf aktuelles Layout gebracht")
         await meta_store.async_save({**meta, "applied": DASHBOARD_LAYOUT_VERSION, "hash": new_hash,
-                                     "notified": DASHBOARD_LAYOUT_VERSION})
+                                     "notified": DASHBOARD_LAYOUT_VERSION, "variant": variant})
         _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
         return
 
@@ -426,13 +448,23 @@ async def _async_sync_layout(
     await hass.services.async_call(
         "persistent_notification", "dismiss", {"notification_id": _NOTIFY_ID}, blocking=False
     )
-    if (
-        entry is None
-        or applied >= DASHBOARD_LAYOUT_VERSION
-        or int(meta.get("declined", 0)) >= DASHBOARD_LAYOUT_VERSION
-    ):
+    layout_due = (
+        applied < DASHBOARD_LAYOUT_VERSION
+        and int(meta.get("declined", 0)) < DASHBOARD_LAYOUT_VERSION
+    )
+    # #29: Layout aktuell, aber Grafik-Variante gewechselt (Modell/Optionen). Fehlt die
+    # gespeicherte Variante (Dashboards vor 2.1.0), wird nicht gefragt.
+    variant_due = (
+        not layout_due
+        and applied >= DASHBOARD_LAYOUT_VERSION
+        and meta.get("variant") not in (None, variant)
+        and meta.get("declined_variant") != variant
+    )
+    if entry is None or not (layout_due or variant_due):
         ir.async_delete_issue(hass, DOMAIN, DASHBOARD_ISSUE_ID)
         return
+    if meta.get("pending_variant") != variant:
+        await meta_store.async_save({**meta, "pending_variant": variant})
     # Reparatur-Hinweis mit Ja/Nein (repairs.py). Nicht persistent: wird je Start neu
     # angelegt, solange weder übernommen noch abgelehnt wurde.
     ir.async_create_issue(
@@ -442,7 +474,7 @@ async def _async_sync_layout(
         is_fixable=True,
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
-        translation_key=DASHBOARD_ISSUE_ID,
+        translation_key=DASHBOARD_VARIANT_ISSUE_KEY if variant_due else DASHBOARD_ISSUE_ID,
         data={"entry_id": entry.entry_id},
     )
 
@@ -455,7 +487,8 @@ async def async_decline_layout(hass: HomeAssistant) -> None:
     """
     meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
     meta = await meta_store.async_load() or {}
-    await meta_store.async_save({**meta, "declined": DASHBOARD_LAYOUT_VERSION})
+    await meta_store.async_save({**meta, "declined": DASHBOARD_LAYOUT_VERSION,
+                                 "declined_variant": meta.get("pending_variant")})
     ir.async_delete_issue(hass, DOMAIN, DASHBOARD_ISSUE_ID)
 
 
@@ -478,7 +511,7 @@ async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> No
     meta = await meta_store.async_load() or {}
     await meta_store.async_save(
         {**meta, "applied": DASHBOARD_LAYOUT_VERSION, "hash": _config_hash(config),
-         "notified": DASHBOARD_LAYOUT_VERSION}
+         "notified": DASHBOARD_LAYOUT_VERSION, "variant": _variant(entry)}
     )
     _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
     ir.async_delete_issue(hass, DOMAIN, DASHBOARD_ISSUE_ID)
@@ -515,7 +548,8 @@ async def async_create_compare_dashboard(hass: HomeAssistant, entry: ConfigEntry
     await store.async_save(config)
     meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
     meta = await meta_store.async_load() or {}
-    await meta_store.async_save({**meta, "compare_hash": _config_hash(config)})
+    await meta_store.async_save({**meta, "compare_hash": _config_hash(config),
+                                 "compare_variant": _variant(entry)})
     _publish_status(hass, (hass.data.get(LAYOUT_STATUS_KEY) or {}).get("applied"))
     _LOGGER.info("Vergleichs-Dashboard unter /%s angelegt", DASHBOARD_COMPARE_URL_PATH)
 
@@ -542,9 +576,10 @@ async def async_promote_compare_dashboard(hass: HomeAssistant, entry: ConfigEntr
     cfg_hash = _config_hash(config)
     unchanged = bool(meta.get("compare_hash")) and cfg_hash == meta.get("compare_hash")
     meta.pop("compare_hash", None)
+    variant = meta.pop("compare_variant", None) or _variant(entry)
     await meta_store.async_save({**meta, "applied": DASHBOARD_LAYOUT_VERSION,
                                  "hash": cfg_hash if unchanged else None,
-                                 "notified": DASHBOARD_LAYOUT_VERSION})
+                                 "notified": DASHBOARD_LAYOUT_VERSION, "variant": variant})
 
     collection = _find_dashboards_collection(hass, hass.data.get("lovelace"))
     if collection is not None:

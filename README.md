@@ -300,8 +300,10 @@ Updates erhalten. Seit v2.0.0 eine Seite in drei Spalten (Deutsch/Englisch je
 nach Systemsprache):
 
 - **Speicher:** Geräteabbild des gewählten Modells (seit v2.1.0; eigene Zeichnung, siehe
-  [`docs/m7-modelle.md`](docs/m7-modelle.md)) mit Füllstand und Farbe von Rot (≤ kritische
-  Schwelle der Notheizung) bis Grün (≥ Solltemperatur), daneben alle Betriebszustände
+  [`docs/m7-modelle.md`](docs/m7-modelle.md)). Das Warmwasser liegt als Schicht oben
+  (Füllstand = Anteil von oben), darunter die kalte Zone; Farbe von Blau (≤ kritische
+  Schwelle der Notheizung) bis Rot (≥ Solltemperatur), Temperatur oben/unten am Rand.
+  Der Heizstab leuchtet, solange er läuft. Daneben alle Betriebszustände
   (Wärmepumpe, Heizstab, Boost, Leise, Sterilisation, aktive Regelung, Legionellen,
   Umgebung), darunter eine Statusleiste (Modbus, Fehler, Geräteuhr, Notheizung).
   Varianten mit Wärmetauscher (…M7C-F9) zeigen die Rohrschlange, die bei Solar-/Kesselbetrieb
