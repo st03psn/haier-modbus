@@ -5,6 +5,35 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.1.0] - 2026-11-05
+
+**Speicher-Grafik als Geräteabbild (#29).**
+- Statt der generischen Tonne zeigt das Dashboard eine eigene, schematische Zeichnung der
+  M7 in der Bauform des gewählten Modells (200er: 1694 mm, 250er/HP260: 1989 mm hoch; Maße
+  laut Haier-Datenblatt).
+- **Füllstand als Schichtung:** Das Warmwasser liegt oben (Füllstand = Anteil von oben),
+  darunter die kalte Zone, je Zone eine Farbe (nach Tank oben bzw. unten). Neue Farbskala
+  **Blau (unter kritischer Schwelle) → Gelb (warm) → Rot (heiß, ab Soll)** statt Rot → Grün;
+  Temperaturen oben/unten ohne Beschriftung, dafür kontrastreicher; die Prozentangabe
+  entfällt in der Grafik (Schichtgrenze zeigt den Füllstand, Sensor bleibt).
+  Keine Haier-Fotos – Begründung und Quellen in `docs/m7-modelle.md`.
+- **Wärmetauscher:** Die Varianten mit Solar-/Kessel-Register heißen laut Haier
+  „…M7**C**-F9“. Eine Rohrschlange im Speicher leuchtet, solange Solar oder Kessel heizt
+  (Reg 3 bit2/bit3), mit sichtbarem Durchfluss. Neue Option *Optionen → Dashboard → „Wärmetauscher zeigen“*:
+  Automatisch (nach Modell) / Ja / Nein.
+- **Heizstab** sichtbar: seitlich eingeschraubt mit Stopfen am Gehäuse, leuchtet orange,
+  solange der Heizstab läuft.
+- **Eigenes Gerätebild** (optional, *Optionen → Dashboard*): z. B. ein Foto unter
+  `/local/…`; Füllstand als Säule und Werte liegen darüber.
+- Neue Modelle in der Auswahl (laut Haier-Datenblatt): **HP250M7-F9** sowie die
+  Register-Varianten **HP200M7C-F9** und **HP250M7C-F9**. HP160/HP260 bleiben wählbar,
+  sind in den Haier-Unterlagen aber nicht auffindbar.
+- **Hinweis auch bei Modell-/Optionswechsel:** Ändert sich durch Modell oder
+  Dashboard-Optionen die Speicher-Grafik, fragt der Reparatur-Hinweis auch bei einem
+  angepassten Dashboard (Ja / Erst vergleichen / Nein; „Nein“ gilt für diese Einstellung).
+- Dashboard-Layout-Generation 3: unveränderte Dashboards ziehen automatisch nach,
+  angepasste bekommen den Reparatur-Hinweis (Ja / Erst vergleichen / Nein).
+
 ## [2.0.3] - 2026-11-05
 
 - **Optionen → Verbindung & Gerät** in zwei Schritten: erst die Verbindungsart, danach nur

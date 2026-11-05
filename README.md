@@ -299,10 +299,16 @@ Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWW
 Updates erhalten. Seit v2.0.0 eine Seite in drei Spalten (Deutsch/Englisch je
 nach Systemsprache):
 
-- **Speicher:** Speicher-Grafik mit Füllstand und Farbe von Rot (≤ kritische
-  Schwelle der Notheizung) bis Grün (≥ Solltemperatur), daneben alle Betriebszustände
+- **Speicher:** Geräteabbild des gewählten Modells (seit v2.1.0; eigene Zeichnung, siehe
+  [`docs/m7-modelle.md`](docs/m7-modelle.md)). Das Warmwasser liegt als Schicht oben
+  (Füllstand = Anteil von oben), darunter die kalte Zone; Farbe Blau (unter der kritischen
+  Schwelle der Notheizung), Gelb (warm) bis Rot (≥ Solltemperatur), Temperatur oben/unten am Rand.
+  Der Heizstab leuchtet, solange er läuft. Daneben alle Betriebszustände
   (Wärmepumpe, Heizstab, Boost, Leise, Sterilisation, aktive Regelung, Legionellen,
   Umgebung), darunter eine Statusleiste (Modbus, Fehler, Geräteuhr, Notheizung).
+  Varianten mit Wärmetauscher (…M7C-F9) zeigen die Rohrschlange, die bei Solar-/Kesselbetrieb
+  leuchtet. Unter *Optionen → Dashboard* lässt sich das einstellen (Automatisch = nach Modell/Ja/Nein) und
+  ein **eigenes Foto** hinterlegen (z. B. `/local/haier.png`); die Werte liegen dann darüber.
 - **Betrieb:** Schalter, Solltemperatur und Modus, PV-Regelung (nur mit PV), Regelverlauf (Sollwert, Modus,
   Boost, Legionellen, Notheizung, PV) und die Karte **Jahresarbeitszahl & COP**
   (Kennzahlen, COP pro Monat, JAZ pro Jahr ab dem zweiten Jahr).

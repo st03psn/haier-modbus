@@ -34,6 +34,8 @@ from .const import (
     CONF_COP_HEAT_ENTITY,
     CONF_COP_REF_DATE,
     CONF_DASHBOARD_ENABLED,
+    CONF_DASHBOARD_IMAGE,
+    CONF_HEAT_EXCHANGER,
     CONF_EMERGENCY_CRITICAL,
     CONF_EMERGENCY_ENABLED,
     CONF_EMERGENCY_MODE,
@@ -83,6 +85,8 @@ from .const import (
     DEFAULT_BAUDRATE,
     DEFAULT_CONNECTION_TYPE,
     DEFAULT_DASHBOARD_ENABLED,
+    DEFAULT_HEAT_EXCHANGER,
+    HEAT_EXCHANGER_OPTIONS,
     DEFAULT_EMERGENCY_CRITICAL,
     DEFAULT_EMERGENCY_MODE,
     DEFAULT_EMERGENCY_RECOVER,
@@ -844,14 +848,33 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             async_rebuild_dashboard,
         )
 
+        from .dashboard_layout import IMAGE_URL_RE
+
         status = self.hass.data.get(LAYOUT_STATUS_KEY) or {}
         actions = [_DASH_ACTION_NONE, _DASH_ACTION_COMPARE]
         if status.get("compare"):
             actions.append(_DASH_ACTION_PROMOTE)
         actions.append(_DASH_ACTION_REPLACE)
         enabled = self._cur(CONF_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_ENABLED)
+        hx = self._cur(CONF_HEAT_EXCHANGER, DEFAULT_HEAT_EXCHANGER)
+        image = self._cur(CONF_DASHBOARD_IMAGE, "")
+        saved_schema = vol.Schema({
+            vol.Optional(CONF_DASHBOARD_ENABLED): bool,
+            vol.Optional(CONF_HEAT_EXCHANGER): str,
+            vol.Optional(CONF_DASHBOARD_IMAGE): str,
+        })
         schema = vol.Schema({
             vol.Optional(CONF_DASHBOARD_ENABLED, default=enabled): bool,
+            vol.Optional(CONF_HEAT_EXCHANGER, default=hx): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=HEAT_EXCHANGER_OPTIONS,
+                    translation_key="heat_exchanger",
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            # Leer = eigene Zeichnung; „suggested_value“, damit das Feld leerbar bleibt.
+            vol.Optional(CONF_DASHBOARD_IMAGE, description={"suggested_value": image}):
+                selector.TextSelector(),
             vol.Optional(_DASH_ACTION, default=_DASH_ACTION_NONE): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=actions,
@@ -863,10 +886,28 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             action = user_input.get(_DASH_ACTION, _DASH_ACTION_NONE)
-            new_enabled = user_input.get(CONF_DASHBOARD_ENABLED, enabled)
-            if action != _DASH_ACTION_NONE and not new_enabled:
+            new_vals = {
+                CONF_DASHBOARD_ENABLED: user_input.get(CONF_DASHBOARD_ENABLED, enabled),
+                CONF_HEAT_EXCHANGER: user_input.get(CONF_HEAT_EXCHANGER, hx),
+                CONF_DASHBOARD_IMAGE: (user_input.get(CONF_DASHBOARD_IMAGE) or "").strip(),
+            }
+            changed = new_vals != {CONF_DASHBOARD_ENABLED: enabled,
+                                   CONF_HEAT_EXCHANGER: hx, CONF_DASHBOARD_IMAGE: image}
+            if new_vals[CONF_DASHBOARD_IMAGE] and not IMAGE_URL_RE.match(new_vals[CONF_DASHBOARD_IMAGE]):
+                errors[CONF_DASHBOARD_IMAGE] = "dashboard_image_invalid"
+            elif action != _DASH_ACTION_NONE and not new_vals[CONF_DASHBOARD_ENABLED]:
                 errors["base"] = "dashboard_disabled"
+            elif action == _DASH_ACTION_NONE:
+                if changed:
+                    # Reload -> Layout-Abgleich: ein unverändertes Dashboard übernimmt
+                    # die neue Grafik still, ein angepasstes bekommt den Reparatur-Hinweis.
+                    return self._save(saved_schema, new_vals)
+                return self.async_abort(reason="dashboard_none")
             else:
+                if changed:
+                    # Erst speichern, damit die Aktion das neue Bild/die neue Option nutzt.
+                    merged = {**self.config_entry.options, **new_vals}
+                    self.hass.config_entries.async_update_entry(self.config_entry, options=merged)
                 handler = {
                     _DASH_ACTION_COMPARE: async_create_compare_dashboard,
                     _DASH_ACTION_PROMOTE: async_promote_compare_dashboard,
@@ -879,11 +920,6 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
                     _LOGGER.exception("Dashboard-Aktion %s fehlgeschlagen", action)
                     errors["base"] = "dashboard_action_failed"
                 else:
-                    if new_enabled != enabled:
-                        return self._save(
-                            vol.Schema({vol.Optional(CONF_DASHBOARD_ENABLED): bool}),
-                            {CONF_DASHBOARD_ENABLED: new_enabled},
-                        )
                     return self.async_abort(reason=f"dashboard_{action}")
         return self.async_show_form(step_id="dashboard", data_schema=schema, errors=errors)
 

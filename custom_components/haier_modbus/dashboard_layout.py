@@ -85,33 +85,198 @@ _TEXT: dict[str, dict[str, str]] = {
 }
 
 # --- JS-Bausteine (button-card) --------------------------------------------
-_JS_TANK = (
+# Speicher-Grafik (#29): eigenes, schematisches Abbild der M7 (keine Haier-Fotos).
+# Maße nach Haier-Datenblatt, 1 SVG-Einheit = 5 mm: Ø 600 mm, Höhe je Modell
+# (``const.MODEL_HEIGHT_MM``). Kopfhöhe (~455 mm) aus dem Produktfoto geschätzt.
+# Der Speicher ist ein „Fenster“ mit Schichtung (Warmwasser oben) + Farbskala
+# Blau (kalt, < kritische Schwelle) -> Gelb (warm) -> Rot (heiß, ≥ Soll); die
+# Rohrschlange (Solar-/Kessel-Register, Varianten „…M7C-F9“) leuchtet bei aktiver
+# Quelle (Reg 3 bit2/bit3). Mit eigenem Bild liegen die Werte als Overlay darüber.
+IMAGE_URL_RE = re.compile(r"^(/local/|https?://)[A-Za-z0-9/._~:%?&=+#-]+$")
+
+_JS_TANK_HEAD = (
     "[[[ const n = (id) => parseFloat(states[id] ? states[id].state : NaN); "
     "const top = n('@E:sensor.tank_top@'); const bot = n('@E:sensor.tank_bottom@'); "
     "const water = n('@E:sensor.water_temp@'); let pct = n('@E:sensor.hotwater_pct@'); "
     "if (isNaN(pct)) pct = 0; pct = Math.max(0, Math.min(100, pct)); "
     "const crit = n('@E:number.emergency_critical@'); const soll = n('@E:number.set_temp@'); "
     "const lo = isNaN(crit) ? 38 : crit; const hi = (isNaN(soll) || soll <= lo) ? lo + 12 : soll; "
+    "const mix = (a, b, f) => a.map((v, i) => Math.round(v + (b[i] - v) * f)); "
     "const col = (t) => { if (isNaN(t)) return '#9e9e9e'; "
     "const x = Math.max(0, Math.min(1, (t - lo) / (hi - lo))); "
-    "return `hsl(${Math.round(120 * x)},70%,42%)`; }; "
+    "const c = t <= lo - 4 ? [30, 120, 220] : t < lo ? mix([30, 120, 220], [250, 200, 30], (t - lo + 4) / 4) "
+    ": x < 0.5 ? mix([250, 200, 30], [245, 140, 20], x / 0.5) : mix([245, 140, 20], [211, 47, 47], (x - 0.5) / 0.5); "
+    "return `rgb(${c.join(',')})`; }; "
     "const fmt = (t) => isNaN(t) ? '–' : Math.round(t) + '°'; "
-    "const X = 20, Y = 10, W = 110, H = 260, R = 36; const fy = Y + H * (1 - pct / 100); "
-    "const lab = `style='fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.45);stroke-width:3px' text-anchor='middle'`; "
-    "return `<svg viewBox='0 0 150 280' width='100%' height='100%' preserveAspectRatio='xMidYMid meet'>"
-    "<defs><linearGradient id='hwhpG' x1='0' y1='1' x2='0' y2='0'>"
-    "<stop offset='0%' stop-color='${col(bot)}'/><stop offset='100%' stop-color='${col(top)}'/>"
-    "</linearGradient><clipPath id='hwhpC'><rect x='${X}' y='${Y}' width='${W}' height='${H}' rx='${R}'/>"
-    "</clipPath></defs><rect x='${X}' y='${Y}' width='${W}' height='${H}' rx='${R}' "
-    "style='fill:var(--secondary-background-color)'/><g clip-path='url(#hwhpC)'>"
-    "<rect x='${X}' y='${fy}' width='${W}' height='${Y + H - fy}' fill='url(#hwhpG)'/></g>"
-    "<rect x='${X}' y='${Y}' width='${W}' height='${H}' rx='${R}' "
-    "style='fill:none;stroke:var(--divider-color);stroke-width:3'/>"
-    "<text x='${X + W / 2}' y='${Y + 36}' font-size='15' ${lab}>§top§ ${fmt(top)}</text>"
-    "<text x='${X + W / 2}' y='${Y + H / 2 + 6}' font-size='36' font-weight='600' ${lab}>${fmt(water)}</text>"
-    "<text x='${X + W / 2}' y='${Y + H / 2 + 30}' font-size='15' ${lab}>${Math.round(pct)} %</text>"
-    "<text x='${X + W / 2}' y='${Y + H - 20}' font-size='15' ${lab}>§bottom§ ${fmt(bot)}</text></svg>`; ]]]"
+    "const on = (id) => states[id] ? states[id].state === 'on' : false; "
+    "const hxAct = on('@E:binary_sensor.status_solar@') || on('@E:binary_sensor.status_boiler@'); "
+    "const hs = on('@E:binary_sensor.status_heater@'); const hc = hs ? '#ff6d00' : '#8d9399'; "
+    "const lab = `style='fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.65);stroke-width:3.5px;font-weight:600' text-anchor='middle'`; "
 )
+
+
+def _f(v: float) -> str:
+    return f"{v:.1f}".rstrip("0").rstrip(".")
+
+
+def coil_markup(cx: float, rx: float, c_top: float, c_bot: float, x0: float, turns: int = 7) -> str:
+    """Rohrschlange (Solar-/Kessel-Register) als SVG-Vorlage.
+
+    Platzhalter für den JS-Template-String: ``${cf}`` Rohrfarbe, ``${co}`` Kontur,
+    ``${cb}`` Rückseite; ``${hxAct ? … : ''}`` blendet bei aktiver Quelle einen
+    laufenden Durchfluss ein. Zu-/Ablauf führen links mit Verschraubung durch den
+    Mantel (Lage geschätzt nach dem Schnittbild im Haier-Datenblatt).
+    Auch von ``tools/gen_model_svgs.py`` genutzt (Platzhalter dort statisch ersetzt).
+    """
+    ry = 6.0
+    step = (c_bot - c_top) / turns
+    lx, rx_ = cx - rx, cx + rx
+    back = front = hi = ""
+    flow = f"M{_f(x0 + 3)},{_f(c_top)} H{_f(lx)}"
+    for i in range(turns):
+        y = c_top + step * i
+        b = f"M{_f(lx)},{_f(y)} A{_f(rx)},{ry} 0 0 1 {_f(rx_)},{_f(y + step / 2)}"
+        f = f"M{_f(rx_)},{_f(y + step / 2)} A{_f(rx)},{ry} 0 0 1 {_f(lx)},{_f(y + step)}"
+        back += b + " "
+        front += f + " "
+        hi += (f"M{_f(rx_ - 3)},{_f(y + step / 2 + 1.2)} A{_f(rx - 3)},{ry - 0.8} 0 0 1 "
+               f"{_f(lx + 3)},{_f(y + step - 0.6)} ")
+        flow += f" A{_f(rx)},{ry} 0 0 1 {_f(rx_)},{_f(y + step / 2)} A{_f(rx)},{ry} 0 0 1 {_f(lx)},{_f(y + step)}"
+    flow += f" H{_f(x0 + 3)}"
+    leads = f"M{_f(x0 + 3)},{_f(c_top)} H{_f(lx)} M{_f(x0 + 3)},{_f(c_bot)} H{_f(lx)}"
+    out = ("<g fill='none' stroke-linecap='round'>"
+           f"<path d='{back.strip()}' stroke='${{co}}' stroke-width='4' opacity='.55'/>"
+           f"<path d='{back.strip()}' stroke='${{cb}}' stroke-width='2.6' opacity='.8'/>"
+           f"<path d='{leads} {front.strip()}' stroke='${{co}}' stroke-width='4.6'/>"
+           f"<path d='{leads} {front.strip()}' stroke='${{cf}}' stroke-width='3.1'/>"
+           f"<path d='{hi.strip()}' stroke='rgba(255,255,255,.55)' stroke-width='.9'/>"
+           "${hxAct ? `<path d='" + flow + "' stroke='#fff3e0' stroke-width='1.3' "
+           "stroke-dasharray='3 5' opacity='.9' style='animation:hwhp-flow 1.2s linear infinite'/>` : ''}"
+           "</g>")
+    for y in (c_top, c_bot):
+        out += (f"<rect x='{_f(x0 - 4)}' y='{_f(y - 5)}' width='9' height='10' rx='1.8' fill='url(#hwhpD)'/>"
+                f"<rect x='{_f(x0 - 2.5)}' y='{_f(y - 2.5)}' width='6' height='5' rx='1' fill='${{cf}}'/>")
+    return out
+
+
+def _tank_js(height_mm: int, coil: bool, image: str) -> str:
+    """JS für das Speicher-Feld bauen (Geometrie statisch, Werte live).
+
+    ``coil``: Rohrschlange zeigen (Register-Variante). ``image``: geprüfte URL
+    eines eigenen Bildes oder "".
+    """
+    W, x0 = 120.0, 6.0
+    h = height_mm / 5
+    y0 = 4.0
+    vbw, vbh = W + 2 * x0, y0 + h + 1
+    head, foot = 91.0, 9.0
+    band = y0 + head
+    tx, tw = x0 + 9, W - 18
+    ty = band + 6
+    th = (y0 + h - foot - 3) - ty - 3
+    cx = x0 + W / 2
+    hy = ty + th * 0.52  # Heizstab-Höhe (Schnittbild Datenblatt: etwa Speichermitte)
+    js = _JS_TANK_HEAD + f"const hx = {'true' if coil else 'false'}; "
+    js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
+           "const hh = TH * pct / 100; ")
+    defs = (
+        "<defs>"
+        "<linearGradient id='hwhpB' x1='0' x2='1'><stop offset='0' stop-color='#c9ccd0'/>"
+        "<stop offset='.18' stop-color='#f4f5f6'/><stop offset='.55' stop-color='#ffffff'/>"
+        "<stop offset='.88' stop-color='#e3e5e8'/><stop offset='1' stop-color='#b9bdc2'/></linearGradient>"
+        "<linearGradient id='hwhpD' x1='0' x2='1'><stop offset='0' stop-color='#1f2226'/>"
+        "<stop offset='.5' stop-color='#3a3e44'/><stop offset='1' stop-color='#1b1d20'/></linearGradient>"
+        "<linearGradient id='hwhpL' x1='0' x2='1'><stop offset='0' stop-color='#000' stop-opacity='.18'/>"
+        "<stop offset='.3' stop-color='#fff' stop-opacity='.10'/><stop offset='1' stop-color='#000' stop-opacity='.22'/>"
+        "</linearGradient>"
+        f"<clipPath id='hwhpC'><rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10'/></clipPath>"
+        "</defs>"
+    )
+    coil_svg = coil_markup(cx, tw / 2 - 9, ty + th * 0.58, ty + th - 26, x0)
+    js += ("const cf = hxAct ? '#ff8f00' : '#b87333', co = hxAct ? '#a84300' : '#6b3a16', "
+           "cb = hxAct ? '#e65100' : '#8d5a35'; "
+           f"const coil = hx ? `{coil_svg}` : ''; ")
+    # Schrift mit der Bauhöhe mitwachsen lassen: die Karte hat feste Höhe, eine
+    # höhere Zeichnung wird also kleiner skaliert.
+    k = vbh / 348
+    fs, fl = _f(13 * k), _f(30 * k)
+    labels = (
+        f"<text x='{_f(cx)}' y='{_f(ty + 20 * k)}' font-size='{fs}' ${{lab}}>${{fmt(top)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.40)}' font-size='{fl}' font-weight='600' ${{lab}}>${{fmt(water)}}</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th - 10 * k)}' font-size='{fs}' ${{lab}}>${{fmt(bot)}}</text>"
+    )
+    svg_open = (f"<svg viewBox='0 0 {_f(vbw)} {_f(vbh)}' width='100%' height='100%' "
+                "preserveAspectRatio='xMidYMid meet'>")
+    if image:
+        # Eigenes Bild: Foto als Hintergrund, Füllstand als schmale Säule rechts,
+        # Rohrschlange als kleines Symbol unten links (falls vorhanden).
+        bx, bw = vbw - 9, 6
+        body = (
+            f"<image href='{image}' x='0' y='0' width='{_f(vbw)}' height='{_f(vbh)}' "
+            "preserveAspectRatio='xMidYMid meet'/>"
+            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='{_f(th)}' rx='3' fill='${{col(bot)}}'/>"
+            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='${{hh}}' rx='3' fill='${{col(top)}}'/>"
+            "${hx ? `<g transform='translate(" + _f(tx - 6) + "," + _f(ty + th - 34) + ")' "
+            "style='${hxAct ? \"animation:hwhp-glow 2s ease-in-out infinite\" : \"\"}'>"
+            "<rect x='-3' y='-3' width='26' height='26' rx='6' style='fill:rgba(0,0,0,.45)'/>"
+            "<path d='M2,4 H18 M2,4 Q-1,7 2,10 H18 Q21,13 18,16 H2 Q-1,19 2,20' fill='none' "
+            "stroke='${cf}' stroke-width='2.2' stroke-linecap='round'/></g>` : ''}"
+        )
+    else:
+        dw = 160 / 5
+        # zwei Luftkanal-Stutzen (Zu- und Abluft, je Ø 160 mm) oben auf dem Kopf
+        ducts = "".join(
+            f"<rect x='{_f(dx - dw / 2)}' y='{_f(y0 - 4)}' width='{_f(dw)}' height='7' rx='1.5' "
+            "fill='#e8eaec' stroke='#a9adb2' stroke-width='.6'/>"
+            f"<rect x='{_f(dx - dw / 2 + 2)}' y='{_f(y0 - 4)}' width='{_f(dw - 4)}' height='1.6' rx='.8' fill='#b9bdc2'/>"
+            for dx in (cx - 30, cx + 30)
+        )
+        body = (
+            ducts
+            + f"<rect x='{_f(x0 + 2)}' y='{_f(y0 + h - foot)}' width='{_f(W - 4)}' height='{_f(foot)}' rx='3' fill='url(#hwhpD)'/>"
+            f"<path d='M{_f(x0)},{_f(y0 + 8)} Q{_f(x0)},{_f(y0)} {_f(x0 + 10)},{_f(y0)} H{_f(x0 + W - 10)} "
+            f"Q{_f(x0 + W)},{_f(y0)} {_f(x0 + W)},{_f(y0 + 8)} V{_f(y0 + h - foot)} H{_f(x0)} Z' "
+            "fill='url(#hwhpB)' stroke='#9ea3a9' stroke-width='.7'/>"
+            f"<rect x='{_f(x0)}' y='{_f(band)}' width='{_f(W)}' height='2.6' fill='url(#hwhpD)'/>"
+            # Bedienfeld (etwas größer als maßstäblich, damit das Display erkennbar bleibt)
+            f"<rect x='{_f(cx - 14)}' y='{_f(y0 + 4)}' width='28' height='74' rx='2' fill='url(#hwhpD)'/>"
+            f"<rect x='{_f(cx - 10)}' y='{_f(y0 + 24)}' width='20' height='13' rx='1.2' "
+            "fill='${water >= lo || isNaN(water) ? \"#cfe3f2\" : \"#ffcc80\"}'/>"
+            f"<circle cx='{_f(cx)}' cy='{_f(y0 + 52)}' r='4' fill='none' stroke='#8a9097' stroke-width='.9'/>"
+            f"<rect x='{_f(x0 - 2.5)}' y='{_f(band - 3)}' width='4' height='3' rx='.6' fill='#2a2d31'/>"
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='#dfe3e7' opacity='.55'/>"
+            "<g clip-path='url(#hwhpC)'>"
+            # Schichtung: Warmwasser liegt oben (Füllstand = Anteil von oben), darunter kalt
+            # Je Zone eine Farbe: gemessen werden nur „Tank oben“ und „Tank unten“
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' fill='${{col(bot)}}' opacity='.8'/>"
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='${{hh}}' fill='${{col(top)}}' opacity='.92'/>"
+            f"${{pct > 0 && pct < 100 ? `<line x1='{_f(tx)}' x2='{_f(tx + tw)}' y1='${{TY + hh}}' y2='${{TY + hh}}' "
+            "stroke='rgba(255,255,255,.8)' stroke-width='1' stroke-dasharray='3 2'/>` : ''}</g>"
+            "${coil}"
+            # Heizstab: seitlich eingeschraubt (Stopfen am Mantel), leuchtet bei Betrieb
+            "${hs ? `<line x1='" + _f(x0 + 3) + "' y1='" + _f(hy) + "' x2='" + _f(cx + 18) + "' y2='" + _f(hy) + "' "
+            "stroke='#ff9100' stroke-width='10' stroke-linecap='round' opacity='.35' "
+            "style='animation:hwhp-glow 1.2s ease-in-out infinite'/>` : ''}"
+            f"<line x1='{_f(x0 + 3)}' y1='{_f(hy)}' x2='{_f(cx + 18)}' y2='{_f(hy)}' stroke='${{hc}}' "
+            "stroke-width='4.5' stroke-linecap='round'/>"
+            f"<line x1='{_f(x0 + 5)}' y1='{_f(hy - 1)}' x2='{_f(cx + 16)}' y2='{_f(hy - 1)}' "
+            "stroke='rgba(255,255,255,.45)' stroke-width='1.1' stroke-linecap='round'/>"
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='url(#hwhpL)' "
+            "stroke='#9ea3a9' stroke-width='.6'/>"
+            f"<rect x='{_f(x0 - 4)}' y='{_f(hy - 6)}' width='9' height='12' rx='1.8' fill='url(#hwhpD)'/>"
+            f"<rect x='{_f(x0 - 2.5)}' y='{_f(hy - 3.5)}' width='6' height='7' rx='1' fill='${{hs ? \"#ff6d00\" : \"#5f656c\"}}'/>"
+            f"<circle cx='{_f(x0 + W - 1)}' cy='{_f(ty + 10)}' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>"
+            f"<circle cx='{_f(x0 + W - 1)}' cy='{_f(ty + th - 4)}' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>"
+        )
+    js += "return `" + svg_open + defs + body + labels + "</svg>`; ]]]"
+    # SVG-IDs je Variante eindeutig machen: mehrere Speicher-Karten auf einer Seite
+    # (z. B. eigene Vergleichs-Ansichten) dürfen sich Verlauf/Clip-Pfad nicht teilen,
+    # falls ein Browser die IDs nicht je Shadow-Root trennt.
+    suffix = f"{int(height_mm)}{'c' if coil else ''}{'i' if image else ''}"
+    for ident in ("hwhpB", "hwhpD", "hwhpL", "hwhpC"):
+        js = js.replace(ident, ident + suffix)
+    return js
+
 
 _JS_INFO = (
     "[[[ const st = (id) => states[id]; const s = (id) => st(id) ? st(id).state : ''; "
@@ -254,7 +419,9 @@ _JS_YEARS = (
 
 _KEYFRAMES = (
     "@keyframes hwhp-pulse {0%,100% {opacity:1; transform:scale(1);} 50% {opacity:.45; transform:scale(.88);}} "
-    "@keyframes hwhp-spin {from {transform:rotate(0deg);} to {transform:rotate(360deg);}}"
+    "@keyframes hwhp-spin {from {transform:rotate(0deg);} to {transform:rotate(360deg);}} "
+    "@keyframes hwhp-glow {0%,100% {opacity:1;} 50% {opacity:.55;}} "
+    "@keyframes hwhp-flow {to {stroke-dashoffset:-16;}}"
 )
 
 
@@ -264,7 +431,7 @@ def _tile(entity: str, name: str, **extra) -> dict:
     return card
 
 
-def _template(with_pv: bool, executor: bool, settings_path: str) -> dict:
+def _template(with_pv: bool, executor: bool, settings_path: str, tank_js: str) -> dict:
     """Dashboard mit Platzhaltern (siehe Modul-Docstring)."""
     pv_vis = [{"condition": "state", "entity": "@E:sensor.pv_status@", "state_not": "off"}]
     def toggle(confirm_key: str) -> dict:
@@ -303,7 +470,7 @@ def _template(with_pv: bool, executor: bool, settings_path: str) -> dict:
                          {"border-top": "1px solid var(--divider-color)"}],
             },
         },
-        "custom_fields": {"tank": _JS_TANK, "info": _JS_INFO, "diag": _JS_DIAG},
+        "custom_fields": {"tank": tank_js, "info": _JS_INFO, "diag": _JS_DIAG},
     }
 
     cop_card = {
@@ -476,13 +643,23 @@ def build_layout(
     with_pv: bool,
     settings_path: str,
     executor: bool = False,
+    height_mm: int = 1694,
+    coil: bool = False,
+    image: str = "",
 ) -> dict:
     """Fertige Dashboard-Konfiguration bauen.
 
     ``resolve(domain, key)`` liefert die entity_id zu ``<entry_id>_<key>`` oder None.
+    ``height_mm`` (Bauform), ``coil`` (Rohrschlange) und ``image`` (eigenes
+    Bild, wird hier nochmals geprüft – landet in einem JS-String) steuern die
+    Speicher-Grafik.
     """
     text = text_for(language)
-    raw = json.dumps(_template(with_pv, executor, settings_path), ensure_ascii=False)
+    image = image.strip() if isinstance(image, str) else ""
+    if image and not IMAGE_URL_RE.match(image):
+        image = ""
+    tank_js = _tank_js(int(height_mm), bool(coil), image)
+    raw = json.dumps(_template(with_pv, executor, settings_path, tank_js), ensure_ascii=False)
     raw = _ENTITY_TOKEN.sub(lambda m: resolve(m.group(1), m.group(2)) or "", raw)
     raw = _TEXT_TOKEN.sub(lambda m: text[m.group(1)], raw)
     return _prune(json.loads(raw))
