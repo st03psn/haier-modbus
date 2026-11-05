@@ -306,7 +306,8 @@ bei Updates automatisch auf den neuesten Stand. Angepasste Dashboards werden nie
 (`update.haier_hwhp_dashboard`), im neuen Layout zusätzlich als Kachel im Dashboard.
 *Installieren* übernimmt das neue Layout und ersetzt dabei eigene Anpassungen am
 Haier-Dashboard (alternativ: Aktion `haier_modbus.rebuild_dashboard`). Erst vergleichen?
-Button **„Neues Dashboard zum Vergleich anlegen“** am Haier-Gerät legt das neue Layout
+Button **„Neues Dashboard zum Vergleich anlegen“** (Geräteseite *Haier BWWP* → Abschnitt
+*Konfiguration*) legt das neue Layout
 zusätzlich an; **„Vergleichs-Dashboard übernehmen“** macht es (samt deiner Änderungen daran)
 zum Standard. Dashboards aus
 Versionen vor 2.0.0 gelten als angepasst und zeigen deshalb einmalig dieses Update.

@@ -9,7 +9,10 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 
 **Korrekturen am Dashboard.**
 - Der Text der Update-Entität „Dashboard“ war zu lang. HA kürzt ihn auf 255 Zeichen, sodass
-  das Ende fehlte. Er ist jetzt gekürzt.
+  das Ende fehlte. Er ist jetzt gekürzt und nennt den Weg zu den Vergleichs-Buttons:
+  Geräteseite *Haier BWWP* → Abschnitt *Konfiguration*.
+- Die Benachrichtigung zum neuen Dashboard-Design verlinkt jetzt direkt auf diese
+  Geräteseite (vorher nur „am Haier-Gerät“).
 - COP-Hinweis in der Karte „Jahresarbeitszahl & COP“: Text steht jetzt bündig links neben
   dem Warnsymbol (vorher mittig/rechts abgesetzt).
 

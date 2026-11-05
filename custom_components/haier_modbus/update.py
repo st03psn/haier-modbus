@@ -74,12 +74,12 @@ class HaierDashboardUpdate(HaierModbusEntity, UpdateEntity):
         # HA kürzt release_summary auf 255 Zeichen.
         return (
             "Neues Layout. Installieren ersetzt das Haier-Dashboard (eigene Anpassungen "
-            "gehen verloren). Erst vergleichen: am Haier-Gerät „Neues Dashboard zum "
-            "Vergleich anlegen“, danach „Vergleichs-Dashboard übernehmen“."
+            "gehen verloren). Erst vergleichen: Geräteseite „Haier BWWP“ → Konfiguration → "
+            "„Neues Dashboard zum Vergleich anlegen“, danach dort übernehmen."
             if de else
             "New layout. Installing replaces the Haier dashboard (your own changes are "
-            "lost). To compare first: on the Haier device press “Create new dashboard for "
-            "comparison”, then “Adopt comparison dashboard”."
+            "lost). To compare first: device page “Haier BWWP” → Configuration → “Create "
+            "new dashboard for comparison”, then adopt it there."
         )
 
     async def async_added_to_hass(self) -> None:
