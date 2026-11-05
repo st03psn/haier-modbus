@@ -5,6 +5,16 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.0.3] - 2026-11-05
+
+- **Optionen → Verbindung & Gerät** in zwei Schritten: erst die Verbindungsart, danach nur
+  deren Felder (TCP: Host/Port · seriell: Port/Baudrate) plus Slave-ID, Modell,
+  Abfrageintervall und Umgebungs-Offset. Vorher standen TCP- und Seriell-Felder gemeinsam
+  im Formular (HA-Formulare können Felder nicht abhängig von einer Auswahl ausblenden).
+- HACS-Name an die Integration angeglichen: „Haier HWHP (Modbus)“.
+- README: Ein-Klick-Installation über My Home Assistant (Repository in HACS hinzufügen,
+  Einrichtung starten).
+
 ## [2.0.2] - 2026-11-05
 
 - **Reparatur-Hinweis „Neues Dashboard-Layout übernehmen?“ bietet jetzt auch „Erst

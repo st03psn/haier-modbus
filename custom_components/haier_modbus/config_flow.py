@@ -709,6 +709,7 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
     """
 
     _pv_mode: str = DEFAULT_PV_MODE
+    _conn_type: str = DEFAULT_CONNECTION_TYPE
 
     def _cur(self, key: str, default: Any) -> Any:
         return self.config_entry.options.get(key, self.config_entry.data.get(key, default))
@@ -727,49 +728,86 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
             menu_options=["connection", "energy", "pv_mode", "protection", "dashboard"],
         )
 
-    def _connection_schema(self) -> vol.Schema:
-        ports = self._ports
-        cur_port = self._cur(CONF_SERIAL_PORT, "")
-        if cur_port and cur_port not in ports:
-            ports = [cur_port, *ports]
-        return vol.Schema({
-            vol.Optional(CONF_CONNECTION_TYPE,
-                         default=self._cur(CONF_CONNECTION_TYPE, DEFAULT_CONNECTION_TYPE)): _CONNECTION_TYPE,
-            vol.Optional(CONF_HOST, default=self._cur(CONF_HOST, "")): str,
-            vol.Optional(CONF_PORT, default=self._cur(CONF_PORT, DEFAULT_PORT)): int,
-            vol.Optional(CONF_SERIAL_PORT, default=cur_port): _serial_port_selector(ports),
-            vol.Optional(CONF_BAUDRATE,
-                         default=str(self._cur(CONF_BAUDRATE, DEFAULT_BAUDRATE))): _BAUDRATE,
+    def _device_fields(self) -> dict:
+        """Felder, die für beide Verbindungsarten gelten."""
+        return {
             vol.Optional(CONF_SLAVE, default=self._cur(CONF_SLAVE, DEFAULT_SLAVE)): int,
             vol.Optional(CONF_MODEL, default=self._cur(CONF_MODEL, DEFAULT_MODEL_KEY)): _MODEL,
             vol.Optional(CONF_SCAN_INTERVAL,
                          default=self._cur(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
             vol.Optional(CONF_AMBIENT_OFFSET,
                          default=self._cur(CONF_AMBIENT_OFFSET, DEFAULT_AMBIENT_OFFSET)): _OFFSET,
-        })
+        }
 
     async def async_step_connection(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        """Verbindung, Schritt 1: nur die Art – danach erscheinen nur deren Felder.
+
+        HA-Formulare sind statisch (Felder lassen sich nicht abhängig von einer
+        Auswahl ein-/ausblenden), daher zwei Schritte wie im Einrichtungsassistenten.
+        """
+        if user_input is not None:
+            self._conn_type = user_input.get(CONF_CONNECTION_TYPE, DEFAULT_CONNECTION_TYPE)
+            if self._conn_type == CONNECTION_SERIAL:
+                return await self.async_step_connection_serial()
+            return await self.async_step_connection_tcp()
+        schema = vol.Schema({
+            vol.Required(CONF_CONNECTION_TYPE,
+                         default=self._cur(CONF_CONNECTION_TYPE, DEFAULT_CONNECTION_TYPE)): _CONNECTION_TYPE,
+        })
+        return self.async_show_form(step_id="connection", data_schema=schema)
+
+    async def async_step_connection_tcp(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         errors: dict[str, str] = {}
-        self._ports = await self.hass.async_add_executor_job(_list_serial_ports)
-        schema = self._connection_schema()
+        schema = vol.Schema({
+            vol.Optional(CONF_HOST, default=self._cur(CONF_HOST, "")): str,
+            vol.Optional(CONF_PORT, default=self._cur(CONF_PORT, DEFAULT_PORT)): int,
+            **self._device_fields(),
+        })
+        if user_input is not None:
+            values = {k: v for k, v in user_input.items() if v not in ("", None)}
+            if not connection_settings(values, self.config_entry.data)[CONF_HOST]:
+                errors["base"] = "host_required"
+            else:
+                return self._save(
+                    schema.extend({vol.Optional(CONF_CONNECTION_TYPE): str}),
+                    {**values, CONF_CONNECTION_TYPE: CONNECTION_TCP},
+                )
+            schema = self.add_suggested_values_to_schema(schema, user_input)
+        return self.async_show_form(step_id="connection_tcp", data_schema=schema, errors=errors)
+
+    async def async_step_connection_serial(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        errors: dict[str, str] = {}
+        ports = await self.hass.async_add_executor_job(_list_serial_ports)
+        cur_port = self._cur(CONF_SERIAL_PORT, "")
+        if cur_port and cur_port not in ports:
+            ports = [cur_port, *ports]
+        schema = vol.Schema({
+            vol.Optional(CONF_SERIAL_PORT, default=cur_port): _serial_port_selector(ports),
+            vol.Optional(CONF_BAUDRATE,
+                         default=str(self._cur(CONF_BAUDRATE, DEFAULT_BAUDRATE))): _BAUDRATE,
+            **self._device_fields(),
+        })
         if user_input is not None:
             values = {k: v for k, v in user_input.items() if v not in ("", None)}
             if CONF_BAUDRATE in values:
                 values[CONF_BAUDRATE] = int(values[CONF_BAUDRATE])
-            # Zur gewählten Verbindungsart muss ihr Ziel bekannt sein (Options
-            # oder Setup-Daten) – sonst baut der Coordinator einen leeren Client.
-            known = connection_settings(values, self.config_entry.data)
-            if values.get(CONF_CONNECTION_TYPE) == CONNECTION_SERIAL:
-                if not known[CONF_SERIAL_PORT]:
-                    errors["base"] = "serial_port_required"
-            elif not known[CONF_HOST]:
-                errors["base"] = "host_required"
-            if not errors:
-                return self._save(schema, values)
+            if not connection_settings(
+                {**values, CONF_CONNECTION_TYPE: CONNECTION_SERIAL}, self.config_entry.data
+            )[CONF_SERIAL_PORT]:
+                errors["base"] = "serial_port_required"
+            else:
+                return self._save(
+                    schema.extend({vol.Optional(CONF_CONNECTION_TYPE): str}),
+                    {**values, CONF_CONNECTION_TYPE: CONNECTION_SERIAL},
+                )
             schema = self.add_suggested_values_to_schema(schema, user_input)
-        return self.async_show_form(step_id="connection", data_schema=schema, errors=errors)
+        return self.async_show_form(step_id="connection_serial", data_schema=schema, errors=errors)
 
     async def async_step_energy(
         self, user_input: dict[str, Any] | None = None
