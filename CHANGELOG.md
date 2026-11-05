@@ -7,11 +7,12 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 
 ## [2.1.1] - 2026-11-05
 
-- **Speicher-Grafik ruhiger:** Die gestrichelte Füllstandslinie entfällt – die Grenze zeigt
-  der Farbwechsel. Liegen „Tank oben“ und „Tank unten“ weniger als 5 K auseinander, gibt es
-  keine kalte Zone, und der Speicher wird einfarbig gezeichnet (vorher ein blasser Streifen
-  nach dem geschätzten Füllstand, z. B. bei 62 °C oben und unten). Die Farbskala bleibt an
-  die Solltemperatur gebunden (Rot = Soll erreicht).
+- **Speicher-Grafik:** Die gestrichelte Füllstandslinie entfällt. Stattdessen geht die
+  Warmzone (Farbe „Tank oben“) an der Füllstandsgrenze in die Kaltzone (Farbe „Tank unten“)
+  über – **sanft bei kleinem Unterschied** (durchmischter Speicher), **fast als Kante ab
+  ~10 K** (klare Schichtung). Bei gleicher Temperatur oben/unten ist der Speicher damit
+  einfarbig (vorher ein blasser Streifen, z. B. bei 62 °C oben und unten). Die Farbskala
+  bleibt an die Solltemperatur gebunden (Rot = Soll erreicht).
 
 ## [2.1.0] - 2026-11-05
 

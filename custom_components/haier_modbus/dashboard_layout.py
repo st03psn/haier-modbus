@@ -178,12 +178,16 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     hy = ty + th * 0.52  # Heizstab-Höhe (Schnittbild Datenblatt: etwa Speichermitte)
     js = _JS_TANK_HEAD + f"const hx = {'true' if coil else 'false'}; "
     js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
-           # Unterscheiden sich oben/unten kaum (< 5 K), gibt es keine kalte Zone:
-           # dann einfarbig, statt einen blassen Streifen nach dem geschätzten Füllstand.
-           "const strat = !isNaN(top) && !isNaN(bot) && Math.abs(top - bot) >= 5; "
-           "const hh = strat ? TH * pct / 100 : TH; ")
+           # Übergang Warm-/Kaltzone an der Füllstandsgrenze: je kleiner der Unterschied
+           # oben/unten, desto breiter (sanft, durchmischt); ab ~10 K fast eine Kante.
+           "const dT = isNaN(top) || isNaN(bot) ? 0 : Math.abs(top - bot); const fb = pct / 100; "
+           "const fw = Math.max(0.06, Math.min(0.9, 1 - dT / 11)); "
+           "const s1 = Math.max(0, fb - fw / 2), s2 = Math.min(1, fb + fw / 2); ")
     defs = (
-        "<defs>"
+        "<defs><linearGradient id='hwhpG' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='${col(top)}'/><stop offset='${s1}' stop-color='${col(top)}'/>"
+        "<stop offset='${s2}' stop-color='${col(bot)}'/><stop offset='1' stop-color='${col(bot)}'/>"
+        "</linearGradient>"
         "<linearGradient id='hwhpB' x1='0' x2='1'><stop offset='0' stop-color='#c9ccd0'/>"
         "<stop offset='.18' stop-color='#f4f5f6'/><stop offset='.55' stop-color='#ffffff'/>"
         "<stop offset='.88' stop-color='#e3e5e8'/><stop offset='1' stop-color='#b9bdc2'/></linearGradient>"
@@ -217,8 +221,7 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
         body = (
             f"<image href='{image}' x='0' y='0' width='{_f(vbw)}' height='{_f(vbh)}' "
             "preserveAspectRatio='xMidYMid meet'/>"
-            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='{_f(th)}' rx='3' fill='${{col(bot)}}'/>"
-            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='${{hh}}' rx='3' fill='${{col(top)}}'/>"
+            f"<rect x='{_f(bx)}' y='{_f(ty)}' width='{bw}' height='{_f(th)}' rx='3' fill='url(#hwhpG)'/>"
             "${hx ? `<g transform='translate(" + _f(tx - 6) + "," + _f(ty + th - 34) + ")' "
             "style='${hxAct ? \"animation:hwhp-glow 2s ease-in-out infinite\" : \"\"}'>"
             "<rect x='-3' y='-3' width='26' height='26' rx='6' style='fill:rgba(0,0,0,.45)'/>"
@@ -250,9 +253,8 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='#dfe3e7' opacity='.55'/>"
             "<g clip-path='url(#hwhpC)'>"
             # Schichtung: Warmwasser liegt oben (Füllstand = Anteil von oben), darunter kalt
-            # Je Zone eine Farbe: gemessen werden nur „Tank oben“ und „Tank unten“
-            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' fill='${{col(bot)}}' opacity='.8'/>"
-            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='${{hh}}' fill='${{col(top)}}' opacity='.92'/>"
+            # Warmzone oben (Farbe „Tank oben“), Kaltzone unten (Farbe „Tank unten“)
+            f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' fill='url(#hwhpG)' opacity='.9'/>"
             "</g>"
             "${coil}"
             # Heizstab: seitlich eingeschraubt (Stopfen am Mantel), leuchtet bei Betrieb
@@ -275,8 +277,12 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     # (z. B. eigene Vergleichs-Ansichten) dürfen sich Verlauf/Clip-Pfad nicht teilen,
     # falls ein Browser die IDs nicht je Shadow-Root trennt.
     suffix = f"{int(height_mm)}{'c' if coil else ''}{'i' if image else ''}"
-    for ident in ("hwhpB", "hwhpD", "hwhpL", "hwhpC"):
+    for ident in ("hwhpG", "hwhpB", "hwhpD", "hwhpL", "hwhpC"):
         js = js.replace(ident, ident + suffix)
+    # Der Verlauf hängt von Live-Werten ab: zusätzlich je Darstellung eindeutig, sonst
+    # übernähme eine zweite Karte desselben Modells den Verlauf der ersten.
+    js = js.replace(f"hwhpG{suffix}", f"hwhpG{suffix}${{gu}}")
+    js = js.replace("[[[ ", "[[[ const gu = Math.random().toString(36).slice(2, 8); ", 1)
     return js
 
 
