@@ -305,7 +305,7 @@ nach Systemsprache):
   (Wärmepumpe, Heizstab, Boost, Leise, Sterilisation, aktive Regelung, Legionellen,
   Umgebung), darunter eine Statusleiste (Modbus, Fehler, Geräteuhr, Notheizung).
   Varianten mit Wärmetauscher (…M7C-F9) zeigen die Rohrschlange, die bei Solar-/Kesselbetrieb
-  leuchtet. Unter *Optionen → Dashboard* lässt sich das einstellen (Automatisch/Ja/Nein) und
+  leuchtet. Unter *Optionen → Dashboard* lässt sich das einstellen (Automatisch = nach Modell/Ja/Nein) und
   ein **eigenes Foto** hinterlegen (z. B. `/local/haier.png`); die Werte liegen dann darüber.
 - **Betrieb:** Schalter, Solltemperatur und Modus, PV-Regelung (nur mit PV), Regelverlauf (Sollwert, Modus,
   Boost, Legionellen, Notheizung, PV) und die Karte **Jahresarbeitszahl & COP**

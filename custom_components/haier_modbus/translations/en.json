@@ -20,7 +20,7 @@
         "data_description": {
           "host": "Usually the IP of the Modbus RTU-to-TCP converter, not the heat pump itself.",
           "slave": "Modbus address of the heat pump on the RTU bus (default 1).",
-          "model": "Used for the device display and the shape in the dashboard. Variants with heat exchanger (…M7C-F9): choose the model of the same size."
+          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil."
         }
       },
       "serial": {
@@ -36,7 +36,7 @@
           "serial_port": "Prefer the stable path under /dev/serial/by-id/…; /dev/ttyUSB0 can change after a reboot.",
           "baudrate": "9600 according to the manufacturer.",
           "slave": "Modbus address of the heat pump on the RTU bus (default 1).",
-          "model": "Used for the device display and the shape in the dashboard. Variants with heat exchanger (…M7C-F9): choose the model of the same size."
+          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil."
         }
       },
       "cop": {
@@ -198,7 +198,7 @@
           "ambient_offset": "Ambient temperature offset (°C)"
         },
         "data_description": {
-          "model": "Used for the device display and the shape in the dashboard. Variants with heat exchanger (…M7C-F9): choose the model of the same size.",
+          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil.",
           "scan_interval": "Default 5 s. Shorter intervals fill the recorder database faster."
         }
       },
@@ -215,7 +215,7 @@
         },
         "data_description": {
           "serial_port": "Prefer the stable path under /dev/serial/by-id/….",
-          "model": "Used for the device display and the shape in the dashboard. Variants with heat exchanger (…M7C-F9): choose the model of the same size.",
+          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil.",
           "scan_interval": "Default 5 s. Shorter intervals fill the recorder database faster."
         }
       },
@@ -280,7 +280,7 @@
         },
         "data_description": {
           "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards.",
-          "heat_exchanger": "Coil in the tank graphic (variants “…M7C-F9” with solar/boiler coil). It lights up while solar or the boiler is heating. **Automatic:** as soon as solar or the boiler has been active once.",
+          "heat_exchanger": "Coil in the tank graphic (variants “…M7C-F9” with solar/boiler coil). It lights up while solar or the boiler is heating. **Automatic:** based on the selected model.",
           "dashboard_image": "Empty = bundled drawing of the selected model. Otherwise e.g. your own photo at `/local/haier.png` (file in `config/www/`) or an https address; fill level and temperatures are drawn on top. Only addresses without spaces or quotes are allowed.",
           "dashboard_action": "Runs once, not saved. **Create for comparison:** new layout additionally as “Haier BWWP (new)”, your dashboard stays. **Adopt:** the comparison dashboard (including your changes to it) becomes the default. **Replace:** replace the Haier dashboard with the new layout right away – your own changes are lost."
         }
@@ -408,7 +408,9 @@
       "options": {
         "hp160m7_f9": "HP160M7-F9",
         "hp200m7_f9": "HP200M7-F9",
+        "hp200m7c_f9": "HP200M7C-F9",
         "hp250m7_f9": "HP250M7-F9",
+        "hp250m7c_f9": "HP250M7C-F9",
         "hp260m7_f9": "HP260M7-F9",
         "other": "Other model"
       }

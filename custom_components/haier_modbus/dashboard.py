@@ -34,7 +34,10 @@ from .const import (
     CONF_MODEL,
     DEFAULT_HEAT_EXCHANGER,
     DEFAULT_MODEL_KEY,
+    HEAT_EXCHANGER_NO,
+    HEAT_EXCHANGER_YES,
     MODEL_HEIGHT_MM,
+    MODELS_WITH_COIL,
     CONF_PV_MODE,
     DASHBOARD_ICON,
     DASHBOARD_LEGACY_URL_PATH,
@@ -66,6 +69,15 @@ _NOTIFY_ID = f"{DOMAIN}_dashboard_layout"  # nur noch zum Entfernen (2.0.0)
 DASHBOARD_ISSUE_ID = "dashboard_layout_update"
 
 
+def _show_coil(setting: str, model: str) -> bool:
+    """Rohrschlange zeigen? „auto“ = nach Modell (Register-Varianten …M7C-F9)."""
+    if setting == HEAT_EXCHANGER_YES:
+        return True
+    if setting == HEAT_EXCHANGER_NO:
+        return False
+    return model in MODELS_WITH_COIL
+
+
 def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
     """Dashboard-Config mit real aufgelösten entity_ids bauen (Layout: dashboard_layout)."""
     reg = er.async_get(hass)
@@ -88,7 +100,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         executor=pv_mode == PV_MODE_EXECUTOR,
         settings_path=f"/config/integrations/integration/{DOMAIN}",
         height_mm=MODEL_HEIGHT_MM.get(model, MODEL_HEIGHT_MM[DEFAULT_MODEL_KEY]),
-        heat_exchanger=entry.options.get(CONF_HEAT_EXCHANGER, DEFAULT_HEAT_EXCHANGER),
+        coil=_show_coil(entry.options.get(CONF_HEAT_EXCHANGER, DEFAULT_HEAT_EXCHANGER), model),
         image=entry.options.get(CONF_DASHBOARD_IMAGE, ""),
     )
 

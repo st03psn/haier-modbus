@@ -114,11 +114,11 @@ def _f(v: float) -> str:
     return f"{v:.1f}".rstrip("0").rstrip(".")
 
 
-def _tank_js(height_mm: int, coil: str, image: str) -> str:
+def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     """JS für das Speicher-Feld bauen (Geometrie statisch, Werte live).
 
-    ``coil``: "auto" (zeigen, sobald Solar-/Kessel-Sensor freigeschaltet ist),
-    "yes", "no". ``image``: geprüfte URL eines eigenen Bildes oder "".
+    ``coil``: Rohrschlange zeigen (Register-Variante). ``image``: geprüfte URL
+    eines eigenen Bildes oder "".
     """
     W, x0 = 120.0, 6.0
     h = height_mm / 5
@@ -130,13 +130,7 @@ def _tank_js(height_mm: int, coil: str, image: str) -> str:
     ty = band + 6
     th = (y0 + h - foot - 3) - ty - 3
     cx = x0 + W / 2
-    if coil == "yes":
-        hx = "true"
-    elif coil == "no":
-        hx = "false"
-    else:
-        hx = "(!!states['@E:binary_sensor.status_solar@'] || !!states['@E:binary_sensor.status_boiler@'])"
-    js = _JS_TANK_HEAD + f"const hx = {hx}; "
+    js = _JS_TANK_HEAD + f"const hx = {'true' if coil else 'false'}; "
     js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
            "const fy = TY + TH * (1 - pct / 100); ")
     defs = (
@@ -598,13 +592,13 @@ def build_layout(
     settings_path: str,
     executor: bool = False,
     height_mm: int = 1694,
-    heat_exchanger: str = "auto",
+    coil: bool = False,
     image: str = "",
 ) -> dict:
     """Fertige Dashboard-Konfiguration bauen.
 
     ``resolve(domain, key)`` liefert die entity_id zu ``<entry_id>_<key>`` oder None.
-    ``height_mm`` (Bauform), ``heat_exchanger`` (auto/yes/no) und ``image`` (eigenes
+    ``height_mm`` (Bauform), ``coil`` (Rohrschlange) und ``image`` (eigenes
     Bild, wird hier nochmals geprüft – landet in einem JS-String) steuern die
     Speicher-Grafik.
     """
@@ -612,7 +606,7 @@ def build_layout(
     image = image.strip() if isinstance(image, str) else ""
     if image and not IMAGE_URL_RE.match(image):
         image = ""
-    tank_js = _tank_js(int(height_mm), heat_exchanger, image)
+    tank_js = _tank_js(int(height_mm), bool(coil), image)
     raw = json.dumps(_template(with_pv, executor, settings_path, tank_js), ensure_ascii=False)
     raw = _ENTITY_TOKEN.sub(lambda m: resolve(m.group(1), m.group(2)) or "", raw)
     raw = _TEXT_TOKEN.sub(lambda m: text[m.group(1)], raw)

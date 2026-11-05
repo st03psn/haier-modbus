@@ -15,11 +15,12 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 - **Wärmetauscher:** Die Varianten mit Solar-/Kessel-Register heißen laut Haier
   „…M7**C**-F9“. Eine Rohrschlange im Speicher leuchtet, solange Solar oder Kessel heizt
   (Reg 3 bit2/bit3). Neue Option *Optionen → Dashboard → „Wärmetauscher zeigen“*:
-  Automatisch (sobald die Quelle einmal aktiv war) / Ja / Nein.
+  Automatisch (nach Modell) / Ja / Nein.
 - **Eigenes Gerätebild** (optional, *Optionen → Dashboard*): z. B. ein Foto unter
   `/local/…`; Füllstand als Säule und Werte liegen darüber.
-- Neues Modell **HP250M7-F9** in der Auswahl (laut Haier-Datenblatt; HP160/HP260 bleiben
-  wählbar, sind in den Haier-Unterlagen aber nicht auffindbar).
+- Neue Modelle in der Auswahl (laut Haier-Datenblatt): **HP250M7-F9** sowie die
+  Register-Varianten **HP200M7C-F9** und **HP250M7C-F9**. HP160/HP260 bleiben wählbar,
+  sind in den Haier-Unterlagen aber nicht auffindbar.
 - Dashboard-Layout-Generation 3: unveränderte Dashboards ziehen automatisch nach,
   angepasste bekommen den Reparatur-Hinweis (Ja / Erst vergleichen / Nein).
 

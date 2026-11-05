@@ -20,7 +20,7 @@
         "data_description": {
           "host": "I. d. R. die IP des Modbus-RTU→TCP-Konverters, nicht der Wärmepumpe selbst.",
           "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1).",
-          "model": "Für die Geräteanzeige und die Bauform im Dashboard. Varianten mit Wärmetauscher (…M7C-F9): das gleich große Modell wählen."
+          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register."
         }
       },
       "serial": {
@@ -36,7 +36,7 @@
           "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen; /dev/ttyUSB0 kann sich nach einem Neustart ändern.",
           "baudrate": "Laut Hersteller 9600.",
           "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1).",
-          "model": "Für die Geräteanzeige und die Bauform im Dashboard. Varianten mit Wärmetauscher (…M7C-F9): das gleich große Modell wählen."
+          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register."
         }
       },
       "cop": {
@@ -198,7 +198,7 @@
           "ambient_offset": "Offset Umgebungstemperatur (°C)"
         },
         "data_description": {
-          "model": "Für die Geräteanzeige und die Bauform im Dashboard. Varianten mit Wärmetauscher (…M7C-F9): das gleich große Modell wählen.",
+          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register.",
           "scan_interval": "Standard 5 s. Kürzere Intervalle füllen die Recorder-Datenbank schneller."
         }
       },
@@ -215,7 +215,7 @@
         },
         "data_description": {
           "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen.",
-          "model": "Für die Geräteanzeige und die Bauform im Dashboard. Varianten mit Wärmetauscher (…M7C-F9): das gleich große Modell wählen.",
+          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register.",
           "scan_interval": "Standard 5 s. Kürzere Intervalle füllen die Recorder-Datenbank schneller."
         }
       },
@@ -280,7 +280,7 @@
         },
         "data_description": {
           "dashboard_enabled": "Legt beim Setup das Dashboard „Haier BWWP“ an (editierbar, wenn Home Assistant das zulässt). Aus: kein Dashboard mehr anlegen; ein nicht editierbares YAML-Dashboard der Integration wird entfernt, ein bereits angelegtes editierbares bleibt bestehen und lässt sich unter Einstellungen → Dashboards löschen.",
-          "heat_exchanger": "Rohrschlange in der Speicher-Grafik (Varianten „…M7C-F9“ mit Solar-/Kessel-Register). Sie leuchtet, solange Solar oder Kessel heizt. **Automatisch:** sobald Solar oder Kessel einmal aktiv war.",
+          "heat_exchanger": "Rohrschlange in der Speicher-Grafik (Varianten „…M7C-F9“ mit Solar-/Kessel-Register). Sie leuchtet, solange Solar oder Kessel heizt. **Automatisch:** nach gewähltem Modell.",
           "dashboard_image": "Leer = mitgelieferte Zeichnung des gewählten Modells. Sonst z. B. ein eigenes Foto unter `/local/haier.png` (Datei in `config/www/`) oder eine https-Adresse; Füllstand und Temperaturen liegen darüber. Erlaubt sind nur Adressen ohne Leer- und Anführungszeichen.",
           "dashboard_action": "Einmalig ausführen, wird nicht gespeichert. **Vergleich anlegen:** neues Layout zusätzlich als „Haier BWWP (neu)“, dein Dashboard bleibt. **Übernehmen:** das Vergleichs-Dashboard (samt deiner Änderungen daran) wird zum Standard. **Ersetzen:** Haier-Dashboard direkt durch das neue Layout ersetzen – eigene Anpassungen gehen verloren."
         }
@@ -408,7 +408,9 @@
       "options": {
         "hp160m7_f9": "HP160M7-F9",
         "hp200m7_f9": "HP200M7-F9",
+        "hp200m7c_f9": "HP200M7C-F9",
         "hp250m7_f9": "HP250M7-F9",
+        "hp250m7c_f9": "HP250M7C-F9",
         "hp260m7_f9": "HP260M7-F9",
         "other": "Anderes Modell"
       }
