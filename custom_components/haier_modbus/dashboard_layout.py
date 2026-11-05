@@ -201,8 +201,7 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     fs, fl = _f(13 * k), _f(30 * k)
     labels = (
         f"<text x='{_f(cx)}' y='{_f(ty + 20 * k)}' font-size='{fs}' ${{lab}}>${{fmt(top)}}</text>"
-        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.36)}' font-size='{fl}' font-weight='600' ${{lab}}>${{fmt(water)}}</text>"
-        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.36 + 20 * k)}' font-size='{fs}' ${{lab}}>${{Math.round(pct)}} %</text>"
+        f"<text x='{_f(cx)}' y='{_f(ty + th * 0.40)}' font-size='{fl}' font-weight='600' ${{lab}}>${{fmt(water)}}</text>"
         f"<text x='{_f(cx)}' y='{_f(ty + th - 10 * k)}' font-size='{fs}' ${{lab}}>${{fmt(bot)}}</text>"
     )
     svg_open = (f"<svg viewBox='0 0 {_f(vbw)} {_f(vbh)}' width='100%' height='100%' "
