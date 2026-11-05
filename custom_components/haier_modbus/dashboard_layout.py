@@ -178,7 +178,10 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     hy = ty + th * 0.52  # Heizstab-Höhe (Schnittbild Datenblatt: etwa Speichermitte)
     js = _JS_TANK_HEAD + f"const hx = {'true' if coil else 'false'}; "
     js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
-           "const hh = TH * pct / 100; ")
+           # Unterscheiden sich oben/unten kaum (< 5 K), gibt es keine kalte Zone:
+           # dann einfarbig, statt einen blassen Streifen nach dem geschätzten Füllstand.
+           "const strat = !isNaN(top) && !isNaN(bot) && Math.abs(top - bot) >= 5; "
+           "const hh = strat ? TH * pct / 100 : TH; ")
     defs = (
         "<defs>"
         "<linearGradient id='hwhpB' x1='0' x2='1'><stop offset='0' stop-color='#c9ccd0'/>"
@@ -250,8 +253,7 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
             # Je Zone eine Farbe: gemessen werden nur „Tank oben“ und „Tank unten“
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' fill='${{col(bot)}}' opacity='.8'/>"
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='${{hh}}' fill='${{col(top)}}' opacity='.92'/>"
-            f"${{pct > 0 && pct < 100 ? `<line x1='{_f(tx)}' x2='{_f(tx + tw)}' y1='${{TY + hh}}' y2='${{TY + hh}}' "
-            "stroke='rgba(255,255,255,.8)' stroke-width='1' stroke-dasharray='3 2'/>` : ''}</g>"
+            "</g>"
             "${coil}"
             # Heizstab: seitlich eingeschraubt (Stopfen am Mantel), leuchtet bei Betrieb
             "${hs ? `<line x1='" + _f(x0 + 3) + "' y1='" + _f(hy) + "' x2='" + _f(cx + 18) + "' y2='" + _f(hy) + "' "

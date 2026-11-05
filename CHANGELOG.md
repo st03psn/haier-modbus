@@ -5,6 +5,14 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.1.1] - 2026-11-05
+
+- **Speicher-Grafik ruhiger:** Die gestrichelte Füllstandslinie entfällt – die Grenze zeigt
+  der Farbwechsel. Liegen „Tank oben“ und „Tank unten“ weniger als 5 K auseinander, gibt es
+  keine kalte Zone, und der Speicher wird einfarbig gezeichnet (vorher ein blasser Streifen
+  nach dem geschätzten Füllstand, z. B. bei 62 °C oben und unten). Die Farbskala bleibt an
+  die Solltemperatur gebunden (Rot = Soll erreicht).
+
 ## [2.1.0] - 2026-11-05
 
 **Speicher-Grafik als Geräteabbild (#29).**
