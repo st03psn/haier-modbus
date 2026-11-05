@@ -5,6 +5,14 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.0.2] - 2026-11-05
+
+- **Reparatur-Hinweis „Neues Dashboard-Layout übernehmen?“ bietet jetzt auch „Erst
+  vergleichen“.** Das legt das neue Layout zusätzlich als „Haier BWWP (neu)“ an; der
+  Hinweis bleibt stehen. Beim nächsten Öffnen fragt er „Vergleichs-Dashboard
+  übernehmen?“ (samt deiner Änderungen daran), „Neues Layout frisch übernehmen“ oder
+  „Nein, behalten“.
+
 ## [2.0.1] - 2026-11-05
 
 **Neues Dashboard-Layout: Rückfrage statt versteckter Buttons.**
