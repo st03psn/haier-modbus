@@ -5,6 +5,29 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.23.1] - 2026-11-05
+
+**Fix: editierbares Dashboard bei Neuinstallation (#18).** Home Assistant (mindestens seit
+2026.2) hält die interne Dashboard-Liste nicht mehr dort, wo die Integration sie suchte.
+Neue Installationen bekamen deshalb immer das nicht editierbare YAML-Dashboard (Log:
+„keine Dashboard-Collection an LovelaceData“). Die Liste wird jetzt über den Lovelace-
+Websocket-Befehl gefunden (im HA-Quellcode 2026.2.3 und 2026.11.0 geprüft). Wer bisher
+das YAML-Dashboard hatte, bekommt nach dem nächsten **Neustart** das editierbare. Bestehende
+editierbare Dashboards bleiben unangetastet.
+
+**Fix: Warnungen der Warmwasser-Entität ab HA 2026.11.** HA 2026.11 meldet
+`_attr_temperature_unit`, `current_temperature` und `target_temperature` als veraltet
+(entfallen mit 2027.11). Die Entität nutzt jetzt `native_*`. Ältere HA-Versionen, die die
+neuen Namen noch nicht kennen, bekommen weiterhin die alten.
+
+**Fix: keine Statistik-Ausreißer mehr bei erneutem Vorbefüllen (#3).** Die Gesamtzähler
+„Wärmemenge (gesamt)“ und „Stromverbrauch (gesamt)“ wurden bei jedem erneuten Vorbefüllen
+der Energie-Eimer überschrieben (neue interne Speicherversion oder geändertes COP-
+Bezugsdatum). Als `total_increasing` wertete HA einen Rückgang als Zählerwechsel, einen
+Anstieg als Verbrauch – ein einmaliger Ausreißer in der Langzeitstatistik. Die Gesamtzähler
+werden jetzt nur beim allerersten Mal gesetzt; danach wachsen sie nur noch über neue
+Messwerte. Monats- und Jahreswerte für COP/JAZ werden wie bisher neu befüllt.
+
 ## [1.23.0] - 2026-11-05
 
 **Neu: Direktanschluss per USB/RS485-Adapter (#16).** Neben dem Modbus-RTU→TCP-Konverter
