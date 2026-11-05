@@ -363,6 +363,39 @@ def _remove_legacy_yaml_dashboard(hass: HomeAssistant) -> None:
         dashboards.pop(DASHBOARD_LEGACY_URL_PATH, None)
 
 
+def _find_dashboards_collection(hass: HomeAssistant, lovelace):
+    """Lovelace-Dashboard-Collection finden (#18).
+
+    Seit mindestens HA 2026.2 hält ``LovelaceData`` die Collection nicht mehr
+    (Felder nur noch ``dashboards``, ``resource_mode``, ``resources``,
+    ``yaml_dashboards``); sie ist in ``lovelace.async_setup`` eine lokale
+    Variable. Erreichbar bleibt sie über den registrierten Websocket-Befehl
+    ``lovelace/dashboards/list``: dessen Handler ist die gebundene Methode
+    ``ws_list_item`` von ``StorageCollectionWebsocket``, das die Collection als
+    ``storage_collection`` hält (geprüft im HA-Quellcode 2026.2.3 und 2026.11.0).
+    Ältere Versionen mit Attribut an ``LovelaceData`` werden weiter bedient.
+    Ohne Treffer -> None, der Aufrufer fällt auf YAML zurück.
+    """
+    for attr in ("dashboards_collection", "dashboard_collection"):
+        coll = getattr(lovelace, attr, None)
+        if coll is not None:
+            return coll
+    handlers = hass.data.get("websocket_api")
+    if not isinstance(handlers, dict):
+        return None
+    for command in ("lovelace/dashboards/list", "lovelace/dashboards/create"):
+        entry = handlers.get(command)
+        handler = entry[0] if isinstance(entry, tuple) and entry else None
+        for _ in range(5):  # Dekoratoren (functools.wraps) abwickeln
+            if handler is None:
+                break
+            coll = getattr(getattr(handler, "__self__", None), "storage_collection", None)
+            if coll is not None and hasattr(coll, "async_create_item"):
+                return coll
+            handler = getattr(handler, "__wrapped__", None)
+    return None
+
+
 async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> str | None:
     """Editierbares Storage-Dashboard EINMALIG anlegen.
 
@@ -387,10 +420,7 @@ async def _seed_storage_dashboard(hass: HomeAssistant, config: dict) -> str | No
     if DASHBOARD_URL_PATH in dashboards:
         return None
 
-    collection = (
-        getattr(lovelace, "dashboards_collection", None)
-        or getattr(lovelace, "dashboard_collection", None)
-    )
+    collection = _find_dashboards_collection(hass, lovelace)
     if collection is None:
         attrs = sorted(a for a in dir(lovelace) if not a.startswith("_"))
         return (

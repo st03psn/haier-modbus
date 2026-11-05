@@ -233,6 +233,12 @@ class EnergyAccumulator:
         Bezugsdatum-Wechsel). ``seed_ref`` ist die Signatur des verwendeten
         Bezugsdatums und wird gespeichert, damit eine spätere Änderung erkannt
         und neu geseedet werden kann. Danach übernimmt die Delta-Akkumulation.
+
+        Die Gesamt-Totale werden nur beim ALLERERSTEN Seed gesetzt (#3). Sie sind
+        als ``total_increasing`` angemeldet; ein erneutes Überschreiben bei einem
+        Re-Seed (neue ``SEED_VERSION`` oder geändertes COP-Bezugsdatum) ließ sie
+        springen – ein Rückgang gilt dem Recorder als Zähler-Reset, ein Anstieg als
+        Verbrauch. Beides erzeugt einen einmaligen Ausreißer in der Langzeitstatistik.
         """
         if self._data is None:
             await self.async_load()
@@ -246,7 +252,12 @@ class EnergyAccumulator:
         # Gesamt-Werte = „seit erstem Wärmewert" (vergleichbar mit der Wärme),
         # nicht der Lebenswert der Quelle. prev zurücksetzen -> sauberes
         # Re-Baselining; der erste Folgezyklus zählt mit Delta 0 weiter.
-        d["total_heat"], d["total_elec"] = max(total_heat, 0.0), max(total_elec, 0.0)
+        # Als bereits geseedet gilt auch ein Bestand, der vor Einführung der
+        # Merker schon Totale > 0 aufgebaut hat.
+        if not (d.get("totals_seeded_heat") or d.get("total_heat", 0.0) > 0):
+            d["total_heat"] = max(total_heat, 0.0)
+        if not (d.get("totals_seeded_elec") or d.get("total_elec", 0.0) > 0):
+            d["total_elec"] = max(total_elec, 0.0)
         d["totals_seeded_heat"] = True
         d["totals_seeded_elec"] = True
         d["prev_heat"] = None
