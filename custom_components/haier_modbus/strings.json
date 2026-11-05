@@ -178,20 +178,42 @@
       },
       "connection": {
         "title": "Connection & device",
-        "description": "Connection to the heat pump. Only the fields of the selected connection type apply.",
+        "description": "How is the heat pump connected? The next step shows only the fields of this connection type.",
         "data": {
-          "connection_type": "Connection type",
+          "connection_type": "Connection type"
+        },
+        "data_description": {
+          "connection_type": "TCP: via a Modbus RTU-to-TCP converter (host/port). Serial: directly via a USB/RS-485 adapter (serial port/baud rate)."
+        }
+      },
+      "connection_tcp": {
+        "title": "Connection & device – TCP",
+        "description": "Connection via a Modbus RTU-to-TCP converter.",
+        "data": {
           "host": "Host / IP address (Modbus converter)",
           "port": "Port",
-          "serial_port": "Serial port (serial only)",
-          "baudrate": "Baud rate (serial only)",
           "slave": "Modbus slave ID",
           "model": "Model",
           "scan_interval": "Polling interval (seconds)",
           "ambient_offset": "Ambient temperature offset (°C)"
         },
         "data_description": {
-          "connection_type": "TCP: via a Modbus RTU-to-TCP converter (host/port). Serial: directly via a USB/RS-485 adapter (serial port/baud rate). Only the fields of the selected type apply.",
+          "model": "Only used for the device display. For HP250 and other variants choose “Other model”.",
+          "scan_interval": "Default 5 s. Shorter intervals fill the recorder database faster."
+        }
+      },
+      "connection_serial": {
+        "title": "Connection & device – serial",
+        "description": "Direct connection via a USB/RS-485 adapter (Modbus RTU, 8N1).",
+        "data": {
+          "serial_port": "Serial port",
+          "baudrate": "Baud rate",
+          "slave": "Modbus slave ID",
+          "model": "Model",
+          "scan_interval": "Polling interval (seconds)",
+          "ambient_offset": "Ambient temperature offset (°C)"
+        },
+        "data_description": {
           "serial_port": "Prefer the stable path under /dev/serial/by-id/….",
           "model": "Only used for the device display. For HP250 and other variants choose “Other model”.",
           "scan_interval": "Default 5 s. Shorter intervals fill the recorder database faster."
