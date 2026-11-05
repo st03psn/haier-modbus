@@ -8,3 +8,10 @@ reset_energy_statistics:
     oder nach Ändern der Register-Skalierung). Reset / Resets the long-term
     statistics of the total counters and the device-side yearly counters and
     rebuilds them cleanly from the current value.
+
+rebuild_dashboard:
+  name: Dashboard neu aufbauen
+  description: >-
+    Ersetzt das Haier-Dashboard durch das aktuelle mitgelieferte Layout (eigene
+    Anpassungen gehen verloren). Rebuild / Replaces the Haier dashboard with the
+    current bundled layout (your own changes are lost).

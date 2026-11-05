@@ -1,9 +1,89 @@
 # Changelog
 
 Nennenswerte Änderungen dieser Integration. Format lose nach
-[Keep a Changelog](https://keepachangelog.com/de/). Versionierung: **Feature = 2. Stelle**,
-**Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
+[Keep a Changelog](https://keepachangelog.com/de/). Versionierung: **große Umbauten =
+1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
+
+## [2.0.0] - 2026-11-05
+
+Großes Update: neues Dashboard, neu aufgebauter Einrichtungsassistent und Options-Dialog.
+**Benötigt Home Assistant ab 2025.1** (vorher 2024.2). Entwickelt und geprüft auf
+HA 2026.10/2026.11.
+
+**Neu: Einrichtungsassistent und Optionen übersichtlicher.**
+- Ablauf: Verbindungsart → Verbindung → Energie & COP → **Schutzfunktionen** (neu:
+  Notfall-Nachheizung und Legionellen-Schutz direkt bei der Einrichtung, mit Erklärung)
+  → PV-Modus → PV-Einstellungen.
+- **PV-Einstellungen:** oben nur Überschuss-Sensor und Zieltemperaturen, die übrigen
+  Felder in einklappbaren Abschnitten *Hausakku & Vorrang*, *Heizstab & Strompreis* und
+  *Zeiten & Starts (Experte)* – statt 24 Feldern auf einer Seite.
+- **Optionen als Menü:** *Verbindung & Gerät · Energie & COP · PV-Überschuss ·
+  Schutzfunktionen · Dashboard*. Jeder Bereich speichert nur seine eigenen Felder.
+- Expertenfelder (Abfrageintervall, Skalierung der kWh-Register, COP-Bezugsdatum) nur
+  noch in den Optionen, nicht in der Ersteinrichtung.
+- Verständlichere Texte: PV-Modi heißen jetzt „Integration regelt“ bzw. „Energiemanager
+  regelt (z. B. evcc)“; Hinweis zum Modell (nur Anzeige; HP250 & Co. → „Anderes Modell“);
+  Hinweis im COP-Schritt zum vermutlich zu hohen Wärmeregister.
+
+**Neu: Dashboard im neuen Design.** Eine Seite in drei Spalten, Deutsch/Englisch nach
+Systemsprache:
+- **Speicher-Grafik** mit Füllstand (Warmwasser %), oben/unten-Temperatur und Farbe von
+  Rot (an/unter der kritischen Schwelle der Notheizung) bis Grün (ab Solltemperatur);
+  daneben alle Betriebszustände (Wärmepumpe, Heizstab, Solar, externe Wärmequelle,
+  Boost, Leise, Sterilisation, aktive Regelung inkl. PV-Stufe und Überschuss, nächster
+  Legionellen-Termin, Umgebung), Problemfälle (Gerät aus) zuerst.
+- **Statusleiste** unter der Speicher-Grafik, einzeilig: Modbus, Fehler, Geräteuhr
+  (als „+63 min“), Notheizung („bereit <38°“).
+- **Betrieb:** Schalter (Betrieb, Boost, Leise, Sterilisation) schalten erst **nach
+  Rückfrage** – ein versehentlicher Tipp schaltet das Gerät nicht mehr aus. Im
+  Executor-Modus (z. B. evcc) zusätzlich das **PV-Programm** als Auswahl.
+- Solltemperatur (+/–) und Modus als kleine Kacheln,
+  PV-Regelung (nur mit PV), **Regelverlauf** (Logbuch für Sollwert, Modus, Boost,
+  Legionellen, Notheizung, PV).
+- **Jahresarbeitszahl & COP:** Kennzahlen (JAZ laufendes Jahr, COP Monat, Wärme und
+  Strom des Jahres), COP pro Monat (bis 12 Monate), JAZ pro Jahr ab dem zweiten Jahr.
+  Kommt die Wärme aus dem Geräteregister, weist die Karte darauf hin, dass COP/JAZ
+  vermutlich zu hoch sind (Korrektur geplant, [#27](https://github.com/st03psn/haier-modbus/issues/27)).
+- **Verlauf (7 Tage)** und Energie pro Tag/Monat.
+
+Gebaut mit HA-Bordmitteln und **button-card**; ApexCharts und card-mod werden nicht
+mehr benötigt.
+
+**Dashboard bleibt künftig automatisch aktuell – solange du es nicht anpasst.** Die
+Integration merkt sich einen Fingerabdruck des zuletzt geschriebenen Dashboards. Ist es
+beim nächsten Start unverändert, wird es still auf das aktuelle Layout gebracht (neue
+Versionen, PV an/aus, Sprache). Angepasste Dashboards bleiben unangetastet; für sie meldet
+die neue Update-Entität **„Dashboard“** (`update.haier_hwhp_dashboard`) ein Update. Es steht
+dauerhaft unter *Einstellungen* (wie andere Updates) und im neuen Layout zusätzlich als
+Kachel im Dashboard, bis es installiert ist – eine weggeklickte Benachrichtigung geht so nicht
+verloren. *Installieren* übernimmt das neue Layout (ersetzt eigene Anpassungen am
+Haier-Dashboard); dasselbe macht der Dienst `haier_modbus.rebuild_dashboard`.
+**Erst vergleichen:** Der Button „Neues Dashboard zum Vergleich anlegen“ legt das neue
+Layout zusätzlich als „Haier BWWP (neu)“ an, das alte bleibt. Gefällt es (gern auch
+angepasst), macht „Vergleichs-Dashboard übernehmen“ es zum Standard – inklusive der
+Änderungen daran. Dashboards aus
+Versionen vor 2.0.0 haben noch keinen Fingerabdruck und gelten als angepasst – dort bitte
+einmal über das Update übernehmen, danach läuft es automatisch.
+
+**HA 2026.11 / Marketplace:** HACS wird dort durch den eingebauten Marketplace ersetzt.
+Fehlt button-card, installiert die Integration sie dann nicht selbst (der Marketplace
+verlangt je Nutzer eine Bestätigung), sondern zeigt einen Reparatur-Hinweis mit dem Weg
+über *Einstellungen → Marketplace*. Bis HA 2026.10 bleibt die automatische Installation
+über HACS.
+
+**Kleinigkeiten:**
+- Optionen „Schutzfunktionen“: Die Notheizung erscheint bei Bestandsinstallationen ohne
+  gesetzten Wert korrekt als aus (sonst hätte Speichern sie still eingeschaltet).
+- Veraltete Reparatur-Hinweise für ApexCharts/card-mod werden entfernt.
+- Diagrammfarben je Linie im Dashboard benötigen HA 2026.6; ältere Versionen zeigen
+  Standardfarben.
+- Uhr-Abweichung ohne Nachkommastellen (vorher „3.762,00 s“).
+- PV-Meldung „Leerlauf-Start“ hängt jetzt am Sollwert und erscheint damit im
+  Regelverlauf.
+- README: Screenshot des Dashboards; Hinweis, dass das Geräte-Wärmeregister nach
+  ersten Messungen etwa 2- bis 3,7-mal zu viel Wärme meldet (COP/JAZ entsprechend zu
+  hoch) – Korrektur folgt nach weiteren Messungen.
 
 ## [1.23.1] - 2026-11-05
 

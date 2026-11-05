@@ -20,7 +20,8 @@ custom_components/haier_modbus/
   energy.py        Energie-Akkumulator + COP/JAZ
   config_flow.py   Setup-Assistent + Options-Flow (alles über die UI)
   number/sensor/select/switch/binary_sensor/water_heater.py   Entitäten
-  dashboard.py     Mitgeliefertes Storage-Dashboard
+  dashboard.py     Registrierung des mitgelieferten Storage-Dashboards + Dienst rebuild_dashboard
+  dashboard_layout.py  Layout (Platzhalter @E:…@ für Entitäten, §…§ für de/en-Texte)
   const.py         Register-Karte, Options-Keys, Defaults
 docs/
   register-map.md     Modbus-Register (Quelle: Hersteller-PDF im selben Ordner)
@@ -69,9 +70,16 @@ selbst anhebt (`recover_at = max(recover, Sollwert)`).
 6. **Übersetzungen dreifach pflegen:** `translations/de.json`, `translations/en.json` und
    `strings.json` (Letztere spiegelt die englische Fassung). Config-/Options-Flow-Felder
    stehen in **zwei** Blöcken je Datei (`config.step.pv_details` **und** `options.step.pv`) —
-   `hassfest` prüft die Vollständigkeit.
+   `hassfest` prüft die Vollständigkeit. Seit 2.0.0 liegen PV-Feinfelder in einklappbaren
+   Abschnitten (`sections.battery|heater|timing.data`), die Optionen sind ein Menü
+   (`options.step.init.menu_options` → Schritte `connection`, `energy`, `pv_mode`/`pv`,
+   `protection`, `dashboard`). Dashboard-Texte stehen nicht in den JSON-Dateien, sondern
+   in `dashboard_layout._TEXT` (de/en).
 7. **Versionierung:** Feature = 2. Stelle, Bugfix = 3. Stelle (`CHANGELOG.md`-Kopf).
-   `manifest.json` und CHANGELOG immer gemeinsam anheben.
+   Hauptversion (1. Stelle) bei großen Umbauten, die Nutzer bemerken oder nachziehen
+   müssen (z. B. 2.0.0: neues Dashboard, neuer Einrichtungs-/Options-Ablauf, höhere
+   HA-Mindestversion). `manifest.json` und CHANGELOG immer gemeinsam anheben; die
+   HA-Mindestversion steht in `hacs.json`.
 
 ## Regelungslogik – Fallstricke
 
