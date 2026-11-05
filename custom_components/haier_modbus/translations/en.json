@@ -529,8 +529,12 @@
   },
   "issues": {
     "missing_frontend_card": {
-      "title": "Missing Lovelace card: {card_name}",
-      "description": "The Haier HWHP comparison card requires the **{card_name}** Lovelace card. Install `{hacs_repo}` via HACS → Frontend, then reload the browser tab (Ctrl+Shift+R)."
+      "title": "Missing dashboard card: {card_name}",
+      "description": "The Haier dashboard needs the **{card_name}** card. Install `{hacs_repo}` via HACS → Frontend and reload the browser tab (Ctrl+Shift+R)."
+    },
+    "missing_frontend_card_marketplace": {
+      "title": "Missing dashboard card: {card_name}",
+      "description": "The Haier dashboard needs the **{card_name}** card. Install it under **Settings → Marketplace** (search for “{card_name}”, repository `{hacs_repo}`) and reload the browser tab (Ctrl+Shift+R). The Marketplace asks for a confirmation on first use, which is why the integration does not install it on its own."
     }
   }
 }

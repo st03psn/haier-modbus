@@ -529,8 +529,12 @@
   },
   "issues": {
     "missing_frontend_card": {
-      "title": "Fehlende Lovelace-Karte: {card_name}",
-      "description": "Die Haier-BWWP-Vergleichskarte benötigt die **{card_name}**-Lovelace-Karte. Installiere `{hacs_repo}` über HACS → Frontend und lade den Browser-Tab neu (Strg+Shift+R)."
+      "title": "Fehlende Dashboard-Karte: {card_name}",
+      "description": "Das Haier-Dashboard benötigt die Karte **{card_name}**. Installiere `{hacs_repo}` über HACS → Frontend und lade den Browser-Tab neu (Strg+Shift+R)."
+    },
+    "missing_frontend_card_marketplace": {
+      "title": "Fehlende Dashboard-Karte: {card_name}",
+      "description": "Das Haier-Dashboard benötigt die Karte **{card_name}**. Installiere sie unter **Einstellungen → Marketplace** (Suche nach „{card_name}“, Repository `{hacs_repo}`) und lade den Browser-Tab neu (Strg+Shift+R). Beim ersten Öffnen fragt der Marketplace nach einer Bestätigung – die Integration installiert deshalb nicht selbst."
     }
   }
 }

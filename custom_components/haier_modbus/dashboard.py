@@ -13,6 +13,8 @@ Fehler bleiben folgenlos.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from pathlib import Path
 
@@ -20,19 +22,21 @@ from homeassistant.components import frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.storage import Store
 
 from .const import (
     CONF_DASHBOARD_ENABLED,
     CONF_PV_MODE,
-    CONF_PV_SENSOR,
     DASHBOARD_ICON,
     DASHBOARD_LEGACY_URL_PATH,
     DASHBOARD_URL_PATH,
     DEFAULT_DASHBOARD_ENABLED,
+    DEFAULT_PV_MODE,
     DOMAIN,
-    PV_MODE_EXECUTOR,
+    PV_MODE_OFF,
     localized_title,
 )
+from .dashboard_layout import build_layout
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,12 +46,19 @@ _INTEGRATION_DIR = Path(__file__).resolve().parent
 _DASH_FILE = "dashboard.yaml"
 _LEGACY_DASH_DIR = "haier_bwwp"  # alter Ort unter <config>/ – wird aufgeräumt
 
+# Layout-Generation des mitgelieferten Dashboards. Ein bestehendes (Nutzer-)
+# Dashboard wird NIE automatisch überschrieben; ist die gespeicherte Generation
+# älter, gibt es einmalig einen Hinweis auf den Dienst ``rebuild_dashboard``.
+DASHBOARD_LAYOUT_VERSION = 2  # 2 = Ein-Seiten-Layout ab v1.24.0
+_LAYOUT_STORE_KEY = f"{DOMAIN}.dashboard_layout"
+_NOTIFY_ID = f"{DOMAIN}_dashboard_layout"
+
 
 def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
-    """Dashboard-Config mit real aufgelösten entity_ids bauen."""
+    """Dashboard-Config mit real aufgelösten entity_ids bauen (Layout: dashboard_layout)."""
     reg = er.async_get(hass)
 
-    def eid(domain: str, key: str) -> str | None:
+    def resolve(domain: str, key: str) -> str | None:
         ent_id = reg.async_get_entity_id(domain, DOMAIN, f"{entry.entry_id}_{key}")
         if not ent_id:
             return None
@@ -56,265 +67,13 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
             return None  # deaktivierte Entitäten (z. B. Solar/Kessel) nicht aufnehmen
         return ent_id
 
-    def tile(domain: str, key: str, name: str, **extra) -> dict | None:
-        entity = eid(domain, key)
-        if not entity:
-            return None
-        card = {"type": "tile", "entity": entity, "name": name}
-        card.update(extra)
-        return card
-
-    def grid(cards: list, columns: int = 2) -> dict | None:
-        cards = [c for c in cards if c]
-        return {"type": "grid", "columns": columns, "square": False, "cards": cards} if cards else None
-
-    def section(title: str | None, cards: list, span: int = 1) -> dict | None:
-        cards = [c for c in cards if c]
-        if not cards:
-            return None
-        sec: dict = {"type": "grid", "cards": cards}
-        if title:
-            sec["title"] = title
-        if span > 1:
-            sec["column_span"] = span
-        return sec
-
-    def apex(title: str, span: str, series_spec: list, **extra) -> dict | None:
-        series = []
-        for dom, key, name, opts in series_spec:
-            entity = eid(dom, key)
-            if entity:
-                series.append({"entity": entity, "name": name, **opts})
-        if not series:
-            return None
-        card = {
-            "type": "custom:apexcharts-card",
-            "header": {"show": True, "title": title},
-            "graph_span": span,
-            "series": series,
-        }
-        card.update(extra)
-        return card
-
-    # Kompakter Einstellungen-Button: nur Zahnrad-Icon (niedrig), unter den
-    # Schaltern – statt einer großen Kachel.
-    settings_btn = {
-        "type": "button",
-        "name": "Einstellungen",
-        "icon": "mdi:cog",
-        "show_name": False,
-        "tap_action": {
-            "action": "navigate",
-            "navigation_path": f"/config/integrations/integration/{DOMAIN}",
-        },
-    }
-    # C9: im Executor-Modus ist das PV-Programm-Select (select.py) das zentrale
-    # Bedienelement für ein HEMS/den Nutzer - bislang tauchte es auf dem Dashboard
-    # nirgends auf, weil ``pv_tile``/``pv_status_section`` unten an ``CONF_PV_SENSOR``
-    # hängen, der im Executor-Modus nie abgefragt wird (config_flow.py).
-    pv_program_tile = (
-        tile("select", "pv_program", "PV-Programm", features=[{"type": "select-options"}])
-        if entry.options.get(CONF_PV_MODE) == PV_MODE_EXECUTOR else None
+    pv_mode = entry.options.get(CONF_PV_MODE, DEFAULT_PV_MODE)
+    return build_layout(
+        resolve,
+        hass.config.language,
+        with_pv=pv_mode != PV_MODE_OFF,
+        settings_path=f"/config/integrations/integration/{DOMAIN}",
     )
-    steuerung = section("Steuerung", [
-        tile("water_heater", "water_heater", "Brauchwasser",
-             features=[{"type": "target-temperature"}]),
-        tile("select", "mode", "Modus", features=[{"type": "select-options"}]),
-        pv_program_tile,
-        grid([
-            tile("switch", "active", "Betrieb", features=[{"type": "toggle"}]),
-            tile("switch", "boost", "Boost", features=[{"type": "toggle"}]),
-            tile("switch", "mute", "Leise", features=[{"type": "toggle"}]),
-            tile("switch", "sterilize", "Sterilisation", features=[{"type": "toggle"}]),
-        ]),
-        settings_btn,
-    ])
-
-    temps = section("Temperaturen", [grid([
-        tile("sensor", "water_temp", "Wasser"),
-        tile("sensor", "target_temp", "Ziel"),
-        tile("sensor", "tank_top", "Tank oben"),
-        tile("sensor", "tank_bottom", "Tank unten"),
-        tile("sensor", "ambient", "Umgebung"),
-        tile("sensor", "hotwater_pct", "Warmwasser"),
-    ])])
-
-    # PV-Karten nur sichtbar, wenn die PV-Steuerung aktiv ist: Sichtbarkeits-
-    # Bedingung am Regel-Status-Sensor (steht bei Modus „Aus"/Executor auf „off").
-    # So verschwinden die Kacheln dynamisch, wenn PV deaktiviert wird.
-    pv_sensor = entry.options.get(CONF_PV_SENSOR)
-    _pv_status_eid = eid("sensor", "pv_status")
-    _pv_vis = (
-        [{"condition": "state", "entity": _pv_status_eid, "state_not": "off"}]
-        if _pv_status_eid else None
-    )
-    pv_tile = (
-        {"type": "tile", "entity": pv_sensor, "name": "PV-Überschuss",
-         "icon": "mdi:solar-power", **({"visibility": _pv_vis} if _pv_vis else {})}
-        if pv_sensor else None
-    )
-    # "Aktuelle Quelle" prominent: großes, dynamisches Icon (vom Sensor) plus
-    # dynamische Farbe via card-mod (--tile-color je aktiver Quelle). Die
-    # einzelnen Bit-Kacheln (WP/Heizstab/Solar/Externe) entfallen.
-    _cs_eid = eid("sensor", "current_source")
-    _cs_color = (
-        "ha-card { --tile-color: "
-        "{% set s = state_attr('" + _cs_eid + "','active_sources') or [] %}"
-        "{% if 'electric_heater' in s %}var(--orange-color)"
-        "{% elif 'heat_pump' in s %}var(--green-color)"
-        "{% elif 'solar' in s %}var(--amber-color)"
-        "{% elif 'boiler' in s %}var(--red-color)"
-        "{% else %}var(--disabled-color){% endif %}; }"
-    ) if _cs_eid else None
-    cs_extra = {"vertical": True, "card_mod": {"style": _cs_color}} if _cs_color else {"vertical": True}
-    status = section("Status", [
-        tile("sensor", "current_source", "Aktuelle Quelle", **cs_extra),
-        grid([
-            tile("binary_sensor", "connection", "Verbindung"),
-            tile("sensor", "link_status", "Modbus-Status"),
-            tile("sensor", "fault", "Fehlercode"),
-            tile("sensor", "clock_drift", "Uhr-Abweichung"),
-        ]),
-    ])
-
-    # PV-Live-Status (nur wenn ein PV-Sensor konfiguriert ist): aktuelle
-    # Regel-Stufe als Kachel + aktueller Überschuss, darunter der Tagesverlauf
-    # der Sollwert-Wechsel als Logbuch (die Einträge, die pv.py schreibt).
-    _set_temp_eid = eid("number", "set_temp")
-    pv_logbook = {
-        "type": "logbook",
-        "title": "PV-Verlauf",
-        "hours_to_show": 24,
-        "entities": [e for e in (_set_temp_eid, _pv_status_eid) if e],
-    } if (pv_sensor and (_set_temp_eid or _pv_status_eid)) else None
-    pv_status_section = section("PV-Überschuss", [
-        tile("sensor", "pv_status", "PV-Regelung", vertical=True),
-        pv_logbook,
-    ]) if pv_sensor else None
-    if pv_status_section and _pv_vis:
-        # Ganze PV-Sektion (inkl. Überschrift) ausblenden, wenn PV inaktiv.
-        pv_status_section["visibility"] = _pv_vis
-
-    # "Erfasst seit …"-Hinweis (dynamisches Datum aus dem 'seit'-Attribut).
-    # W11: die unique_id lautet "total_heat" (sensor.py: HaierAccEnergy(coordinator,
-    # "total_heat", "heat_total") - erstes Argument = unique_id, zweites nur der
-    # translation_key). Der Tippfehler "heat_total" ließ eid() stillschweigend None
-    # liefern (grid()/section() filtern None-Karten OHNE Fehlermeldung) - Kachel
-    # "Wärmemenge (gesamt)" und der "Erfasst seit …"-Hinweis fehlten komplett.
-    _heat_eid = eid("sensor", "total_heat")
-    seit_md = {
-        "type": "markdown",
-        "content": (
-            "{% set s = state_attr('" + _heat_eid + "','seit') %}"
-            "Energie erfasst seit **{{ as_datetime(s).strftime('%d.%m.%Y') "
-            "if s else 'Inbetriebnahme' }}**"
-        ),
-    } if _heat_eid else None
-
-    energie = section("Energie & COP", [grid([
-        tile("sensor", "cop_month", "COP (Monat)", color="green"),
-        tile("sensor", "cop_year", "JAZ (Jahr)"),
-        tile("sensor", "cop_prev_year", "JAZ (Vorjahr)"),
-        tile("sensor", "total_heat", "Wärmemenge (gesamt)"),
-        tile("sensor", "total_elec", "Strom gesamt"),
-        tile("sensor", "heat_year", "Wärmemenge (akt. Jahr)"),
-        tile("sensor", "hp_elec_year", "WP-Strom (Jahr)"),
-        tile("sensor", "heater_elec_year", "Heizstab (Jahr)"),
-        pv_tile,
-    ]), seit_md])
-
-    def statgraph(title: str, period: str, specs: list) -> dict | None:
-        ents = [e for e in (eid(d, k) for d, k in specs) if e]
-        if not ents:
-            return None
-        return {
-            "type": "statistics-graph",
-            "title": title,
-            "period": period,
-            "stat_types": ["change"],
-            "chart_type": "bar",
-            "entities": ents,
-        }
-
-    _avg_h = {"type": "line", "group_by": {"func": "avg", "duration": "1h"}}
-    chart_month = statgraph("Energie pro Monat", "month",
-                            [("sensor", "total_heat"), ("sensor", "total_elec")])
-    chart_day = statgraph("Energie pro Tag (30 Tage)", "day",
-                          [("sensor", "total_heat"), ("sensor", "total_elec")])
-    if chart_day:
-        chart_day["days_to_show"] = 30
-    chart_temp = apex(
-        "Temperaturen (7 Tage)", "7d",
-        [
-            ("sensor", "water_temp", "Wasser", _avg_h),
-            ("sensor", "tank_top", "Tank oben", _avg_h),
-            ("sensor", "tank_bottom", "Tank unten", _avg_h),
-            ("sensor", "ambient", "Umgebung", _avg_h),
-            ("number", "set_temp", "Soll",
-             {"type": "line", "curve": "stepline", "group_by": {"func": "max", "duration": "1h"}}),
-        ],
-        # Weiche Grenzen (``~``): 0..75 °C sind IMMER sichtbar, die Achse wächst
-        # aber mit, wenn Werte darüber/darunter liegen (z. B. Umgebung im Frost).
-        # Eine harte Untergrenze von 35 °C hatte die Umgebungstemperatur
-        # vollständig aus dem Diagramm geschnitten – sie stand nur noch in der
-        # Legende. 75 °C ist die Registergrenze (``SET_TEMP_MAX``), also der
-        # höchste Sollwert, der überhaupt auftreten kann.
-        yaxis=[{"min": "~0", "max": "~75", "decimals": 0}],
-        all_series_config={"stroke_width": 2},
-    )
-    # JAZ-Vergleich der letzten ~5 Jahre als Balken. Quelle: das Attribut
-    # ``jaz_per_year`` der JAZ-(Jahr-)Entität (abgeschlossene Jahre) plus der
-    # laufende Jahreswert aus dem State – zusammengeführt im data_generator.
-    _cop_year_eid = eid("sensor", "cop_year")
-    chart_jaz = {
-        "type": "custom:apexcharts-card",
-        "header": {"show": True, "title": "JAZ-Vergleich (Jahre)"},
-        "graph_span": "1830d",
-        "span": {"end": "year"},
-        # Schmale Säulen (sonst füllt ein einzelner Jahreswert die ganze Breite).
-        "apex_config": {"plotOptions": {"bar": {"columnWidth": "10%"}}},
-        "series": [{
-            "entity": _cop_year_eid,
-            "name": "JAZ",
-            "type": "column",  # apexcharts-card kennt kein chart_type: bar
-            "data_generator": (
-                "const h = entity.attributes.jaz_per_year || {}; "
-                "let pts = Object.keys(h).map(y => [new Date(Number(y),0,1).getTime(), h[y].cop]); "
-                "const cur = new Date().getFullYear(); const cv = parseFloat(entity.state); "
-                "if(!isNaN(cv)) pts.push([new Date(cur,0,1).getTime(), cv]); "
-                "const seen={}; pts.forEach(p => {seen[p[0]]=p[1];}); "
-                "return Object.keys(seen).map(k => [Number(k),seen[k]]).sort((a,b)=>a[0]-b[0]);"
-            ),
-        }],
-        "yaxis": [{"min": 0, "decimals": 2}],
-    } if _cop_year_eid else None
-
-    # Bedien-/Status-Kacheln oben; jedes Diagramm in EINER EIGENEN Sektion.
-    # So bricht die Sections-Ansicht auf schmalen Schirmen (Smartphone) sauber
-    # auf 1 Spalte um -> Diagramm = volle Breite/lesbar; am Desktop liegen sie
-    # nebeneinander. (Ein horizontal-stack würde NICHT umbrechen und die Charts
-    # auf dem Handy unleserlich quetschen.) Editierbarer Startpunkt.
-    sections = [
-        steuerung,
-        temps,
-        status,
-        pv_status_section,
-        energie,
-        section(None, [chart_month]),
-        section(None, [chart_day]),
-        section(None, [chart_temp]),
-        section(None, [chart_jaz]),
-    ]
-    sections = [s for s in sections if s]
-    return {
-        "views": [{
-            "title": "Übersicht",
-            "path": "home",
-            "type": "sections",
-            "max_columns": 3,
-            "sections": sections,
-        }]
-    }
 
 
 def _write(path: Path, text: str) -> None:
@@ -534,11 +293,15 @@ async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> N
             _remove_own_yaml_dashboard(hass)
             return
         config = _build_config(hass, entry)
+        lovelace = hass.data.get("lovelace")
+        dashboards = getattr(lovelace, "dashboards", None)
+        existed = isinstance(dashboards, dict) and DASHBOARD_URL_PATH in dashboards
         reason = await _seed_storage_dashboard(hass, config)
         if reason is None:
             _LOGGER.info(
                 "Editierbares Haier-Dashboard unter /%s", DASHBOARD_URL_PATH
             )
+            await _async_sync_layout(hass, config, existed)
             return
         await _register_yaml_dashboard(hass, config)
         # WARNING statt INFO (#18): Der Rückfall ist nicht editierbar und kommt
@@ -552,6 +315,106 @@ async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> N
         )
     except Exception as exc:  # noqa: BLE001
         _LOGGER.warning("Dashboard-Registrierung übersprungen: %s", exc)
+
+
+def _config_hash(config: dict | None) -> str | None:
+    if not isinstance(config, dict):
+        return None
+    raw = json.dumps(config, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -> None:
+    """Mitgeliefertes Layout aktuell halten, ohne Nutzer-Anpassungen zu überschreiben.
+
+    Gespeichert wird der Fingerabdruck (Hash) des zuletzt von der Integration
+    geschriebenen Dashboards. Entspricht das gespeicherte Dashboard noch genau
+    diesem Stand, hat der Nutzer nichts verändert -> es wird still auf das aktuelle
+    Layout gebracht (neue Version, PV an/aus, Sprache …). Weicht es ab, bleibt es
+    unangetastet; bei einer neuen Layout-Generation gibt es dann einmalig einen
+    Hinweis auf den Dienst ``rebuild_dashboard``. Dashboards aus Versionen vor
+    v1.24.0 haben noch keinen Fingerabdruck und gelten deshalb als angepasst.
+    """
+    meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
+    meta = await meta_store.async_load() or {}
+    new_hash = _config_hash(config)
+    if not existed:  # gerade frisch angelegt
+        await meta_store.async_save({"version": DASHBOARD_LAYOUT_VERSION, "hash": new_hash})
+        return
+
+    lovelace = hass.data.get("lovelace")
+    dashboards = getattr(lovelace, "dashboards", None)
+    dash = dashboards.get(DASHBOARD_URL_PATH) if isinstance(dashboards, dict) else None
+    if dash is None or _is_own_yaml_dashboard(dashboards, DASHBOARD_URL_PATH):
+        return
+    try:
+        current = await dash.async_load(False)
+    except Exception:  # noqa: BLE001 – z. B. noch leer
+        current = None
+    cur_hash = _config_hash(current)
+
+    if meta.get("hash") and cur_hash == meta["hash"]:
+        if cur_hash != new_hash:
+            await dash.async_save(config)
+            _LOGGER.info("Unverändertes Haier-Dashboard auf aktuelles Layout gebracht")
+        await meta_store.async_save({"version": DASHBOARD_LAYOUT_VERSION, "hash": new_hash})
+        return
+
+    if meta.get("version", 0) >= DASHBOARD_LAYOUT_VERSION:
+        return  # angepasst und Hinweis schon gegeben
+    de = (hass.config.language or "en").lower().startswith("de")
+    title = localized_title(hass.config.language)
+    await hass.services.async_call(
+        "persistent_notification", "create",
+        {
+            "notification_id": _NOTIFY_ID,
+            "title": (f"{title} – neues Dashboard-Design" if de
+                      else f"{title} – new dashboard design"),
+            "message": (
+                "Für das Dashboard gibt es ein neues, kompakteres Design (eine Seite, "
+                "Speicher-Grafik, JAZ/COP-Karte). Dein bestehendes Dashboard wurde "
+                "**nicht** verändert, weil es angepasst sein könnte.\n\nÜbernehmen: "
+                "*Entwicklerwerkzeuge → Aktionen* → `haier_modbus.rebuild_dashboard` "
+                "ausführen. **Achtung:** Das ersetzt eigene Anpassungen am Haier-Dashboard. "
+                "Danach hält die Integration das Dashboard automatisch aktuell, solange du "
+                "es nicht veränderst."
+                if de else
+                "A new, more compact dashboard design is available (single page, tank "
+                "graphic, SCOP/COP card). Your existing dashboard was **not** changed, as it "
+                "may contain your own changes.\n\nTo apply it, run the action "
+                "`haier_modbus.rebuild_dashboard` under *Developer tools → Actions*. "
+                "**Note:** this replaces your own changes to the Haier dashboard. Afterwards "
+                "the integration keeps the dashboard up to date as long as you do not edit it."
+            ),
+        },
+        blocking=False,
+    )
+    await meta_store.async_save({"version": DASHBOARD_LAYOUT_VERSION, "hash": None})
+
+
+async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Dienst ``rebuild_dashboard``: mitgeliefertes Layout neu schreiben.
+
+    Ersetzt den Inhalt des Haier-Dashboards (Storage) durch das aktuelle Layout –
+    eigene Anpassungen gehen dabei verloren (bewusste Nutzeraktion). Fehlt das
+    Dashboard, wird es wie beim Setup angelegt.
+    """
+    config = _build_config(hass, entry)
+    lovelace = hass.data.get("lovelace")
+    dashboards = getattr(lovelace, "dashboards", None)
+    store = dashboards.get(DASHBOARD_URL_PATH) if isinstance(dashboards, dict) else None
+    if store is None or _is_own_yaml_dashboard(dashboards, DASHBOARD_URL_PATH):
+        _remove_own_yaml_dashboard(hass)
+        await async_register_dashboard(hass, entry)
+    else:
+        await store.async_save(config)
+    await Store(hass, 1, _LAYOUT_STORE_KEY).async_save(
+        {"version": DASHBOARD_LAYOUT_VERSION, "hash": _config_hash(config)}
+    )
+    await hass.services.async_call(
+        "persistent_notification", "dismiss", {"notification_id": _NOTIFY_ID}, blocking=False
+    )
+    _LOGGER.info("Haier-Dashboard auf Layout %s neu aufgebaut", DASHBOARD_LAYOUT_VERSION)
 
 
 async def async_remove_dashboard(hass: HomeAssistant) -> None:

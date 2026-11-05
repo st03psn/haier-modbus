@@ -12,6 +12,8 @@ Vollständig **lokal** über Modbus – kein hOn-Cloud-Konto nötig. Gegenüber 
 Cloud bietet der lokale Weg **Schreibzugriff**, direkten Zugriff auf die
 **Energieregister** und läuft **ohne Internet-/Cloud-Abhängigkeit**.
 
+![Mitgeliefertes Dashboard (v1.24.0)](docs/images/dashboard.webp)
+
 ---
 
 ## ⚠️ Wichtig: Hat dein Gerät überhaupt Modbus?
@@ -63,7 +65,7 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
   ab"** ab 5 min. Die Geräteuhr ist per Modbus nur lesbar – stellen lässt sie sich nur am
   Bedienteil.
 - **PV-Überschuss-Steuerung** eingebaut (optional): Modi Aus / Coordinator / Executor (HEMS-Client).
-- **Editierbares Dashboard** (Storage-Modus) wird automatisch angelegt.
+- **Editierbares Dashboard** (Storage-Modus, eine Seite, zweisprachig) wird automatisch angelegt.
 - **Ein Block-Read** (Register 1–90) je Intervall (Standard 5 s).
 
 ## Installation (HACS)
@@ -89,6 +91,16 @@ und Lüfter**. Der **geräteinterne** Zähler bilanziert nur den
 und liegt erfahrungsgemäß **deutlich zu niedrig** → der Geräte-COP fällt zu
 optimistisch aus. **Für eine belastbare JAZ einen externen Stromzähler nutzen.**
 Details: [`docs/register-map.md`](docs/register-map.md).
+
+> **Wärmeregister vermutlich zu hoch (Stand v1.24.0):** Die erzeugte Wärme stammt
+> ohne externen Wärmezähler aus dem Geräteregister. Ein Abgleich mit der
+> physikalisch im Speicher angekommenen Wärme (Volumen × Temperaturanstieg) über
+> 9 Heizzyklen (Oktober/November 2026, ein Gerät HP200M7) ergab, dass das Register
+> **etwa 2- bis 3,7-mal** so viel Wärme meldet (Summe: 61 kWh Register gegenüber
+> ca. 24 kWh berechnet). Der angezeigte COP/JAZ fällt dadurch entsprechend **zu
+> hoch** aus (Register-COP ≈ 5, physikalisch ≈ 2). Die Abschätzung ist grob (nur
+> zwei Temperaturfühler, Nennvolumen, Zapfungen während des Heizens unberücksichtigt);
+> eine Korrektur folgt nach weiteren Messungen.
 
 ### Kalender-ausgerichtete Fenster
 Die geräteinternen „dieses Jahr"-Register von Strom und Wärme resetten zu
@@ -265,9 +277,27 @@ zweiter Bus-Master). Beispiel-Automation siehe [`docs/pv-executor-evcc.md`](docs
 ## Dashboard
 Beim Setup wird **einmalig** ein **editierbares Storage-Dashboard** „Haier BWWP"
 (`/haier-hwhp`) angelegt – per Drag&Drop frei anpassbar, Änderungen bleiben bei
-Updates erhalten. Abschnitte: Steuerung, Temperaturen, Status, Energie & COP sowie
-Diagramme (Energie pro Monat/Tag, Temperaturen 7 Tage, JAZ-Vergleich). Benötigte
-Karten (ApexCharts, card-mod) werden bei Bedarf via HACS nachgezogen.
+Updates erhalten. Seit v1.24.0 eine Seite in drei Spalten (Deutsch/Englisch je
+nach Systemsprache):
+
+- **Speicher:** Speicher-Grafik mit Füllstand und Farbe von Rot (≤ kritische
+  Schwelle der Notheizung) bis Grün (≥ Solltemperatur), daneben alle Betriebszustände
+  (Wärmepumpe, Heizstab, Boost, Leise, Sterilisation, aktive Regelung, Legionellen,
+  Umgebung), darunter eine Statusleiste (Modbus, Fehler, Geräteuhr, Notheizung).
+- **Betrieb:** Schalter, Solltemperatur und Modus, PV-Regelung (nur mit PV), Regelverlauf (Sollwert, Modus,
+  Boost, Legionellen, Notheizung, PV) und die Karte **Jahresarbeitszahl & COP**
+  (Kennzahlen, COP pro Monat, JAZ pro Jahr ab dem zweiten Jahr).
+- **Verlauf:** Temperaturen und Laufzeiten (7 Tage), Energie pro Tag und Monat.
+
+Benötigt wird nur noch **button-card**. Bis HA 2026.10 installiert die Integration
+sie bei Bedarf über HACS. Ab HA 2026.11 (eingebauter Marketplace) erscheint stattdessen
+ein Reparatur-Hinweis – installieren unter *Einstellungen → Marketplace*.
+
+**Aktualisierung:** Solange du das Dashboard nicht veränderst, bringt die Integration es
+bei Updates automatisch auf den neuesten Stand. Angepasste Dashboards werden nie
+überschrieben. Dashboards aus Versionen vor 1.24.0 gelten als angepasst; das neue Layout
+übernimmst du dort einmalig über *Entwicklerwerkzeuge → Aktionen* →
+`haier_modbus.rebuild_dashboard` (ersetzt eigene Anpassungen am Haier-Dashboard).
 
 Lässt Home Assistant kein Storage-Dashboard zu, legt die Integration ersatzweise ein
 **nicht editierbares YAML-Dashboard** an und schreibt den Grund als Warnung ins Log.
@@ -297,6 +327,8 @@ depends on the system language: **“Haier HWHP”** (English), **“Haier BWWP�
 Fully **local** over Modbus – no hOn cloud account required. Versus the cloud, the
 local path offers write access, direct access to the energy registers and runs
 **without any internet/cloud dependency**.
+
+The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards are never overwritten. Dashboards from versions before 1.24.0 count as edited – run the action `haier_modbus.rebuild_dashboard` once to switch to the new layout.
 
 ### ⚠️ Important: does your unit even have Modbus?
 **Not every** unit in this series has the Modbus interface – unofficially it is only
@@ -334,6 +366,15 @@ The reported COP/JAZ is a **system COP**: with an external meter (Shelly) it inc
 aux loads), is rounded to whole kWh and reads **far too low**. **Use an external
 electricity meter for a meaningful seasonal performance factor.** See
 [`docs/register-map.md`](docs/register-map.md).
+
+> **Heat register probably too high (as of v1.24.0):** without an external heat meter
+> the produced heat comes from the device register. Compared with the heat that
+> physically reached the tank (volume × temperature rise) over 9 heating cycles
+> (Oct/Nov 2026, one HP200M7), the register reported **about 2 to 3.7 times** as much
+> heat (61 kWh register vs. approx. 24 kWh calculated), so the shown COP/SCOP is
+> correspondingly **too high** (register ≈ 5, physical ≈ 2). The estimate is rough
+> (two sensors only, nominal volume, draws during heating ignored); a correction will
+> follow after further measurements.
 
 ### Reset energy statistics
 On a one-off spike, the service **`haier_modbus.reset_energy_statistics`** clears the

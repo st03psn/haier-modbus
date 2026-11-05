@@ -127,6 +127,8 @@ class HaierClockDrift(HaierModbusEntity, SensorEntity):
 
     _attr_translation_key = "clock_drift"
     _attr_device_class = SensorDeviceClass.DURATION
+    # Ganze Sekunden – vorher zeigte HA z. B. „3.762,00 s“.
+    _attr_suggested_display_precision = 0
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_category = EntityCategory.DIAGNOSTIC

@@ -660,9 +660,12 @@ class PvController:
         msg = (f"Leerlauf-Start: Verdichter lief bei Wasser {water:.0f} °C und Soll "
                f"{current} °C nicht an – zurück auf Normal, Start nicht gezählt")
         _LOGGER.info("PV: %s", msg)
-        self.hass.bus.async_fire(_EVENT_LOGBOOK_ENTRY, {
-            "name": "BWWP PV-Überschuss", "message": msg, "domain": DOMAIN,
-        })
+        payload = {"name": "BWWP PV-Überschuss", "message": msg, "domain": DOMAIN}
+        # Am Sollwert verankern wie ``_announce`` – sonst taucht der Eintrag im
+        # entitätsgefilterten „Regelverlauf“ des Dashboards nicht auf.
+        if self._setpoint_eid:
+            payload["entity_id"] = self._setpoint_eid
+        self.hass.bus.async_fire(_EVENT_LOGBOOK_ENTRY, payload)
 
     def _shown_priority(self, now, hold_s: float) -> str | None:
         """Vorrang-Grund für die Status-Anzeige, um ``hold_s`` nachgehalten."""

@@ -34,7 +34,7 @@ from .const import (
     localized_title,
 )
 from .coordinator import HaierModbusCoordinator
-from .dashboard import async_register_dashboard, async_remove_dashboard
+from .dashboard import async_rebuild_dashboard, async_register_dashboard, async_remove_dashboard
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,20 +57,20 @@ if not any(isinstance(f, _PymodbusRetryNoise) for f in _pymodbus_logger.filters)
 
 
 # (card_name, url_substring, hacs_repo, fs_fallback_path)
-# ApexCharts -> JAZ/COP-/Verlaufsdiagramme; card-mod -> dynamische Farbe der
-# "Aktuelle Quelle"-Kachel. Beide werden bei Bedarf via HACS nachgezogen.
+# Ab v1.24.0 braucht das mitgelieferte Dashboard nur noch button-card
+# (Speicher-Grafik, JAZ/COP-Karte). ApexCharts/card-mod nutzt es nicht mehr;
+# ältere, vom Nutzer behaltene Dashboards haben sie ohnehin schon installiert.
+# Bis HA 2026.10 wird über HACS nachinstalliert. Ab HA 2026.11 ersetzt der
+# eingebaute Marketplace HACS (``hass.data["hacs"]`` entfällt); dort wird bewusst
+# NICHT automatisch installiert – der Marketplace verlangt je Nutzer eine
+# Bestätigung seines Erst-Hinweises, die eine Integration nicht umgehen soll –
+# sondern ein Reparatur-Hinweis mit Weg über Einstellungen → Marketplace gezeigt.
 _REQUIRED_FRONTEND_CARDS = [
     (
-        "apexcharts-card",
-        "apexcharts-card/apexcharts-card",
-        "RomRider/apexcharts-card",
-        "www/community/apexcharts-card/apexcharts-card.js",
-    ),
-    (
-        "card-mod",
-        "lovelace-card-mod/card-mod",
-        "thomasloven/lovelace-card-mod",
-        "www/community/lovelace-card-mod/card-mod.js",
+        "button-card",
+        "button-card/button-card",
+        "custom-cards/button-card",
+        "www/community/button-card/button-card.js",
     ),
 ]
 
@@ -104,7 +104,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Mitgeliefertes Dashboard registrieren (Entitäten sind jetzt registriert).
     await async_register_dashboard(hass, entry)
 
-    # Frontend-Karte (ApexCharts) sicherstellen – im Hintergrund, blockiert das
+    # Frontend-Karte (button-card) sicherstellen – im Hintergrund, blockiert das
     # Setup nicht und kann es nie zum Scheitern bringen.
     entry.async_create_background_task(
         hass, _async_ensure_frontend_cards(hass), "haier_modbus_frontend_cards"
@@ -115,6 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 SERVICE_RESET_ENERGY_STATS = "reset_energy_statistics"
+SERVICE_REBUILD_DASHBOARD = "rebuild_dashboard"
 
 
 # W12: Zähler, deren Langzeitstatistik ein einmaliger Ausreißer verankern kann und
@@ -160,6 +161,13 @@ def _async_register_services(hass: HomeAssistant) -> None:
         _LOGGER.info("Energie-Langzeitstatistik zurückgesetzt: %s", stat_ids)
 
     hass.services.async_register(DOMAIN, SERVICE_RESET_ENERGY_STATS, _handle_reset)
+
+    async def _handle_rebuild_dashboard(call) -> None:
+        coordinator = next(iter(hass.data.get(DOMAIN, {}).values()), None)
+        if coordinator is not None:
+            await async_rebuild_dashboard(hass, coordinator.entry)
+
+    hass.services.async_register(DOMAIN, SERVICE_REBUILD_DASHBOARD, _handle_rebuild_dashboard)
 
 
 def _standardize_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -414,6 +422,7 @@ async def _async_ensure_frontend_cards(hass: HomeAssistant) -> None:
             )
 
         # 4. Für nicht installierbare Karten einen Reparatur-Hinweis anlegen.
+        marketplace = hacs is None and "marketplace" in hass.config.components
         for name, _url_sub, repo_name in still_missing:
             async_create_issue(
                 hass,
@@ -421,9 +430,12 @@ async def _async_ensure_frontend_cards(hass: HomeAssistant) -> None:
                 f"missing_frontend_card_{name.replace('-', '_')}",
                 is_fixable=False,
                 severity=IssueSeverity.WARNING,
-                translation_key="missing_frontend_card",
+                translation_key=(
+                    "missing_frontend_card_marketplace" if marketplace
+                    else "missing_frontend_card"
+                ),
                 translation_placeholders={"card_name": name, "hacs_repo": repo_name},
-                learn_more_url="https://hacs.xyz/",
+                learn_more_url=None if marketplace else "https://hacs.xyz/",
             )
     except Exception as exc:  # noqa: BLE001
         _LOGGER.debug("Frontend-Karten-Prüfung übersprungen: %s", exc)

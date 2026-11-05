@@ -5,6 +5,48 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.24.0] - 2026-11-05
+
+**Neu: Dashboard im neuen Design.** Eine Seite in drei Spalten, Deutsch/Englisch nach
+Systemsprache:
+- **Speicher-Grafik** mit Füllstand (Warmwasser %), oben/unten-Temperatur und Farbe von
+  Rot (an/unter der kritischen Schwelle der Notheizung) bis Grün (ab Solltemperatur);
+  daneben alle Betriebszustände (Wärmepumpe, Heizstab, Solar, externe Wärmequelle,
+  Boost, Leise, Sterilisation, aktive Regelung inkl. PV-Stufe und Überschuss, nächster
+  Legionellen-Termin, Umgebung), Problemfälle (Gerät aus) zuerst. Darunter eine
+  Statusleiste: Modbus, Fehler, Geräteuhr (als „+63 min“), Notheizung („bereit · < 38 °C“).
+- **Betrieb:** Schalter, Solltemperatur (+/–) und Modus als kleine Kacheln,
+  PV-Regelung (nur mit PV), **Regelverlauf** (Logbuch für Sollwert, Modus, Boost,
+  Legionellen, Notheizung, PV).
+- **Jahresarbeitszahl & COP:** Kennzahlen (JAZ laufendes Jahr, COP Monat, Wärme und
+  Strom des Jahres), COP pro Monat (bis 12 Monate), JAZ pro Jahr ab dem zweiten Jahr.
+- **Verlauf (7 Tage)** und Energie pro Tag/Monat.
+
+Gebaut mit HA-Bordmitteln und **button-card**; ApexCharts und card-mod werden nicht
+mehr benötigt.
+
+**Dashboard bleibt künftig automatisch aktuell – solange du es nicht anpasst.** Die
+Integration merkt sich einen Fingerabdruck des zuletzt geschriebenen Dashboards. Ist es
+beim nächsten Start unverändert, wird es still auf das aktuelle Layout gebracht (neue
+Versionen, PV an/aus, Sprache). Angepasste Dashboards bleiben unangetastet. Dashboards aus
+früheren Versionen haben noch keinen Fingerabdruck: Sie bekommen einmalig einen Hinweis
+auf den neuen Dienst **`haier_modbus.rebuild_dashboard`**, der das neue Layout übernimmt
+(eigene Anpassungen gehen dabei verloren) – danach läuft es automatisch.
+
+**HA 2026.11 / Marketplace:** HACS wird dort durch den eingebauten Marketplace ersetzt.
+Fehlt button-card, installiert die Integration sie dann nicht selbst (der Marketplace
+verlangt je Nutzer eine Bestätigung), sondern zeigt einen Reparatur-Hinweis mit dem Weg
+über *Einstellungen → Marketplace*. Bis HA 2026.10 bleibt die automatische Installation
+über HACS.
+
+**Kleinigkeiten:**
+- Uhr-Abweichung ohne Nachkommastellen (vorher „3.762,00 s“).
+- PV-Meldung „Leerlauf-Start“ hängt jetzt am Sollwert und erscheint damit im
+  Regelverlauf.
+- README: Screenshot des Dashboards; Hinweis, dass das Geräte-Wärmeregister nach
+  ersten Messungen etwa 2- bis 3,7-mal zu viel Wärme meldet (COP/JAZ entsprechend zu
+  hoch) – Korrektur folgt nach weiteren Messungen.
+
 ## [1.23.1] - 2026-11-05
 
 **Fix: editierbares Dashboard bei Neuinstallation (#18).** Home Assistant (mindestens seit

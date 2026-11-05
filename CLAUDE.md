@@ -20,7 +20,8 @@ custom_components/haier_modbus/
   energy.py        Energie-Akkumulator + COP/JAZ
   config_flow.py   Setup-Assistent + Options-Flow (alles über die UI)
   number/sensor/select/switch/binary_sensor/water_heater.py   Entitäten
-  dashboard.py     Mitgeliefertes Storage-Dashboard
+  dashboard.py     Registrierung des mitgelieferten Storage-Dashboards + Dienst rebuild_dashboard
+  dashboard_layout.py  Layout (Platzhalter @E:…@ für Entitäten, §…§ für de/en-Texte)
   const.py         Register-Karte, Options-Keys, Defaults
 docs/
   register-map.md     Modbus-Register (Quelle: Hersteller-PDF im selben Ordner)
