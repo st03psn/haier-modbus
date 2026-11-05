@@ -263,6 +263,10 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     suffix = f"{int(height_mm)}{'c' if coil else ''}{'i' if image else ''}"
     for ident in ("hwhpG", "hwhpB", "hwhpD", "hwhpL", "hwhpC"):
         js = js.replace(ident, ident + suffix)
+    # Der Farbverlauf hängt von den Live-Werten ab: zusätzlich je Darstellung eindeutig,
+    # sonst übernähme eine zweite Karte desselben Modells den Verlauf der ersten.
+    js = js.replace(f"hwhpG{suffix}", f"hwhpG{suffix}${{gu}}")
+    js = js.replace("[[[ ", "[[[ const gu = Math.random().toString(36).slice(2, 8); ", 1)
     return js
 
 
