@@ -3,7 +3,8 @@
 > 🇩🇪 **Deutsch zuerst** · 🇬🇧 [English version below](#-english)
 
 Lokale Home-Assistant-Integration für die Haier Brauchwasserwärmepumpe der
-**M7-Familie** (HP160/HP200/HP260 M7, R290) über **Modbus-TCP** – mit
+**M7-Familie** (HP160/HP200/HP260 M7, R290) über **Modbus RTU** – per TCP-Konverter
+oder direkt seriell (USB/RS-485) – mit
 **Schreibzugriff**, Energie-/COP-Auswertung und mitgeliefertem, editierbarem
 Dashboard. Anzeigename je nach Systemsprache: **„Haier BWWP"** (Deutsch),
 sonst **„Haier HWHP"** (Englisch).
@@ -11,6 +12,14 @@ sonst **„Haier HWHP"** (Englisch).
 Vollständig **lokal** über Modbus – kein hOn-Cloud-Konto nötig. Gegenüber der
 Cloud bietet der lokale Weg **Schreibzugriff**, direkten Zugriff auf die
 **Energieregister** und läuft **ohne Internet-/Cloud-Abhängigkeit**.
+
+**Installieren mit einem Klick** (über [My Home Assistant](https://my.home-assistant.io/)):
+
+[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
+[![Integration einrichten](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
+
+Erst *In HACS öffnen* → **Herunterladen** → Home Assistant neu starten, dann *Integration
+einrichten*. Details und manuelle Installation: [Installation (HACS)](#installation-hacs).
 
 ![Mitgeliefertes Dashboard (v2.0.0)](docs/images/dashboard.webp)
 
@@ -70,14 +79,7 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 
 ## Installation (HACS)
 
-**Mit einem Klick** (über [My Home Assistant](https://my.home-assistant.io/)):
-
-[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
-→ fügt das Repository in HACS hinzu und öffnet es; dort **Herunterladen**, dann Home
-Assistant neu starten.
-
-[![Integration einrichten](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
-→ startet nach dem Neustart direkt den Einrichtungsassistenten.
+Mit einem Klick: die beiden Buttons ganz oben unter der Produktbeschreibung.
 
 Oder von Hand:
 
@@ -349,7 +351,8 @@ Registerkarte & Herleitung: [`docs/register-map.md`](docs/register-map.md)
 ## 🇬🇧 English
 
 Local Home Assistant integration for the Haier heat-pump water heater of the
-**M7 family** (HP160/HP200/HP260 M7, R290) over **Modbus-TCP** – with **write
+**M7 family** (HP160/HP200/HP260 M7, R290) over **Modbus RTU** – via a TCP converter or
+directly serial (USB/RS-485) – with **write
 access**, energy/COP evaluation and a bundled, editable dashboard. Display name
 depends on the system language: **“Haier HWHP”** (English), **“Haier BWWP”** (German).
 
@@ -357,7 +360,12 @@ Fully **local** over Modbus – no hOn cloud account required. Versus the cloud,
 local path offers write access, direct access to the energy registers and runs
 **without any internet/cloud dependency**.
 
-The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards are never overwritten – for them the update entity **“Dashboard”** (`update.haier_hwhp_dashboard`) appears under *Settings* (and as a card on the new dashboard); *Install* applies the new layout and replaces your own changes. Dashboards from versions before 2.0.0 count as edited and therefore show this update once.
+**One-click install** (via My Home Assistant):
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
+[![Set up integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
+– first *Open in HACS* → **Download** → restart, then *Set up integration*.
+
+The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards (and all from versions before 2.0.0) are never overwritten without asking. Instead a **repair notice** under *Settings → Repairs* asks “Adopt the new dashboard layout?” – **Yes**, **Compare first** (adds the new layout as “… (new)”; adopt it there later, including your changes) or **No**. The same is available under *Configure → Dashboard* and via the update entity **“Dashboard”** (`update.haier_hwhp_dashboard`).
 
 ### ⚠️ Important: does your unit even have Modbus?
 **Not every** unit in this series has the Modbus interface – unofficially it is only
@@ -547,12 +555,7 @@ program select/setpoint*), never write Modbus directly in parallel (avoid a seco
 master). Example automation: [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.md).
 
 ### Installation (HACS)
-One click via My Home Assistant:
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
-(adds the repository to HACS – then *Download* and restart) and
-[![Set up integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
-(starts the setup wizard after the restart).
-
+One click: see the buttons at the top of the English section.
 Manually: HACS → custom repository (category *Integration*) → download → restart → add the
 integration → choose the connection type: **TCP** (converter's IP, port `502`) or
 **Serial** (USB/RS485 adapter port, 9600 baud) → slave `1`, model → energy & COP →
