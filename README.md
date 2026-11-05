@@ -13,14 +13,6 @@ Vollständig **lokal** über Modbus – kein hOn-Cloud-Konto nötig. Gegenüber 
 Cloud bietet der lokale Weg **Schreibzugriff**, direkten Zugriff auf die
 **Energieregister** und läuft **ohne Internet-/Cloud-Abhängigkeit**.
 
-**Installieren mit einem Klick** (über [My Home Assistant](https://my.home-assistant.io/)):
-
-[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
-[![Integration einrichten](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
-
-Erst *In HACS öffnen* → **Herunterladen** → Home Assistant neu starten, dann *Integration
-einrichten*. Details und manuelle Installation: [Installation (HACS)](#installation-hacs).
-
 ![Mitgeliefertes Dashboard (v2.0.0)](docs/images/dashboard.webp)
 
 ---
@@ -79,7 +71,14 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 
 ## Installation (HACS)
 
-Mit einem Klick: die beiden Buttons ganz oben unter der Produktbeschreibung.
+**Mit einem Klick** (über [My Home Assistant](https://my.home-assistant.io/)):
+
+[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
+→ fügt das Repository in HACS hinzu und öffnet es; dort **Herunterladen**, dann Home
+Assistant neu starten.
+
+[![Integration einrichten](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
+→ startet nach dem Neustart direkt den Einrichtungsassistenten.
 
 Oder von Hand:
 
@@ -360,11 +359,6 @@ Fully **local** over Modbus – no hOn cloud account required. Versus the cloud,
 local path offers write access, direct access to the energy registers and runs
 **without any internet/cloud dependency**.
 
-**One-click install** (via My Home Assistant):
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
-[![Set up integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
-– first *Open in HACS* → **Download** → restart, then *Set up integration*.
-
 The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards (and all from versions before 2.0.0) are never overwritten without asking. Instead a **repair notice** under *Settings → Repairs* asks “Adopt the new dashboard layout?” – **Yes**, **Compare first** (adds the new layout as “… (new)”; adopt it there later, including your changes) or **No**. The same is available under *Configure → Dashboard* and via the update entity **“Dashboard”** (`update.haier_hwhp_dashboard`).
 
 ### ⚠️ Important: does your unit even have Modbus?
@@ -555,7 +549,12 @@ program select/setpoint*), never write Modbus directly in parallel (avoid a seco
 master). Example automation: [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.md).
 
 ### Installation (HACS)
-One click: see the buttons at the top of the English section.
+One click via My Home Assistant:
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
+(adds the repository to HACS – then *Download* and restart) and
+[![Set up integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
+(starts the setup wizard after the restart).
+
 Manually: HACS → custom repository (category *Integration*) → download → restart → add the
 integration → choose the connection type: **TCP** (converter's IP, port `502`) or
 **Serial** (USB/RS485 adapter port, 9600 baud) → slave `1`, model → energy & COP →
