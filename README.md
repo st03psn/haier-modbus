@@ -70,6 +70,17 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 
 ## Installation (HACS)
 
+**Mit einem Klick** (über [My Home Assistant](https://my.home-assistant.io/)):
+
+[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
+→ fügt das Repository in HACS hinzu und öffnet es; dort **Herunterladen**, dann Home
+Assistant neu starten.
+
+[![Integration einrichten](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
+→ startet nach dem Neustart direkt den Einrichtungsassistenten.
+
+Oder von Hand:
+
 1. HACS → ⋮ → **Benutzerdefinierte Repositorys** → URL dieses Repos, Kategorie **Integration**.
 2. Herunterladen, Home Assistant neu starten.
 3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „Haier".
@@ -536,7 +547,13 @@ program select/setpoint*), never write Modbus directly in parallel (avoid a seco
 master). Example automation: [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.md).
 
 ### Installation (HACS)
-HACS → custom repository (category *Integration*) → download → restart → add the
+One click via My Home Assistant:
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=st03psn&repository=haier-modbus&category=integration)
+(adds the repository to HACS – then *Download* and restart) and
+[![Set up integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=haier_modbus)
+(starts the setup wizard after the restart).
+
+Manually: HACS → custom repository (category *Integration*) → download → restart → add the
 integration → choose the connection type: **TCP** (converter's IP, port `502`) or
 **Serial** (USB/RS485 adapter port, 9600 baud) → slave `1`, model → energy & COP →
 protection (emergency heating, legionella) → optional PV surplus (fine-tuning in collapsible
