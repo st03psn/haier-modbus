@@ -122,9 +122,9 @@ _JS_INFO = (
     "color:${act ? color : 'var(--secondary-text-color)'};opacity:${act ? 1 : 0.55};"
     "${act && anim ? 'animation:' + anim : ''}'></ha-icon></div>`; "
     "const row = (ic, label, val, vcol) => `<div style='display:flex;align-items:center;gap:8px;margin:6px 0'>"
-    "${ic}<div style='min-width:0'><div style='font-size:12px;line-height:14px;color:var(--secondary-text-color)'>"
-    "${label}</div><div style='font-size:14px;line-height:18px;font-weight:500;white-space:nowrap;overflow:hidden;"
-    "text-overflow:ellipsis;${vcol ? 'color:' + vcol : ''}'>${val}</div></div></div>`; "
+    "${ic}<div style='min-width:0;text-align:left'><div style='font-size:12px;line-height:14px;color:var(--secondary-text-color)'>"
+    "${label}</div><div style='font-size:14px;line-height:18px;font-weight:500;white-space:normal;overflow-wrap:anywhere;"
+    "${vcol ? 'color:' + vcol : ''}'>${val}</div></div></div>`; "
     "let out = ''; "
     "if (active === 'off') out += row(icon('mdi:power', true, 'var(--error-color)', ''), '§active§', '§unit_off§', 'var(--error-color)'); "
     "out += row(icon('mdi:fan', wp, 'var(--green-color)', 'hwhp-spin 2s linear infinite'), '§heat_pump§', wp ? '§running§' : '§off§') "
@@ -150,8 +150,8 @@ _JS_DIAG = (
     "const ok = 'var(--success-color, #43a047)', warn = 'var(--warning-color, #ff9800)', err = 'var(--error-color, #db4437)'; "
     "const chip = (i, label, val, col) => `<div style='display:flex;align-items:center;gap:6px;min-width:0'>"
     "<ha-icon icon='${i}' style='display:inline-flex;--mdc-icon-size:20px;color:${col};flex:0 0 20px'></ha-icon>"
-    "<div style='min-width:0'><div style='font-size:11px;line-height:13px;color:var(--secondary-text-color)'>${label}</div>"
-    "<div style='font-size:13px;line-height:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
+    "<div style='min-width:0;text-align:left'><div style='font-size:11px;line-height:13px;color:var(--secondary-text-color)'>${label}</div>"
+    "<div style='font-size:13px;line-height:16px;font-weight:500;white-space:normal;overflow-wrap:anywhere'>"
     "${val}</div></div></div>`; "
     "const link = s('@E:sensor.link_status@'); const fo = st('@E:sensor.fault@'); "
     "const fraw = fo ? Number(fo.attributes.raw || 0) : 0; "
@@ -161,7 +161,7 @@ _JS_DIAG = (
     "drTxt = a >= 60 ? sign + Math.round(a / 60) + ' min' : sign + Math.round(a) + ' s'; } "
     "const em = s('@E:sensor.emergency_status@'); "
     "const crit = Math.round(parseFloat(s('@E:number.emergency_critical@'))); "
-    "return `<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px 10px'>` "
+    "return `<div style='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px'>` "
     "+ chip(link === 'ok' ? 'mdi:lan-connect' : 'mdi:lan-disconnect', '§modbus§', fmt('@E:sensor.link_status@'), link === 'ok' ? ok : err) "
     "+ chip(fraw > 0 ? 'mdi:alert-circle' : 'mdi:check-circle-outline', '§fault§', fo ? fmt('@E:sensor.fault@') : '–', fraw > 0 ? err : ok) "
     "+ chip(clockBad ? 'mdi:clock-alert-outline' : 'mdi:clock-check-outline', '§clock§', drTxt, clockBad ? warn : ok) "
@@ -268,7 +268,7 @@ def _template(with_pv: bool, settings_path: str) -> dict:
         "styles": {
             "card": [{"padding": "8px 12px"}, {"min-height": "340px"}],
             "grid": [{"grid-template-areas": '"tank info" "diag diag"'},
-                     {"grid-template-columns": "58% 42%"}, {"grid-template-rows": "auto auto"}],
+                     {"grid-template-columns": "52% 48%"}, {"grid-template-rows": "auto auto"}],
             "custom_fields": {
                 "tank": [{"height": "324px"}, {"width": "100%"}],
                 "info": [{"justify-self": "stretch"}, {"align-self": "center"},
