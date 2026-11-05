@@ -115,6 +115,46 @@ def _f(v: float) -> str:
     return f"{v:.1f}".rstrip("0").rstrip(".")
 
 
+def coil_markup(cx: float, rx: float, c_top: float, c_bot: float, x0: float, turns: int = 7) -> str:
+    """Rohrschlange (Solar-/Kessel-Register) als SVG-Vorlage.
+
+    Platzhalter für den JS-Template-String: ``${cf}`` Rohrfarbe, ``${co}`` Kontur,
+    ``${cb}`` Rückseite; ``${hxAct ? … : ''}`` blendet bei aktiver Quelle einen
+    laufenden Durchfluss ein. Zu-/Ablauf führen links mit Verschraubung durch den
+    Mantel (Lage geschätzt nach dem Schnittbild im Haier-Datenblatt).
+    Auch von ``tools/gen_model_svgs.py`` genutzt (Platzhalter dort statisch ersetzt).
+    """
+    ry = 6.0
+    step = (c_bot - c_top) / turns
+    lx, rx_ = cx - rx, cx + rx
+    back = front = hi = ""
+    flow = f"M{_f(x0 + 3)},{_f(c_top)} H{_f(lx)}"
+    for i in range(turns):
+        y = c_top + step * i
+        b = f"M{_f(lx)},{_f(y)} A{_f(rx)},{ry} 0 0 1 {_f(rx_)},{_f(y + step / 2)}"
+        f = f"M{_f(rx_)},{_f(y + step / 2)} A{_f(rx)},{ry} 0 0 1 {_f(lx)},{_f(y + step)}"
+        back += b + " "
+        front += f + " "
+        hi += (f"M{_f(rx_ - 3)},{_f(y + step / 2 + 1.2)} A{_f(rx - 3)},{ry - 0.8} 0 0 1 "
+               f"{_f(lx + 3)},{_f(y + step - 0.6)} ")
+        flow += f" A{_f(rx)},{ry} 0 0 1 {_f(rx_)},{_f(y + step / 2)} A{_f(rx)},{ry} 0 0 1 {_f(lx)},{_f(y + step)}"
+    flow += f" H{_f(x0 + 3)}"
+    leads = f"M{_f(x0 + 3)},{_f(c_top)} H{_f(lx)} M{_f(x0 + 3)},{_f(c_bot)} H{_f(lx)}"
+    out = ("<g fill='none' stroke-linecap='round'>"
+           f"<path d='{back.strip()}' stroke='${{co}}' stroke-width='4' opacity='.55'/>"
+           f"<path d='{back.strip()}' stroke='${{cb}}' stroke-width='2.6' opacity='.8'/>"
+           f"<path d='{leads} {front.strip()}' stroke='${{co}}' stroke-width='4.6'/>"
+           f"<path d='{leads} {front.strip()}' stroke='${{cf}}' stroke-width='3.1'/>"
+           f"<path d='{hi.strip()}' stroke='rgba(255,255,255,.55)' stroke-width='.9'/>"
+           "${hxAct ? `<path d='" + flow + "' stroke='#fff3e0' stroke-width='1.3' "
+           "stroke-dasharray='3 5' opacity='.9' style='animation:hwhp-flow 1.2s linear infinite'/>` : ''}"
+           "</g>")
+    for y in (c_top, c_bot):
+        out += (f"<rect x='{_f(x0 - 4)}' y='{_f(y - 5)}' width='9' height='10' rx='1.8' fill='url(#hwhpD)'/>"
+                f"<rect x='{_f(x0 - 2.5)}' y='{_f(y - 2.5)}' width='6' height='5' rx='1' fill='${{cf}}'/>")
+    return out
+
+
 def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     """JS für das Speicher-Feld bauen (Geometrie statisch, Werte live).
 
@@ -150,26 +190,9 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
         f"<clipPath id='hwhpC'><rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10'/></clipPath>"
         "</defs>"
     )
-    # Rohrschlange im unteren Speicherdrittel (Vorder-/Rückseite je Windung)
-    turns, ry = 6, 5.5
-    c_top, c_bot = ty + th * 0.60, ty + th - 12
-    step = (c_bot - c_top) / turns
-    rx = tw / 2 - 9
-    coil_svg = ("<g clip-path='url(#hwhpC)' fill='none' stroke-linecap='round' "
-                "style='${hxAct ? \"animation:hwhp-glow 2s ease-in-out infinite\" : \"\"}'>")
-    for i in range(turns):
-        yy = c_top + step * i
-        coil_svg += (f"<path d='M{_f(cx - rx)},{_f(yy)} A{_f(rx)},{ry} 0 0 1 {_f(cx + rx)},{_f(yy + step / 2)}' "
-                     "stroke='${cb}' stroke-width='1.8' opacity='.5'/>"
-                     f"<path d='M{_f(cx + rx)},{_f(yy + step / 2)} A{_f(rx)},{ry} 0 0 1 {_f(cx - rx)},{_f(yy + step)}' "
-                     "stroke='${cf}' stroke-width='2.8'/>")
-    for yy in (c_top, c_bot):
-        coil_svg += f"<path d='M{_f(cx - rx)},{_f(yy)} H{_f(tx - 2)}' stroke='${{cf}}' stroke-width='2.6'/>"
-    coil_svg += "</g>"
-    for yy in (c_top, c_bot):
-        coil_svg += (f"<circle cx='{_f(x0 + 1)}' cy='{_f(yy)}' r='2.6' fill='${{cf}}' "
-                     "stroke='rgba(0,0,0,.35)' stroke-width='.6'/>")
-    js += ("const cf = hxAct ? '#ff8f00' : '#a1887f', cb = hxAct ? '#e65100' : '#6d4c41'; "
+    coil_svg = coil_markup(cx, tw / 2 - 9, ty + th * 0.58, ty + th - 26, x0)
+    js += ("const cf = hxAct ? '#ff8f00' : '#b87333', co = hxAct ? '#a84300' : '#6b3a16', "
+           "cb = hxAct ? '#e65100' : '#8d5a35'; "
            f"const coil = hx ? `{coil_svg}` : ''; ")
     # Schrift mit der Bauhöhe mitwachsen lassen: die Karte hat feste Höhe, eine
     # höhere Zeichnung wird also kleiner skaliert.
@@ -385,7 +408,8 @@ _JS_YEARS = (
 _KEYFRAMES = (
     "@keyframes hwhp-pulse {0%,100% {opacity:1; transform:scale(1);} 50% {opacity:.45; transform:scale(.88);}} "
     "@keyframes hwhp-spin {from {transform:rotate(0deg);} to {transform:rotate(360deg);}} "
-    "@keyframes hwhp-glow {0%,100% {opacity:1;} 50% {opacity:.55;}}"
+    "@keyframes hwhp-glow {0%,100% {opacity:1;} 50% {opacity:.55;}} "
+    "@keyframes hwhp-flow {to {stroke-dashoffset:-16;}}"
 )
 
 

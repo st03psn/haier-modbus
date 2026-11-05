@@ -6,7 +6,16 @@ Haier-Datenblatt „M7 HPWH R290“ (haierhvac.eu, 09/2025), siehe docs/m7-model
 """
 from __future__ import annotations
 
+import importlib.util
 import pathlib
+import re
+
+_SPEC = importlib.util.spec_from_file_location(
+    "dashboard_layout",
+    pathlib.Path(__file__).resolve().parent.parent / "custom_components" / "haier_modbus" / "dashboard_layout.py",
+)
+_DL = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_DL)
 
 MM = 1 / 5  # mm -> SVG-Einheit
 # Datenblatt: Breite 600 (Ø Mantel), Tiefe 620, Gesamthöhe D; C = Höhe oberer Anschluss
@@ -88,28 +97,12 @@ def svg(key: str, m: dict, fill_pct: float | None = 70) -> str:
     p.append(f"<line x1='{x0 + 5}' y1='{hy - 1:.1f}' x2='{cx + 16:.1f}' y2='{hy - 1:.1f}' "
              "stroke='rgba(255,255,255,.45)' stroke-width='1.1' stroke-linecap='round'/>")
     if m["coil"]:
-        # Rohrschlange (Solar-/Kessel-Register) im unteren Speicherdrittel
-        turns = 6
-        c_top = ty + th * 0.60
-        c_bot = ty + th - 12
-        step = (c_bot - c_top) / turns
-        rx = tw / 2 - 9
-        g = [f"<g class='coil' clip-path='url(#win)' fill='none' stroke-linecap='round'>"]
-        ry = 5.5
-        for i in range(turns):
-            yy = c_top + step * i
-            # Rückseite (oberer Ellipsenbogen, dünn/dunkel), Vorderseite (unterer Bogen, kräftig)
-            g.append(f"<path d='M{cx - rx:.1f},{yy:.1f} A{rx:.1f},{ry} 0 0 1 {cx + rx:.1f},{yy + step / 2:.1f}' "
-                     "stroke='#8a4b16' stroke-width='1.8' opacity='.5'/>")
-            g.append(f"<path d='M{cx + rx:.1f},{yy + step / 2:.1f} A{rx:.1f},{ry} 0 0 1 {cx - rx:.1f},{yy + step:.1f}' "
-                     "stroke='#d9792b' stroke-width='2.8'/>")
-        # Zu- und Ablauf seitlich hinaus
-        g.append(f"<path d='M{cx - rx:.1f},{c_top:.1f} H{tx - 2:.1f}' stroke='#d9792b' stroke-width='2.6'/>")
-        g.append(f"<path d='M{cx - rx:.1f},{c_bot:.1f} H{tx - 2:.1f}' stroke='#d9792b' stroke-width='2.6'/>")
-        g.append("</g>")
-        p.extend(g)
-        for yy in (c_top, c_bot):
-            p.append(f"<circle cx='{x0 + 1:.1f}' cy='{yy:.1f}' r='2.6' fill='#d9792b' stroke='#7a3f10' stroke-width='.6'/>")
+        # Gleiche Rohrschlange wie im Dashboard (dashboard_layout.coil_markup), statisch eingefärbt
+        markup = _DL.coil_markup(cx, tw / 2 - 9, ty + th * 0.58, ty + th - 26, x0)
+        markup = re.sub(r"\$\{hxAct \? `.*?` : ''\}", "", markup)
+        for ph, colour in (("${cf}", "#b87333"), ("${co}", "#6b3a16"), ("${cb}", "#8d5a35")):
+            markup = markup.replace(ph, colour)
+        p.append(markup.replace("url(#hwhpD)", "url(#dark)"))
     p.append(f"<rect x='{tx}' y='{ty}' width='{tw}' height='{th}' rx='10' fill='url(#glass)' "
              "stroke='#9ea3a9' stroke-width='.6'/>")
     p.append(f"<rect x='{x0 - 4}' y='{ty + th * 0.52 - 6:.1f}' width='9' height='12' rx='1.8' fill='url(#dark)'/>")

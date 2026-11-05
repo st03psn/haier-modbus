@@ -14,7 +14,7 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   Keine Haier-Fotos – Begründung und Quellen in `docs/m7-modelle.md`.
 - **Wärmetauscher:** Die Varianten mit Solar-/Kessel-Register heißen laut Haier
   „…M7**C**-F9“. Eine Rohrschlange im Speicher leuchtet, solange Solar oder Kessel heizt
-  (Reg 3 bit2/bit3). Neue Option *Optionen → Dashboard → „Wärmetauscher zeigen“*:
+  (Reg 3 bit2/bit3), mit sichtbarem Durchfluss. Neue Option *Optionen → Dashboard → „Wärmetauscher zeigen“*:
   Automatisch (nach Modell) / Ja / Nein.
 - **Heizstab** sichtbar: seitlich eingeschraubt mit Stopfen am Gehäuse, leuchtet orange,
   solange der Heizstab läuft.

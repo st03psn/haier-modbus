@@ -25,7 +25,36 @@ Luftkanal Ø 160 mm, Wasseranschlüsse Rp 3/4.
   vor einer Änderung der Modellliste bitte am Typenschild bzw. bei Haier prüfen.
 - Äußerlich unterscheiden sich mit/ohne Register laut Datenblatt-Maßtabelle nicht (A/B/C/D
   identisch). Ob die C-Variante zusätzliche seitliche Anschlüsse hat, ist aus den
-  Unterlagen nicht sicher zu erkennen (die Montageanleitung bei heima24 war nicht abrufbar).
+  Unterlagen nicht sicher zu erkennen. Die Anleitung zeigt für die C-Varianten aber eigene
+  Anschlüsse für Solar-/Kesselkreis und Fühler (siehe unten).
+
+## Woher das Gerät von Solar/Kessel weiß (Reg 3 bit2/bit3)
+
+Laut Haier-Betriebs- und Montageanleitung (EN, Kapitel „Connection to solar collectors“,
+„Connection to gas boiler“, „Connection with boiler back up“ und 3.2.3 „External heat
+source“) – gilt nur für HP200M7C-F9/HP250M7C-F9:
+
+- **Einstellung am Gerät:** Im Parametermenü wird unter „External heat source“ *Boiler*,
+  *Solar* oder *deaktiviert* gewählt („Disable this function if no external heat source
+  configuration is required“). Ohne diese Einstellung nutzt das Gerät das Register nicht.
+- **Kessel:** Das Gerät **fordert** den Kessel selbst an – über ein Kessel-Signalkabel
+  (2 × 0,75 mm²) zum Kessel und einen eigenen Kesselfühler (Platine CN27). Nicht im
+  ELEC-Modus, im Boost-Modus ja.
+- **Solar:** Am Speicher sitzen zwei Solarfühler – einer für die Wärmepumpe, einer für den
+  Solarregler. „If the Solar photothermal starting conditions are met, stop the heat pump
+  heating and carry out solar heating.“ Die genauen Startbedingungen nennt die Anleitung
+  **nicht**; ob der Solarregler zusätzlich ein Signal liefert, geht aus ihr nicht hervor.
+- **Anzeige:** Das Symbol „Backup element“ im Display bedeutet laut Anleitung, dass gerade
+  Kessel oder Solar genutzt wird – das entspricht vermutlich Reg 3 bit2/bit3 (nicht am Gerät
+  verifiziert).
+- Grenzwert laut Anleitung: Speichertemperatur bei Solar-/Kesselbetrieb max. **85 °C**.
+
+Für die Integration heißt das: bit2/bit3 sind der vom Gerät selbst gemeldete Zustand. Bei
+Geräten ohne Register (oder mit deaktivierter „External heat source“) bleiben sie 0. Die
+Rohrschlange richtet sich deshalb nach dem Modell, nicht danach, ob die Sensoren aktiviert sind.
+
+Quelle: Haier, *Heat Pump Water Heater – Operation and Installation Manual*, Modell
+HP200M7-F9 (enthält die C-Varianten), z. B. https://media.adeo.com/media/4488121/media.pdf
 
 ## Eigene Geräteabbilder
 
