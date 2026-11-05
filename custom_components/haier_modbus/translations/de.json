@@ -670,6 +670,25 @@
     "missing_frontend_card_marketplace": {
       "title": "Fehlende Dashboard-Karte: {card_name}",
       "description": "Das Haier-Dashboard benötigt die Karte **{card_name}**. Installiere sie unter **Einstellungen → Marketplace** (Suche nach „{card_name}“, Repository `{hacs_repo}`) und lade den Browser-Tab neu (Strg+Shift+R). Beim ersten Öffnen fragt der Marketplace nach einer Bestätigung – die Integration installiert deshalb nicht selbst."
+    },
+    "dashboard_layout_update": {
+      "title": "Neues Dashboard-Layout für Haier BWWP",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Neues Dashboard-Layout übernehmen?",
+            "description": "Für das Haier-Dashboard gibt es ein neues, kompakteres Layout (eine Seite, Speicher-Grafik, JAZ/COP-Karte). Dein bisheriges Dashboard wurde nicht automatisch geändert, weil es angepasst sein könnte.\n\n**Ja, übernehmen:** Das Haier-Dashboard bekommt das neue Layout. Eigene Anpassungen daran gehen verloren. Hast du vorher unter *Zahnrad → Dashboard* ein Vergleichs-Dashboard angelegt, wird stattdessen dieses übernommen – samt deiner Änderungen daran.\n\n**Nein, behalten:** Dein Dashboard bleibt, wie es ist. Dieser Hinweis kommt für dieses Layout nicht wieder. Übernehmen geht später jederzeit unter *Zahnrad → Dashboard*.",
+            "menu_options": {
+              "adopt": "Ja, neues Layout übernehmen",
+              "keep": "Nein, bisheriges Dashboard behalten"
+            }
+          }
+        },
+        "abort": {
+          "entry_missing": "Die Haier-Integration ist nicht eingerichtet.",
+          "adopt_failed": "Übernehmen fehlgeschlagen – Details im Log. Der Hinweis bleibt bestehen."
+        }
+      }
     }
   }
 }

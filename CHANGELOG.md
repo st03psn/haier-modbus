@@ -7,15 +7,20 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 
 ## [2.0.1] - 2026-11-05
 
-**Dashboard-Vergleich leichter zu finden.**
+**Neues Dashboard-Layout: Rückfrage statt versteckter Buttons.**
+- **Neu: Reparatur-Hinweis mit Ja/Nein.** Ist das Haier-Dashboard angepasst oder stammt aus
+  einer Version vor 2.0.0, fragt *Einstellungen → Reparaturen*: „Neues Dashboard-Layout
+  übernehmen?“. **Ja** übernimmt das neue Layout (eigene Anpassungen gehen verloren; ein
+  vorher angelegtes Vergleichs-Dashboard wird samt Änderungen übernommen). **Nein** behält
+  das Dashboard; der Hinweis kommt für dieses Layout nicht wieder. Ersetzt die einmalige
+  Benachrichtigung aus 2.0.0 (eine noch offene wird entfernt).
 - **Neu:** Optionen → *Dashboard* hat eine **Aktion**: *Neues Dashboard zum Vergleich
   anlegen*, *Vergleichs-Dashboard übernehmen* oder *Haier-Dashboard durch neues Layout
   ersetzen*. Bisher gab es das nur als Buttons auf der Geräteseite, die man dort kaum fand.
   Die Aktion wird nicht gespeichert und lädt die Integration nicht neu.
-- Update „Dashboard“: Gibt es ein selbst angelegtes Vergleichs-Dashboard, übernimmt
-  *Aktualisieren* dieses (samt eigener Änderungen) statt das Layout neu aufzubauen.
-- Update-Text und Benachrichtigung zeigen jetzt diesen Weg; die Benachrichtigung verlinkt
-  auf die Integrationsseite. Der Update-Text war außerdem zu lang (HA kürzt auf 255 Zeichen).
+- Update „Dashboard“: Gibt es ein Vergleichs-Dashboard, übernimmt *Aktualisieren* dieses
+  (samt eigener Änderungen) statt das Layout neu aufzubauen. Der Update-Text war zu lang
+  (HA kürzt auf 255 Zeichen) und nennt jetzt den Weg zum Vergleich.
 - COP-Hinweis in der Karte „Jahresarbeitszahl & COP“: Text steht jetzt bündig links neben
   dem Warnsymbol.
 
