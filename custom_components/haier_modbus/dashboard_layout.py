@@ -224,6 +224,12 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
             f"<circle cx='{_f(x0 + W - 1)}' cy='{_f(ty + th - 4)}' r='2.4' fill='#c3c7cc' stroke='#7f858b' stroke-width='.6'/>"
         )
     js += "return `" + svg_open + defs + body + labels + "</svg>`; ]]]"
+    # SVG-IDs je Variante eindeutig machen: mehrere Speicher-Karten auf einer Seite
+    # (z. B. eigene Vergleichs-Ansichten) dürfen sich Verlauf/Clip-Pfad nicht teilen,
+    # falls ein Browser die IDs nicht je Shadow-Root trennt.
+    suffix = f"{int(height_mm)}{'c' if coil else ''}{'i' if image else ''}"
+    for ident in ("hwhpG", "hwhpB", "hwhpD", "hwhpL", "hwhpC"):
+        js = js.replace(ident, ident + suffix)
     return js
 
 
