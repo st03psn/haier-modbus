@@ -2,7 +2,14 @@
   "config": {
     "step": {
       "user": {
-        "title": "Haier HWHP – connection",
+        "title": "Haier HWHP – connection type",
+        "description": "How is the heat pump connected? Its native interface is Modbus RTU (9600 8N1): either through a Modbus RTU-to-TCP converter on the network, or directly with a USB/RS-485 adapter on the Home Assistant machine.",
+        "data": {
+          "connection_type": "Connection type"
+        }
+      },
+      "tcp": {
+        "title": "Haier HWHP – connection (TCP converter)",
         "description": "Connection details for the Modbus TCP interface. The HWHP's native interface is Modbus RTU (9600 8N1), so the host is usually a Modbus RTU-to-TCP converter (gateway).",
         "data": {
           "host": "Host / IP address",
@@ -13,6 +20,22 @@
         },
         "data_description": {
           "host": "Usually the IP of the Modbus RTU-to-TCP converter, not the heat pump itself.",
+          "slave": "Modbus address of the heat pump on the RTU bus (default 1)."
+        }
+      },
+      "serial": {
+        "title": "Haier HWHP – connection (serial)",
+        "description": "Direct connection with a USB/RS-485 adapter (Modbus RTU, 8 data bits, no parity, 1 stop bit). Do not run a YAML `modbus:` configuration on the same adapter at the same time – there must be only one bus master.",
+        "data": {
+          "serial_port": "Serial port",
+          "baudrate": "Baud rate",
+          "slave": "Modbus slave ID",
+          "scan_interval": "Polling interval (seconds)",
+          "model": "Model"
+        },
+        "data_description": {
+          "serial_port": "Prefer the stable path under /dev/serial/by-id/…; /dev/ttyUSB0 can change after a reboot.",
+          "baudrate": "9600 according to the manufacturer.",
           "slave": "Modbus address of the heat pump on the RTU bus (default 1)."
         }
       },
@@ -97,7 +120,8 @@
       "pv_sensor_required": "Please select a PV surplus sensor before enabling the control.",
       "temp_order_normal": "The elevated target temperature must be higher than the normal target temperature — otherwise there is no middle tier and the control tiers collapse.",
       "temp_order_high": "The boost target temperature must not be below the elevated target temperature.",
-      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw."
+      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw.",
+      "cannot_connect_serial": "No response via the serial adapter. Check port, baud rate, slave ID and wiring (A/B); the port must not be in use by another integration."
     },
     "abort": {
       "already_configured": "This heat pump is already configured."
@@ -109,8 +133,11 @@
         "title": "Settings (connection, COP, PV)",
         "description": "Connection, COP/energy sources and optional PV surplus control. Host/port/slave change the link to the Modbus converter.",
         "data": {
+          "connection_type": "Connection type",
           "host": "Host / IP address (Modbus converter)",
           "port": "Port",
+          "serial_port": "Serial port (serial only)",
+          "baudrate": "Baud rate (serial only)",
           "slave": "Modbus slave ID",
           "model": "Model",
           "scan_interval": "Polling interval (seconds)",
@@ -147,7 +174,9 @@
           "legionella_hold_min": "How long the tank bottom must hold the verification threshold before the run counts as successful.",
           "legionella_window_start": "Preferred time window (usually the device's ECO window): the run starts here if possible and first heats efficiently in ECO; if it can't reach the target it escalates to AUTO. When overdue, protection is forced even outside this window.",
           "legionella_window_end": "End of the preferred window (usually the device's ECO window).",
-          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards."
+          "dashboard_enabled": "Creates the “Haier HWHP” dashboard during setup (editable if Home Assistant allows it). Off: no dashboard is created; a non-editable YAML dashboard of this integration is removed, an editable one that already exists stays and can be deleted under Settings → Dashboards.",
+          "connection_type": "TCP: via a Modbus RTU-to-TCP converter (host/port). Serial: directly via a USB/RS-485 adapter (serial port/baud rate). Only the fields of the selected type apply.",
+          "serial_port": "Prefer the stable path under /dev/serial/by-id/…."
         }
       },
       "pv": {
@@ -209,7 +238,9 @@
       "pv_sensor_required": "Please select a PV surplus sensor before enabling the control.",
       "temp_order_normal": "The elevated target temperature must be higher than the normal target temperature — otherwise there is no middle tier and the control tiers collapse.",
       "temp_order_high": "The boost target temperature must not be below the elevated target temperature.",
-      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw."
+      "pv_high_too_low": "The boost threshold must be at least the heater's rated power + 50 W — otherwise the heater would switch off into grid draw.",
+      "host_required": "The TCP connection type needs a host.",
+      "serial_port_required": "The serial connection type needs a serial port."
     }
   },
   "selector": {
@@ -244,6 +275,12 @@
       "options": {
         "charge_positive": "Charging positive (+ = charging)",
         "charge_negative": "Charging negative (− = charging)"
+      }
+    },
+    "connection_type": {
+      "options": {
+        "tcp": "TCP (Modbus RTU-to-TCP converter)",
+        "serial": "Serial (USB/RS-485 adapter)"
       }
     }
   },
@@ -319,7 +356,8 @@
         "state": {
           "ok": "OK",
           "no_converter": "Converter unreachable",
-          "no_device": "Device not responding"
+          "no_device": "Device not responding",
+          "no_adapter": "Serial adapter unavailable"
         }
       },
       "legionella_status": {

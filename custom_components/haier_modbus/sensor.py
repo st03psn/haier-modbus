@@ -160,7 +160,7 @@ class HaierLinkStatus(HaierModbusEntity, SensorEntity):
 
     _attr_translation_key = "link_status"
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = ["ok", "no_converter", "no_device"]
+    _attr_options = ["ok", "no_converter", "no_adapter", "no_device"]
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:lan-connect"
 

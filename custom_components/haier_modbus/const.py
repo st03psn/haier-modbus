@@ -21,6 +21,22 @@ DEFAULT_PORT: Final = 502
 DEFAULT_SLAVE: Final = 1
 DEFAULT_SCAN_INTERVAL: Final = 5  # Sekunden
 
+# Verbindungsart (#16): Modbus-TCP über RTU↔TCP-Konverter (Standard, Bestand) oder
+# direkt seriell (Modbus RTU über USB/RS-485-Adapter). Bestehende Einträge ohne
+# den Key sind TCP.
+CONF_CONNECTION_TYPE: Final = "connection_type"
+CONNECTION_TCP: Final = "tcp"
+CONNECTION_SERIAL: Final = "serial"
+DEFAULT_CONNECTION_TYPE: Final = CONNECTION_TCP
+CONF_SERIAL_PORT: Final = "serial_port"   # z. B. /dev/serial/by-id/usb-FTDI_…
+CONF_BAUDRATE: Final = "baudrate"
+# Native Schnittstelle laut Hersteller-Doku: 9600 bps, 8N1 (docs/register-map.md).
+# Nur die Baudrate ist einstellbar, Datenbits/Parität/Stoppbits sind fest.
+DEFAULT_BAUDRATE: Final = 9600
+SERIAL_BYTESIZE: Final = 8
+SERIAL_PARITY: Final = "N"
+SERIAL_STOPBITS: Final = 1
+
 # --- Options-Flow Keys (COP / Energiequellen, alles über die UI) -----------
 CONF_COP_ENABLED: Final = "cop_enabled"
 # Quelle ergibt sich aus der Entität: leer = Modbus-Register, gesetzt = extern.

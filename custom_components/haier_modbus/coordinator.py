@@ -11,8 +11,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from pymodbus.client import AsyncModbusTcpClient
-
 import homeassistant.util.dt as dt_util
 
 from .const import (
@@ -20,12 +18,9 @@ from .const import (
     CONF_COP_HEAT_ENTITY,
     CONF_COP_REF_DATE,
     CONF_ENERGY_SCALE,
-    CONF_HOST,
-    CONF_PORT,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
     DEFAULT_ENERGY_SCALE,
-    DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     DOMAIN,
@@ -52,6 +47,13 @@ from .const import (
 from .emergency import EmergencyController
 from .energy import EnergyAccumulator, consumption_since, state_float
 from .legionella import LegionellaController
+from .modbus_client import (
+    connection_settings,
+    create_client,
+    describe,
+    is_serial,
+    unit_kwargs,
+)
 from .pv import PvController
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,6 +65,7 @@ _GRACE_S = 300           # bis zu 5 min letzte Werte halten, bevor "nicht verfü
 
 LINK_OK = "ok"
 LINK_NO_CONVERTER = "no_converter"   # TCP zum Konverter nicht erreichbar
+LINK_NO_ADAPTER = "no_adapter"       # serieller Adapter (USB/RS-485) nicht zu öffnen (#16)
 LINK_NO_DEVICE = "no_device"         # Konverter erreichbar, aber Gerät (RTU) antwortet nicht
 
 
@@ -105,10 +108,8 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         # um reine Laufzeit-Schwellen (LIVE_OPTION_KEYS) ohne Reload zu übernehmen.
         self.options_snapshot: dict = dict(entry.options)
         # Verbindungsdaten: Options haben Vorrang (im GUI änderbar), sonst Setup-Daten.
-        self.host: str = entry.options.get(CONF_HOST, entry.data[CONF_HOST])
-        self.port: int = entry.options.get(
-            CONF_PORT, entry.data.get(CONF_PORT, DEFAULT_PORT)
-        )
+        self.connection = connection_settings(entry.options, entry.data)
+        self.serial: bool = is_serial(self.connection)
         self.slave: int = entry.options.get(
             CONF_SLAVE, entry.data.get(CONF_SLAVE, DEFAULT_SLAVE)
         )
@@ -119,16 +120,14 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         # (mit Reconnect) in _read_block. Sonst würde pymodbus darunter nochmal
         # bis zu 3× retryen (≈9 Versuche/Zyklus) und genau die redundante
         # 'No response received after 3 retries'-ERROR-Zeile erzeugen.
-        self._client = AsyncModbusTcpClient(
-            self.host, port=self.port, timeout=3, retries=1
-        )
+        self._client = create_client(self.connection, timeout=3, retries=1)
         self.energy = EnergyAccumulator(hass, entry.entry_id)
         self.pv = PvController(hass)
         self.legionella = LegionellaController(hass)
         self.emergency = EmergencyController(hass)
         self._last_save = None
         self._seed_done = False
-        self.link_status: str = LINK_OK   # ok | no_converter | no_device
+        self.link_status: str = LINK_OK   # ok | no_converter | no_adapter | no_device
         self._fail_since: float | None = None
         self._auto_enabled: set[str] = set()  # Solar/Kessel bei erster Aktivität freigeschaltet
         # #21: Geräteuhr und ihre Abweichung zur HA-Zeit, je erfolgreichem Read
@@ -143,15 +142,9 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         )
 
     async def _read_holding(self, address: int, count: int):
-        """pymodbus benannte slave->device_id um ~3.9; beide Wege unterstützen."""
-        try:
-            return await self._client.read_holding_registers(
-                address, count=count, device_id=self.slave
-            )
-        except TypeError:
-            return await self._client.read_holding_registers(
-                address, count=count, slave=self.slave
-            )
+        """pymodbus benannte slave->device_id um; Name per Signatur (s. unit_kwargs)."""
+        method = self._client.read_holding_registers
+        return await method(address, count=count, **unit_kwargs(method, self.slave))
 
     async def _write_holding(self, address: int, value: int):
         """Schreibt mit FC 0x10 (Write Multiple Registers).
@@ -160,14 +153,8 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
         NICHT 0x06 (Write Single Register). FC 0x06 quittiert das Gerät mit
         einer Ausnahme (0x86). Daher write_registers mit einer Ein-Wort-Liste.
         """
-        try:
-            return await self._client.write_registers(
-                address, [value], device_id=self.slave
-            )
-        except TypeError:
-            return await self._client.write_registers(
-                address, [value], slave=self.slave
-            )
+        method = self._client.write_registers
+        return await method(address, [value], **unit_kwargs(method, self.slave))
 
     async def _read_block(self) -> dict[int, int]:
         """Block-Read mit mehreren Versuchen + Reconnect.
@@ -184,9 +171,13 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
                     await self._client.connect()
                 if not self._client.connected:
                     raise UpdateFailed(
-                        f"Keine Verbindung zum Modbus-Konverter unter {self.host}:{self.port}"
+                        "Serieller Modbus-Adapter nicht verfügbar: "
+                        f"{describe(self.connection)}"
+                        if self.serial
+                        else "Keine Verbindung zum Modbus-Konverter unter "
+                        f"{describe(self.connection)}"
                     )
-                reached_converter = True  # TCP zum Konverter steht
+                reached_converter = True  # TCP zum Konverter steht bzw. Port offen
                 rr = await self._read_holding(READ_START, READ_COUNT)
                 if rr.isError():
                     raise UpdateFailed(f"Modbus-Fehler beim Lesen: {rr}")
@@ -208,8 +199,12 @@ class HaierModbusCoordinator(DataUpdateCoordinator[dict[int, int]]):
                 if attempt < _READ_ATTEMPTS - 1:
                     await asyncio.sleep(_READ_RETRY_DELAY_S)
         # Diagnose: Konverter erreichbar (TCP ok), aber Gerät stumm -> no_device;
-        # gar keine TCP-Verbindung -> no_converter.
-        self.link_status = LINK_NO_DEVICE if reached_converter else LINK_NO_CONVERTER
+        # gar keine TCP-Verbindung -> no_converter; serieller Port nicht zu
+        # öffnen -> no_adapter.
+        if reached_converter:
+            self.link_status = LINK_NO_DEVICE
+        else:
+            self.link_status = LINK_NO_ADAPTER if self.serial else LINK_NO_CONVERTER
         raise (
             last_err
             if isinstance(last_err, UpdateFailed)

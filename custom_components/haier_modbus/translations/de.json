@@ -2,7 +2,14 @@
   "config": {
     "step": {
       "user": {
-        "title": "Haier BWWP – Verbindung",
+        "title": "Haier BWWP – Verbindungsart",
+        "description": "Wie ist die Wärmepumpe angeschlossen? Die native Schnittstelle ist Modbus RTU (9600 8N1). Entweder über einen Modbus-RTU→TCP-Konverter im Netzwerk oder direkt per USB/RS-485-Adapter am Home-Assistant-Rechner.",
+        "data": {
+          "connection_type": "Verbindungsart"
+        }
+      },
+      "tcp": {
+        "title": "Haier BWWP – Verbindung (TCP-Konverter)",
         "description": "Verbindungsdaten zur Modbus-TCP-Schnittstelle. Die native Schnittstelle der BWWP ist Modbus RTU (9600 8N1); als Host wird daher in der Regel ein Modbus-RTU→TCP-Konverter (Gateway) angegeben.",
         "data": {
           "host": "Host / IP-Adresse",
@@ -13,6 +20,22 @@
         },
         "data_description": {
           "host": "I. d. R. die IP des Modbus-RTU→TCP-Konverters, nicht der Wärmepumpe selbst.",
+          "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1)."
+        }
+      },
+      "serial": {
+        "title": "Haier BWWP – Verbindung (seriell)",
+        "description": "Direkter Anschluss per USB/RS-485-Adapter (Modbus RTU, 8 Datenbits, keine Parität, 1 Stoppbit). Nicht gleichzeitig eine YAML-`modbus:`-Konfiguration auf demselben Adapter betreiben – es darf nur einen Bus-Master geben.",
+        "data": {
+          "serial_port": "Serieller Port",
+          "baudrate": "Baudrate",
+          "slave": "Modbus-Slave-ID",
+          "scan_interval": "Abfrageintervall (Sekunden)",
+          "model": "Modell"
+        },
+        "data_description": {
+          "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen; /dev/ttyUSB0 kann sich nach einem Neustart ändern.",
+          "baudrate": "Laut Hersteller 9600.",
           "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1)."
         }
       },
@@ -97,7 +120,8 @@
       "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird.",
       "temp_order_normal": "Die Erhöht-Zieltemperatur muss höher sein als die Normal-Zieltemperatur – sonst gibt es keine Zwischenstufe und die Regelstufen fallen zusammen.",
       "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen.",
-      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab."
+      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab.",
+      "cannot_connect_serial": "Keine Antwort über den seriellen Adapter. Port, Baudrate, Slave-ID und Verdrahtung (A/B) prüfen; der Port darf nicht von einer anderen Integration belegt sein."
     },
     "abort": {
       "already_configured": "Diese Wärmepumpe ist bereits eingerichtet."
@@ -109,8 +133,11 @@
         "title": "Einstellungen (Verbindung, COP, PV)",
         "description": "Verbindung, COP-/Energiequellen und optionale PV-Überschuss-Steuerung. Host/Port/Slave ändern die Anbindung an den Modbus-Konverter.",
         "data": {
+          "connection_type": "Verbindungsart",
           "host": "Host / IP-Adresse (Modbus-Konverter)",
           "port": "Port",
+          "serial_port": "Serieller Port (nur seriell)",
+          "baudrate": "Baudrate (nur seriell)",
           "slave": "Modbus-Slave-ID",
           "model": "Modell",
           "scan_interval": "Abfrageintervall (Sekunden)",
@@ -147,7 +174,9 @@
           "legionella_hold_min": "So lange muss Tank unten die Nachweis-Schwelle halten, bevor der Lauf als erfolgreich zählt.",
           "legionella_window_start": "Bevorzugtes Zeitfenster (i. d. R. das ECO-Fenster des Geräts): Der Lauf startet nach Möglichkeit hier und heizt zunächst effizient in ECO mit; kommt er nicht ans Ziel, eskaliert er auf AUTO. Überfällig wird der Schutz notfalls auch außerhalb erzwungen.",
           "legionella_window_end": "Ende des bevorzugten Fensters (i. d. R. das ECO-Fenster des Geräts).",
-          "dashboard_enabled": "Legt beim Setup das Dashboard „Haier BWWP“ an (editierbar, wenn Home Assistant das zulässt). Aus: kein Dashboard mehr anlegen; ein nicht editierbares YAML-Dashboard der Integration wird entfernt, ein bereits angelegtes editierbares bleibt bestehen und lässt sich unter Einstellungen → Dashboards löschen."
+          "dashboard_enabled": "Legt beim Setup das Dashboard „Haier BWWP“ an (editierbar, wenn Home Assistant das zulässt). Aus: kein Dashboard mehr anlegen; ein nicht editierbares YAML-Dashboard der Integration wird entfernt, ein bereits angelegtes editierbares bleibt bestehen und lässt sich unter Einstellungen → Dashboards löschen.",
+          "connection_type": "TCP: über einen Modbus-RTU→TCP-Konverter (Host/Port). Seriell: direkt per USB/RS-485-Adapter (serieller Port/Baudrate). Es gelten nur die Felder der gewählten Art.",
+          "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen."
         }
       },
       "pv": {
@@ -209,7 +238,9 @@
       "pv_sensor_required": "Bitte zuerst einen PV-Überschuss-Sensor wählen, bevor die Steuerung aktiviert wird.",
       "temp_order_normal": "Die Erhöht-Zieltemperatur muss höher sein als die Normal-Zieltemperatur – sonst gibt es keine Zwischenstufe und die Regelstufen fallen zusammen.",
       "temp_order_high": "Die Boost-Zieltemperatur darf nicht unter der Erhöht-Zieltemperatur liegen.",
-      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab."
+      "pv_high_too_low": "Die Boost-Schwelle muss mindestens die Heizstab-Nennleistung + 50 W betragen – sonst schaltet der Heizstab in den Netzbezug hinein ab.",
+      "host_required": "Für die Verbindungsart TCP ist ein Host nötig.",
+      "serial_port_required": "Für die serielle Verbindung ist ein serieller Port nötig."
     }
   },
   "selector": {
@@ -244,6 +275,12 @@
       "options": {
         "charge_positive": "Laden positiv (+ = Laden)",
         "charge_negative": "Laden negativ (− = Laden)"
+      }
+    },
+    "connection_type": {
+      "options": {
+        "tcp": "TCP (Modbus-RTU→TCP-Konverter)",
+        "serial": "Seriell (USB/RS-485-Adapter)"
       }
     }
   },
@@ -319,7 +356,8 @@
         "state": {
           "ok": "OK",
           "no_converter": "Konverter nicht erreichbar",
-          "no_device": "Gerät antwortet nicht"
+          "no_device": "Gerät antwortet nicht",
+          "no_adapter": "Serieller Adapter nicht verfügbar"
         }
       },
       "legionella_status": {
