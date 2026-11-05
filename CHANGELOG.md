@@ -8,7 +8,7 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 ## [2.0.0] - 2026-11-05
 
 Großes Update: neues Dashboard, neu aufgebauter Einrichtungsassistent und Options-Dialog.
-**Benötigt Home Assistant ab 2024.7** (vorher 2024.2). Entwickelt und geprüft auf
+**Benötigt Home Assistant ab 2025.1** (vorher 2024.2). Entwickelt und geprüft auf
 HA 2026.10/2026.11.
 
 **Neu: Einrichtungsassistent und Optionen übersichtlicher.**
@@ -36,7 +36,10 @@ Systemsprache:
   Statusleiste: Modbus, Fehler, Geräteuhr (als „+63 min“), Notheizung („bereit · < 38 °C“).
 - **Statusleiste** unter der Speicher-Grafik einzeilig: Modbus, Fehler, Geräteuhr,
   Notheizung („bereit <38°“).
-- **Betrieb:** Schalter, Solltemperatur (+/–) und Modus als kleine Kacheln,
+- **Betrieb:** Schalter (Betrieb, Boost, Leise, Sterilisation) schalten erst **nach
+  Rückfrage** – ein versehentlicher Tipp schaltet das Gerät nicht mehr aus. Im
+  Executor-Modus (z. B. evcc) zusätzlich das **PV-Programm** als Auswahl.
+- Solltemperatur (+/–) und Modus als kleine Kacheln,
   PV-Regelung (nur mit PV), **Regelverlauf** (Logbuch für Sollwert, Modus, Boost,
   Legionellen, Notheizung, PV).
 - **Jahresarbeitszahl & COP:** Kennzahlen (JAZ laufendes Jahr, COP Monat, Wärme und
@@ -71,6 +74,11 @@ verlangt je Nutzer eine Bestätigung), sondern zeigt einen Reparatur-Hinweis mit
 über HACS.
 
 **Kleinigkeiten:**
+- Optionen „Schutzfunktionen“: Die Notheizung erscheint bei Bestandsinstallationen ohne
+  gesetzten Wert korrekt als aus (sonst hätte Speichern sie still eingeschaltet).
+- Veraltete Reparatur-Hinweise für ApexCharts/card-mod werden entfernt.
+- Diagrammfarben je Linie im Dashboard benötigen HA 2026.6; ältere Versionen zeigen
+  Standardfarben.
 - Uhr-Abweichung ohne Nachkommastellen (vorher „3.762,00 s“).
 - PV-Meldung „Leerlauf-Start“ hängt jetzt am Sollwert und erscheint damit im
   Regelverlauf.

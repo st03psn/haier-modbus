@@ -278,7 +278,9 @@ def _protection_schema(o: dict[str, Any], full: bool) -> vol.Schema:
     Standardwerten; alle Schwellen und Zeiten in den Optionen.
     """
     fields: dict[Any, Any] = {
-        vol.Optional(CONF_EMERGENCY_ENABLED, default=o.get(CONF_EMERGENCY_ENABLED, True)): bool,
+        # Ersteinrichtung: empfohlen an. Optionen: fehlender Key = aus (wie emergency.py),
+        # sonst würde Speichern die Notheizung still einschalten.
+        vol.Optional(CONF_EMERGENCY_ENABLED, default=o.get(CONF_EMERGENCY_ENABLED, not full)): bool,
     }
     if full:
         fields.update({

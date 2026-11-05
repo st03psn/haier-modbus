@@ -376,7 +376,10 @@ async def _async_ensure_frontend_cards(hass: HomeAssistant) -> None:
                 _missing_from_filesystem, hass.config.path()
             )
 
-        # 2. Vorhandene -> evtl. alten Repair-Hinweis löschen.
+        # 2. Vorhandene -> evtl. alten Repair-Hinweis löschen. Dazu Hinweise für Karten,
+        #    die das Dashboard seit 2.0.0 nicht mehr braucht (sonst blieben sie ewig stehen).
+        for retired in ("apexcharts_card", "card_mod"):
+            async_delete_issue(hass, DOMAIN, f"missing_frontend_card_{retired}")
         present = {
             n for n, _, _, _ in _REQUIRED_FRONTEND_CARDS
         } - {m[0] for m in missing}

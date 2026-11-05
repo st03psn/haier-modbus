@@ -83,7 +83,7 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 
 Später ändern: *Einstellungen → Geräte & Dienste → Haier → Konfigurieren* – ein Menü mit
 *Verbindung & Gerät · Energie & COP · PV-Überschuss · Schutzfunktionen · Dashboard*.
-Benötigt Home Assistant **ab 2024.7**.
+Benötigt Home Assistant **ab 2025.1**.
 
 Alternativ lokal: Ordner `custom_components/haier_modbus/` nach
 `<config>/custom_components/` kopieren und neu starten.
@@ -535,4 +535,4 @@ integration → choose the connection type: **TCP** (converter's IP, port `502`)
 **Serial** (USB/RS485 adapter port, 9600 baud) → slave `1`, model → energy & COP →
 protection (emergency heating, legionella) → optional PV surplus (fine-tuning in collapsible
 sections). Everything is changeable later under *Configure* (menu: connection, energy, PV,
-protection, dashboard). Requires Home Assistant **2024.7 or later**. License: [MIT](LICENSE).
+protection, dashboard). Requires Home Assistant **2025.1 or later**. License: [MIT](LICENSE).

@@ -36,6 +36,7 @@ from .const import (
     DEFAULT_DASHBOARD_ENABLED,
     DEFAULT_PV_MODE,
     DOMAIN,
+    PV_MODE_EXECUTOR,
     PV_MODE_OFF,
     localized_title,
 )
@@ -75,6 +76,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         resolve,
         hass.config.language,
         with_pv=pv_mode != PV_MODE_OFF,
+        executor=pv_mode == PV_MODE_EXECUTOR,
         settings_path=f"/config/integrations/integration/{DOMAIN}",
     )
 
@@ -297,9 +299,7 @@ async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> N
             _publish_status(hass, None)
             return
         config = _build_config(hass, entry)
-        lovelace = hass.data.get("lovelace")
-        dashboards = getattr(lovelace, "dashboards", None)
-        existed = isinstance(dashboards, dict) and DASHBOARD_URL_PATH in dashboards
+        existed = DASHBOARD_URL_PATH in _dashboards(hass)
         reason = await _seed_storage_dashboard(hass, config)
         if reason is None:
             _LOGGER.info(
@@ -308,6 +308,7 @@ async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> N
             await _async_sync_layout(hass, config, existed)
             return
         await _register_yaml_dashboard(hass, config)
+        _publish_status(hass, DASHBOARD_LAYOUT_VERSION)  # YAML wird je Start neu erzeugt
         # WARNING statt INFO (#18): Der Rückfall ist nicht editierbar und kommt
         # bei jedem Start wieder – der Nutzer soll Grund und Ausweg sehen.
         _LOGGER.warning(
@@ -371,9 +372,8 @@ async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -
         _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
         return
 
-    lovelace = hass.data.get("lovelace")
-    dashboards = getattr(lovelace, "dashboards", None)
-    dash = dashboards.get(DASHBOARD_URL_PATH) if isinstance(dashboards, dict) else None
+    dashboards = _dashboards(hass)
+    dash = dashboards.get(DASHBOARD_URL_PATH)
     if dash is None or _is_own_yaml_dashboard(dashboards, DASHBOARD_URL_PATH):
         _publish_status(hass, DASHBOARD_LAYOUT_VERSION)  # YAML wird je Start neu erzeugt
         return
@@ -443,9 +443,8 @@ async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> No
     Dashboard, wird es wie beim Setup angelegt.
     """
     config = _build_config(hass, entry)
-    lovelace = hass.data.get("lovelace")
-    dashboards = getattr(lovelace, "dashboards", None)
-    store = dashboards.get(DASHBOARD_URL_PATH) if isinstance(dashboards, dict) else None
+    dashboards = _dashboards(hass)
+    store = dashboards.get(DASHBOARD_URL_PATH)
     if store is None or _is_own_yaml_dashboard(dashboards, DASHBOARD_URL_PATH):
         _remove_own_yaml_dashboard(hass)
         await async_register_dashboard(hass, entry)

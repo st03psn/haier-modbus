@@ -44,7 +44,11 @@ _TEXT: dict[str, dict[str, str]] = {
         "cop_month": "COP Monat", "cop_per_month": "COP pro Monat",
         "jaz_per_year": "JAZ pro Jahr",
         "dash_update": "Dashboard-Update verfügbar",
-        "ok": "OK", "emergency_short": "Notheizung",
+        "ok": "OK", "emergency_short": "Notheizung", "pv_program": "PV-Programm",
+        "confirm_active": "Betrieb der Wärmepumpe wirklich umschalten?",
+        "confirm_boost": "Boost (Wärmepumpe + Heizstab) wirklich umschalten?",
+        "confirm_mute": "Leise-Modus wirklich umschalten?",
+        "confirm_sterilize": "Sterilisation wirklich umschalten?",
         "dash_compare": "Neu zum Vergleich anlegen", "dash_promote": "Vergleich übernehmen",
         "dash_promote_confirm": "Das Vergleichs-Dashboard (inkl. deiner Änderungen daran) ersetzt das Haier-Dashboard. Fortfahren?",
         "cop_note": ("Wärme aus dem Geräteregister: COP/JAZ sind vermutlich deutlich zu hoch "
@@ -70,7 +74,11 @@ _TEXT: dict[str, dict[str, str]] = {
         "cop_month": "COP month", "cop_per_month": "COP per month",
         "jaz_per_year": "SCOP per year",
         "dash_update": "Dashboard update available",
-        "ok": "OK", "emergency_short": "Emergency",
+        "ok": "OK", "emergency_short": "Emergency", "pv_program": "PV program",
+        "confirm_active": "Really switch heat pump operation?",
+        "confirm_boost": "Really switch boost (heat pump + heater)?",
+        "confirm_mute": "Really switch quiet mode?",
+        "confirm_sterilize": "Really switch sterilisation?",
         "dash_compare": "Create new for comparison", "dash_promote": "Adopt comparison",
         "dash_promote_confirm": "The comparison dashboard (incl. your changes to it) replaces the Haier dashboard. Continue?",
         "cop_note": ("Heat from the device register: COP/SCOP are probably far too high "
@@ -258,11 +266,15 @@ def _tile(entity: str, name: str, **extra) -> dict:
     return card
 
 
-def _template(with_pv: bool, settings_path: str) -> dict:
+def _template(with_pv: bool, executor: bool, settings_path: str) -> dict:
     """Dashboard mit Platzhaltern (siehe Modul-Docstring)."""
     pv_vis = [{"condition": "state", "entity": "@E:sensor.pv_status@", "state_not": "off"}]
-    toggle = {"tap_action": {"action": "toggle"}, "icon_tap_action": {"action": "toggle"},
-              "grid_options": {"columns": 6}}
+    def toggle(confirm_key: str) -> dict:
+        # Schalten nur nach Rückfrage – ein versehentlicher Tipp soll das Gerät
+        # nicht ausschalten oder Boost/Sterilisation auslösen.
+        action = {"action": "toggle", "confirmation": {"text": f"§{confirm_key}§"}}
+        return {"tap_action": action, "icon_tap_action": dict(action),
+                "grid_options": {"columns": 6}}
 
     tank_card = {
         "type": "custom:button-card",
@@ -322,10 +334,12 @@ def _template(with_pv: bool, settings_path: str) -> dict:
          "badges": ([{"type": "entity", "entity": "@E:sensor.pv_status@", "name": "§pv§",
                       "show_name": True, "color": "amber", "visibility": pv_vis}]
                     if with_pv else [])},
-        _tile("@E:switch.active@", "§active§", **toggle),
-        _tile("@E:switch.boost@", "§boost§", icon="mdi:rocket-launch", color="orange", **toggle),
-        _tile("@E:switch.mute@", "§mute§", icon="mdi:volume-off", **toggle),
-        _tile("@E:switch.sterilize@", "§sterilize§", icon="mdi:bacteria", **toggle),
+        _tile("@E:switch.active@", "§active§", **toggle("confirm_active")),
+        _tile("@E:switch.boost@", "§boost§", icon="mdi:rocket-launch", color="orange",
+              **toggle("confirm_boost")),
+        _tile("@E:switch.mute@", "§mute§", icon="mdi:volume-off", **toggle("confirm_mute")),
+        _tile("@E:switch.sterilize@", "§sterilize§", icon="mdi:bacteria",
+              **toggle("confirm_sterilize")),
         # Bedienung klein im selben 2er-Raster wie die Schalter
         _tile("@E:water_heater.water_heater@", "§setpoint§", icon="mdi:thermometer-water",
               hide_state=True, features_position="bottom", grid_options={"columns": 6},
@@ -333,7 +347,12 @@ def _template(with_pv: bool, settings_path: str) -> dict:
         _tile("@E:select.mode@", "§mode§", hide_state=True, features_position="bottom",
               grid_options={"columns": 6}, features=[{"type": "select-options"}]),
     ]
-    if with_pv:
+    if executor:
+        # Executor (HEMS, z. B. evcc): das Programm-Select ist das zentrale Bedienelement.
+        operation.append(_tile("@E:select.pv_program@", "§pv_program§", icon="mdi:solar-power-variant",
+                               hide_state=True, features_position="bottom",
+                               features=[{"type": "select-options"}], grid_options={"columns": 12}))
+    if with_pv and not executor:
         operation.append(_tile("@E:sensor.pv_status@", "§pv_control§", icon="mdi:solar-power-variant",
                                color="amber", state_content="state", visibility=pv_vis,
                                grid_options={"columns": 12}))
@@ -426,10 +445,17 @@ def _prune(node):
         out = {}
         for key, val in node.items():
             if isinstance(val, list):
-                val = [_prune(v) for v in val]
-                val = [v for v in val if v is not None]
+                pruned = [_prune(v) for v in val]
+                pruned = [v for v in pruned if v is not None]
+                # Fehlt eine Entität einer Sichtbarkeitsbedingung, wäre die Karte sonst
+                # immer sichtbar -> dann die Karte selbst entfernen.
+                if key == "visibility" and len(pruned) != len(val):
+                    return None
+                val = pruned
             elif isinstance(val, dict):
                 val = _prune(val)
+                if val is None:
+                    continue  # z. B. tap_action ohne Entität: Schlüssel weglassen
             out[key] = val
         if out.get("entity") == "" and out.get("type") in (None, "tile", "entity", "custom:button-card"):
             return None
@@ -451,13 +477,14 @@ def build_layout(
     language: str | None,
     with_pv: bool,
     settings_path: str,
+    executor: bool = False,
 ) -> dict:
     """Fertige Dashboard-Konfiguration bauen.
 
     ``resolve(domain, key)`` liefert die entity_id zu ``<entry_id>_<key>`` oder None.
     """
     text = text_for(language)
-    raw = json.dumps(_template(with_pv, settings_path), ensure_ascii=False)
+    raw = json.dumps(_template(with_pv, executor, settings_path), ensure_ascii=False)
     raw = _ENTITY_TOKEN.sub(lambda m: resolve(m.group(1), m.group(2)) or "", raw)
     raw = _TEXT_TOKEN.sub(lambda m: text[m.group(1)], raw)
     return _prune(json.loads(raw))
