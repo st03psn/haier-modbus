@@ -16,7 +16,7 @@ kann die Wärmepumpe jetzt direkt seriell angebunden werden (Modbus RTU, 8N1).
 - Modbus-Status kennt den neuen Zustand **„Serieller Adapter nicht verfügbar“**
   (Port lässt sich nicht öffnen).
 - Bestehende Einrichtungen bleiben unverändert TCP.
-- Neue Abhängigkeit `pyserial`.
+- Benötigt `pyserial`; das bringt Home Assistant selbst mit, keine zusätzliche Installation.
 
 **Fix: Slave-ID bei älteren pymodbus-Versionen.** Die Integration übergab die Slave-ID als
 `device_id=` und fiel nur bei einem `TypeError` auf `slave=` zurück. Ältere pymodbus-Versionen

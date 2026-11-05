@@ -58,7 +58,8 @@ def create_client(settings: Mapping[str, Any], timeout: float = 3, retries: int 
     """pymodbus-Client passend zur Verbindungsart bauen.
 
     Seriell: RTU-Framer ist der pymodbus-Standard des Serial-Clients (3.6 bis
-    3.16 geprüft); benötigt ``pyserial`` (in manifest.json gelistet).
+    3.16 geprüft); benötigt ``pyserial``, das Home Assistant selbst mitbringt
+    (hassfest verbietet es deshalb im Manifest).
     """
     if is_serial(settings):
         return AsyncModbusSerialClient(
