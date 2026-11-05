@@ -295,9 +295,11 @@ ein Reparatur-Hinweis – installieren unter *Einstellungen → Marketplace*.
 
 **Aktualisierung:** Solange du das Dashboard nicht veränderst, bringt die Integration es
 bei Updates automatisch auf den neuesten Stand. Angepasste Dashboards werden nie
-überschrieben. Dashboards aus Versionen vor 1.24.0 gelten als angepasst; das neue Layout
-übernimmst du dort einmalig über *Entwicklerwerkzeuge → Aktionen* →
-`haier_modbus.rebuild_dashboard` (ersetzt eigene Anpassungen am Haier-Dashboard).
+überschrieben – für sie erscheint unter *Einstellungen* das Update **„Dashboard“**
+(`update.haier_hwhp_dashboard`), im neuen Layout zusätzlich als Kachel im Dashboard.
+*Installieren* übernimmt das neue Layout und ersetzt dabei eigene Anpassungen am
+Haier-Dashboard (alternativ: Aktion `haier_modbus.rebuild_dashboard`). Dashboards aus
+Versionen vor 1.24.0 gelten als angepasst und zeigen deshalb einmalig dieses Update.
 
 Lässt Home Assistant kein Storage-Dashboard zu, legt die Integration ersatzweise ein
 **nicht editierbares YAML-Dashboard** an und schreibt den Grund als Warnung ins Log.
@@ -328,7 +330,7 @@ Fully **local** over Modbus – no hOn cloud account required. Versus the cloud,
 local path offers write access, direct access to the energy registers and runs
 **without any internet/cloud dependency**.
 
-The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards are never overwritten. Dashboards from versions before 1.24.0 count as edited – run the action `haier_modbus.rebuild_dashboard` once to switch to the new layout.
+The bundled dashboard (single page, German/English) needs only **button-card**. It is kept up to date automatically as long as you do not edit it; edited dashboards are never overwritten – for them the update entity **“Dashboard”** (`update.haier_hwhp_dashboard`) appears under *Settings* (and as a card on the new dashboard); *Install* applies the new layout and replaces your own changes. Dashboards from versions before 1.24.0 count as edited and therefore show this update once.
 
 ### ⚠️ Important: does your unit even have Modbus?
 **Not every** unit in this series has the Modbus interface – unofficially it is only

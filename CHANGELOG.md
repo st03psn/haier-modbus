@@ -28,10 +28,14 @@ mehr benötigt.
 **Dashboard bleibt künftig automatisch aktuell – solange du es nicht anpasst.** Die
 Integration merkt sich einen Fingerabdruck des zuletzt geschriebenen Dashboards. Ist es
 beim nächsten Start unverändert, wird es still auf das aktuelle Layout gebracht (neue
-Versionen, PV an/aus, Sprache). Angepasste Dashboards bleiben unangetastet. Dashboards aus
-früheren Versionen haben noch keinen Fingerabdruck: Sie bekommen einmalig einen Hinweis
-auf den neuen Dienst **`haier_modbus.rebuild_dashboard`**, der das neue Layout übernimmt
-(eigene Anpassungen gehen dabei verloren) – danach läuft es automatisch.
+Versionen, PV an/aus, Sprache). Angepasste Dashboards bleiben unangetastet; für sie meldet
+die neue Update-Entität **„Dashboard“** (`update.haier_hwhp_dashboard`) ein Update. Es steht
+dauerhaft unter *Einstellungen* (wie andere Updates) und im neuen Layout zusätzlich als
+Kachel im Dashboard, bis es installiert ist – eine weggeklickte Benachrichtigung geht so nicht
+verloren. *Installieren* übernimmt das neue Layout (ersetzt eigene Anpassungen am
+Haier-Dashboard); dasselbe macht der Dienst `haier_modbus.rebuild_dashboard`. Dashboards aus
+Versionen vor 1.24.0 haben noch keinen Fingerabdruck und gelten als angepasst – dort bitte
+einmal über das Update übernehmen, danach läuft es automatisch.
 
 **HA 2026.11 / Marketplace:** HACS wird dort durch den eingebauten Marketplace ersetzt.
 Fehlt button-card, installiert die Integration sie dann nicht selbst (der Marketplace
