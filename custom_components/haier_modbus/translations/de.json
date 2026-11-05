@@ -677,16 +677,27 @@
         "step": {
           "init": {
             "title": "Neues Dashboard-Layout übernehmen?",
-            "description": "Für das Haier-Dashboard gibt es ein neues, kompakteres Layout (eine Seite, Speicher-Grafik, JAZ/COP-Karte). Dein bisheriges Dashboard wurde nicht automatisch geändert, weil es angepasst sein könnte.\n\n**Ja, übernehmen:** Das Haier-Dashboard bekommt das neue Layout. Eigene Anpassungen daran gehen verloren. Hast du vorher unter *Zahnrad → Dashboard* ein Vergleichs-Dashboard angelegt, wird stattdessen dieses übernommen – samt deiner Änderungen daran.\n\n**Nein, behalten:** Dein Dashboard bleibt, wie es ist. Dieser Hinweis kommt für dieses Layout nicht wieder. Übernehmen geht später jederzeit unter *Zahnrad → Dashboard*.",
+            "description": "Für das Haier-Dashboard gibt es ein neues, kompakteres Layout (eine Seite, Speicher-Grafik, JAZ/COP-Karte). Dein bisheriges Dashboard wurde nicht automatisch geändert, weil es angepasst sein könnte.\n\n**Ja, übernehmen:** Das Haier-Dashboard bekommt das neue Layout. Eigene Anpassungen daran gehen verloren.\n\n**Erst vergleichen:** Das neue Layout erscheint zusätzlich als „Haier BWWP (neu)“ in der Seitenleiste, dein Dashboard bleibt. Dieser Hinweis bleibt stehen – hier übernimmst du es später (gern auch angepasst).\n\n**Nein, behalten:** Dein Dashboard bleibt, wie es ist. Dieser Hinweis kommt für dieses Layout nicht wieder.",
             "menu_options": {
               "adopt": "Ja, neues Layout übernehmen",
+              "compare": "Erst vergleichen – Vergleichs-Dashboard anlegen",
+              "keep": "Nein, bisheriges Dashboard behalten"
+            }
+          },
+          "compare_ready": {
+            "title": "Vergleichs-Dashboard übernehmen?",
+            "description": "Das neue Layout liegt als „Haier BWWP (neu)“ in der Seitenleiste.\n\n**Vergleichs-Dashboard übernehmen:** Es wird samt deiner Änderungen daran zum Haier-Dashboard; das bisherige wird ersetzt, „(neu)“ verschwindet.\n\n**Neues Layout frisch übernehmen:** Das Haier-Dashboard bekommt das unveränderte neue Layout.\n\n**Nein, behalten:** Dein Dashboard bleibt; das Vergleichs-Dashboard kannst du unter Einstellungen → Dashboards löschen.",
+            "menu_options": {
+              "adopt_compare": "Vergleichs-Dashboard übernehmen",
+              "adopt": "Neues Layout frisch übernehmen",
               "keep": "Nein, bisheriges Dashboard behalten"
             }
           }
         },
         "abort": {
           "entry_missing": "Die Haier-Integration ist nicht eingerichtet.",
-          "adopt_failed": "Übernehmen fehlgeschlagen – Details im Log. Der Hinweis bleibt bestehen."
+          "adopt_failed": "Aktion fehlgeschlagen – Details im Log. Der Hinweis bleibt bestehen.",
+          "compare_created": "Vergleichs-Dashboard „Haier BWWP (neu)“ angelegt – du findest es in der Seitenleiste. Zum Übernehmen diesen Hinweis später erneut öffnen."
         }
       }
     }

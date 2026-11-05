@@ -307,6 +307,8 @@ Versionen vor 2.0.0) werden nie ungefragt überschrieben. Stattdessen:
 - **Reparatur-Hinweis** unter *Einstellungen → Reparaturen*: „Neues Dashboard-Layout
   übernehmen?“ mit **Ja** (neues Layout übernehmen – eigene Anpassungen gehen verloren)
   oder **Nein** (Dashboard behalten; der Hinweis kommt für dieses Layout nicht wieder).
+  **Erst vergleichen** legt das neue Layout zusätzlich als „… (neu)“ an; der Hinweis bleibt
+  und bietet danach an, das Vergleichs-Dashboard (samt deiner Änderungen) zu übernehmen.
 - Update **„Dashboard“** (`update.haier_hwhp_dashboard`) unter *Einstellungen*, im neuen
   Layout zusätzlich als Kachel. *Aktualisieren* übernimmt das neue Layout (alternativ:
   Aktion `haier_modbus.rebuild_dashboard`).
