@@ -525,6 +525,11 @@
       "legionella_window_end": {
         "name": "Legionellen Fenster Ende"
       }
+    },
+    "update": {
+      "dashboard": {
+        "name": "Dashboard"
+      }
     }
   },
   "issues": {

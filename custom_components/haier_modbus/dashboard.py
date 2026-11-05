@@ -22,6 +22,7 @@ from homeassistant.components import frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
 from .const import (
@@ -291,6 +292,7 @@ async def async_register_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> N
         await hass.async_add_executor_job(_cleanup_legacy_dir, hass.config.path())
         if not entry.options.get(CONF_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_ENABLED):
             _remove_own_yaml_dashboard(hass)
+            _publish_status(hass, None)
             return
         config = _build_config(hass, entry)
         lovelace = hass.data.get("lovelace")
@@ -324,28 +326,45 @@ def _config_hash(config: dict | None) -> str | None:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+LAYOUT_SIGNAL = f"{DOMAIN}_dashboard_layout"
+LAYOUT_STATUS_KEY = f"{DOMAIN}_dashboard_layout"
+
+
+def _publish_status(hass: HomeAssistant, applied: int | None) -> None:
+    """Stand für die Update-Entität bereitstellen (None = kein Dashboard verwaltet)."""
+    hass.data[LAYOUT_STATUS_KEY] = {"applied": applied, "latest": DASHBOARD_LAYOUT_VERSION}
+    async_dispatcher_send(hass, LAYOUT_SIGNAL)
+
+
 async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -> None:
     """Mitgeliefertes Layout aktuell halten, ohne Nutzer-Anpassungen zu überschreiben.
 
-    Gespeichert wird der Fingerabdruck (Hash) des zuletzt von der Integration
-    geschriebenen Dashboards. Entspricht das gespeicherte Dashboard noch genau
-    diesem Stand, hat der Nutzer nichts verändert -> es wird still auf das aktuelle
-    Layout gebracht (neue Version, PV an/aus, Sprache …). Weicht es ab, bleibt es
-    unangetastet; bei einer neuen Layout-Generation gibt es dann einmalig einen
-    Hinweis auf den Dienst ``rebuild_dashboard``. Dashboards aus Versionen vor
-    v1.24.0 haben noch keinen Fingerabdruck und gelten deshalb als angepasst.
+    Gespeichert (``.storage/haier_modbus.dashboard_layout``):
+      ``applied``  Layout-Generation, die zuletzt ins Dashboard geschrieben wurde
+      ``hash``     Fingerabdruck dieses geschriebenen Dashboards
+      ``notified`` Generation, zu der schon eine Benachrichtigung kam
+    Entspricht das gespeicherte Dashboard noch dem Fingerabdruck, hat der Nutzer
+    nichts verändert -> es wird still auf das aktuelle Layout gebracht. Sonst
+    bleibt es unangetastet; ist seine Generation älter, meldet die Update-Entität
+    ``update.<…>_dashboard`` ein Update (dauerhaft sichtbar unter Einstellungen
+    und – im neuen Layout – als Kachel im Dashboard) und es gibt einmalig eine
+    Benachrichtigung. Dashboards vor v1.24.0 haben keinen Fingerabdruck und
+    gelten als angepasst (Generation 1).
     """
     meta_store: Store = Store(hass, 1, _LAYOUT_STORE_KEY)
     meta = await meta_store.async_load() or {}
     new_hash = _config_hash(config)
     if not existed:  # gerade frisch angelegt
-        await meta_store.async_save({"version": DASHBOARD_LAYOUT_VERSION, "hash": new_hash})
+        await meta_store.async_save({"applied": DASHBOARD_LAYOUT_VERSION, "hash": new_hash,
+                                     "notified": DASHBOARD_LAYOUT_VERSION})
+        _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
         return
 
     lovelace = hass.data.get("lovelace")
     dashboards = getattr(lovelace, "dashboards", None)
     dash = dashboards.get(DASHBOARD_URL_PATH) if isinstance(dashboards, dict) else None
     if dash is None or _is_own_yaml_dashboard(dashboards, DASHBOARD_URL_PATH):
+        _publish_status(hass, DASHBOARD_LAYOUT_VERSION)  # YAML wird je Start neu erzeugt
         return
     try:
         current = await dash.async_load(False)
@@ -357,11 +376,16 @@ async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -
         if cur_hash != new_hash:
             await dash.async_save(config)
             _LOGGER.info("Unverändertes Haier-Dashboard auf aktuelles Layout gebracht")
-        await meta_store.async_save({"version": DASHBOARD_LAYOUT_VERSION, "hash": new_hash})
+        await meta_store.async_save({"applied": DASHBOARD_LAYOUT_VERSION, "hash": new_hash,
+                                     "notified": DASHBOARD_LAYOUT_VERSION})
+        _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
         return
 
-    if meta.get("version", 0) >= DASHBOARD_LAYOUT_VERSION:
-        return  # angepasst und Hinweis schon gegeben
+    applied = int(meta.get("applied", 1))
+    notified = int(meta.get("notified", 0))
+    _publish_status(hass, applied)
+    if applied >= DASHBOARD_LAYOUT_VERSION or notified >= DASHBOARD_LAYOUT_VERSION:
+        return
     de = (hass.config.language or "en").lower().startswith("de")
     title = localized_title(hass.config.language)
     await hass.services.async_call(
@@ -373,23 +397,25 @@ async def _async_sync_layout(hass: HomeAssistant, config: dict, existed: bool) -
             "message": (
                 "Für das Dashboard gibt es ein neues, kompakteres Design (eine Seite, "
                 "Speicher-Grafik, JAZ/COP-Karte). Dein bestehendes Dashboard wurde "
-                "**nicht** verändert, weil es angepasst sein könnte.\n\nÜbernehmen: "
-                "*Entwicklerwerkzeuge → Aktionen* → `haier_modbus.rebuild_dashboard` "
-                "ausführen. **Achtung:** Das ersetzt eigene Anpassungen am Haier-Dashboard. "
-                "Danach hält die Integration das Dashboard automatisch aktuell, solange du "
-                "es nicht veränderst."
+                "**nicht** verändert, weil es angepasst sein könnte.\n\n**Übernehmen:** "
+                "*Einstellungen* → Update „Dashboard“ der Haier-Integration → *Installieren* "
+                "(bleibt dort sichtbar, bis es übernommen ist). **Achtung:** Das ersetzt "
+                "eigene Anpassungen am Haier-Dashboard. Danach hält die Integration das "
+                "Dashboard automatisch aktuell, solange du es nicht veränderst."
                 if de else
                 "A new, more compact dashboard design is available (single page, tank "
                 "graphic, SCOP/COP card). Your existing dashboard was **not** changed, as it "
-                "may contain your own changes.\n\nTo apply it, run the action "
-                "`haier_modbus.rebuild_dashboard` under *Developer tools → Actions*. "
-                "**Note:** this replaces your own changes to the Haier dashboard. Afterwards "
-                "the integration keeps the dashboard up to date as long as you do not edit it."
+                "may contain your own changes.\n\n**To apply it:** *Settings* → update "
+                "“Dashboard” of the Haier integration → *Install* (it stays listed there until "
+                "applied). **Note:** this replaces your own changes to the Haier dashboard. "
+                "Afterwards the integration keeps the dashboard up to date as long as you do "
+                "not edit it."
             ),
         },
         blocking=False,
     )
-    await meta_store.async_save({"version": DASHBOARD_LAYOUT_VERSION, "hash": None})
+    await meta_store.async_save({**meta, "applied": applied,
+                                 "notified": DASHBOARD_LAYOUT_VERSION})
 
 
 async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -409,8 +435,10 @@ async def async_rebuild_dashboard(hass: HomeAssistant, entry: ConfigEntry) -> No
     else:
         await store.async_save(config)
     await Store(hass, 1, _LAYOUT_STORE_KEY).async_save(
-        {"version": DASHBOARD_LAYOUT_VERSION, "hash": _config_hash(config)}
+        {"applied": DASHBOARD_LAYOUT_VERSION, "hash": _config_hash(config),
+         "notified": DASHBOARD_LAYOUT_VERSION}
     )
+    _publish_status(hass, DASHBOARD_LAYOUT_VERSION)
     await hass.services.async_call(
         "persistent_notification", "dismiss", {"notification_id": _NOTIFY_ID}, blocking=False
     )

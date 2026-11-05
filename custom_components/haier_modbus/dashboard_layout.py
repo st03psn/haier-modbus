@@ -43,6 +43,7 @@ _TEXT: dict[str, dict[str, str]] = {
         "clock": "Geräteuhr", "ready": "bereit", "jaz": "JAZ", "ytd": "lfd.",
         "cop_month": "COP Monat", "cop_per_month": "COP pro Monat",
         "jaz_per_year": "JAZ pro Jahr",
+        "dash_update": "Dashboard-Update verfügbar",
     },
     "en": {
         "view": "Hot water", "tank": "Tank", "operation": "Operation",
@@ -63,6 +64,7 @@ _TEXT: dict[str, dict[str, str]] = {
         "clock": "Device clock", "ready": "ready", "jaz": "SCOP", "ytd": "YTD",
         "cop_month": "COP month", "cop_per_month": "COP per month",
         "jaz_per_year": "SCOP per year",
+        "dash_update": "Dashboard update available",
     },
 }
 
@@ -366,6 +368,12 @@ def _template(with_pv: bool, settings_path: str) -> dict:
         {"type": "heading", "heading": "§tank§", "icon": "mdi:water-boiler",
          "badges": [{"type": "button", "icon": "mdi:cog",
                      "tap_action": {"action": "navigate", "navigation_path": settings_path}}]},
+        # Nur sichtbar, wenn ein neueres Layout bereitsteht (angepasstes Dashboard,
+        # das nicht automatisch erneuert werden durfte) – direkt hier installierbar.
+        _tile("@E:update.dashboard@", "§dash_update§", icon="mdi:view-dashboard-edit-outline",
+              color="amber", features=[{"type": "update-actions"}], features_position="bottom",
+              visibility=[{"condition": "state", "entity": "@E:update.dashboard@", "state": "on"}],
+              grid_options={"columns": 12}),
         tank_card,
     ]
 

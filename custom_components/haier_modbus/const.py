@@ -491,4 +491,5 @@ PLATFORMS: Final = [
     "switch",
     "binary_sensor",
     "time",
+    "update",
 ]
