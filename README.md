@@ -301,8 +301,8 @@ nach Systemsprache):
 
 - **Speicher:** Geräteabbild des gewählten Modells (seit v2.1.0; eigene Zeichnung, siehe
   [`docs/m7-modelle.md`](docs/m7-modelle.md)). Das Warmwasser liegt als Schicht oben
-  (Füllstand = Anteil von oben), darunter die kalte Zone; Farbe von Blau (≤ kritische
-  Schwelle der Notheizung) bis Rot (≥ Solltemperatur), Temperatur oben/unten am Rand.
+  (Füllstand = Anteil von oben), darunter die kalte Zone; Farbe Blau (unter der kritischen
+  Schwelle der Notheizung), Gelb (warm) bis Rot (≥ Solltemperatur), Temperatur oben/unten am Rand.
   Der Heizstab leuchtet, solange er läuft. Daneben alle Betriebszustände
   (Wärmepumpe, Heizstab, Boost, Leise, Sterilisation, aktive Regelung, Legionellen,
   Umgebung), darunter eine Statusleiste (Modbus, Fehler, Geräteuhr, Notheizung).

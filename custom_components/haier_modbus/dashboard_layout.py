@@ -89,7 +89,7 @@ _TEXT: dict[str, dict[str, str]] = {
 # Maße nach Haier-Datenblatt, 1 SVG-Einheit = 5 mm: Ø 600 mm, Höhe je Modell
 # (``const.MODEL_HEIGHT_MM``). Kopfhöhe (~455 mm) aus dem Produktfoto geschätzt.
 # Der Speicher ist ein „Fenster“ mit Schichtung (Warmwasser oben) + Farbskala
-# Blau (kalt, ≤ kritische Schwelle) -> Rot (heiß, ≥ Soll); die
+# Blau (kalt, < kritische Schwelle) -> Gelb (warm) -> Rot (heiß, ≥ Soll); die
 # Rohrschlange (Solar-/Kessel-Register, Varianten „…M7C-F9“) leuchtet bei aktiver
 # Quelle (Reg 3 bit2/bit3). Mit eigenem Bild liegen die Werte als Overlay darüber.
 IMAGE_URL_RE = re.compile(r"^(/local/|https?://)[A-Za-z0-9/._~:%?&=+#-]+$")
@@ -104,7 +104,8 @@ _JS_TANK_HEAD = (
     "const mix = (a, b, f) => a.map((v, i) => Math.round(v + (b[i] - v) * f)); "
     "const col = (t) => { if (isNaN(t)) return '#9e9e9e'; "
     "const x = Math.max(0, Math.min(1, (t - lo) / (hi - lo))); "
-    "const c = x < 0.5 ? mix([30, 120, 220], [255, 152, 0], x / 0.5) : mix([255, 152, 0], [211, 47, 47], (x - 0.5) / 0.5); "
+    "const c = t <= lo - 4 ? [30, 120, 220] : t < lo ? mix([30, 120, 220], [250, 200, 30], (t - lo + 4) / 4) "
+    ": x < 0.5 ? mix([250, 200, 30], [245, 140, 20], x / 0.5) : mix([245, 140, 20], [211, 47, 47], (x - 0.5) / 0.5); "
     "return `rgb(${c.join(',')})`; }; "
     "const fmt = (t) => isNaN(t) ? '–' : Math.round(t) + '°'; "
     "const on = (id) => states[id] ? states[id].state === 'on' : false; "

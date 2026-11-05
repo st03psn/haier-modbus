@@ -13,7 +13,7 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   laut Haier-Datenblatt).
 - **Füllstand als Schichtung:** Das Warmwasser liegt oben (Füllstand = Anteil von oben),
   darunter die kalte Zone, je Zone eine Farbe (nach Tank oben bzw. unten). Neue Farbskala
-  **Blau (kalt) → Rot (heiß)** statt Rot → Grün;
+  **Blau (unter kritischer Schwelle) → Gelb (warm) → Rot (heiß, ab Soll)** statt Rot → Grün;
   Temperaturen oben/unten ohne Beschriftung, dafür kontrastreicher; die Prozentangabe
   entfällt in der Grafik (Schichtgrenze zeigt den Füllstand, Sensor bleibt).
   Keine Haier-Fotos – Begründung und Quellen in `docs/m7-modelle.md`.
