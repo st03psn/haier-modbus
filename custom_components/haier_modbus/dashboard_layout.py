@@ -223,18 +223,25 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
         )
     else:
         dw = 160 / 5
-        body = (
-            f"<rect x='{_f(cx - 14 - dw / 2)}' y='{_f(y0 - 4)}' width='{_f(dw)}' height='7' rx='1.5' "
+        # zwei Luftkanal-Stutzen (Zu- und Abluft, je Ø 160 mm) oben auf dem Kopf
+        ducts = "".join(
+            f"<rect x='{_f(dx - dw / 2)}' y='{_f(y0 - 4)}' width='{_f(dw)}' height='7' rx='1.5' "
             "fill='#e8eaec' stroke='#a9adb2' stroke-width='.6'/>"
-            f"<rect x='{_f(x0 + 2)}' y='{_f(y0 + h - foot)}' width='{_f(W - 4)}' height='{_f(foot)}' rx='3' fill='url(#hwhpD)'/>"
+            f"<rect x='{_f(dx - dw / 2 + 2)}' y='{_f(y0 - 4)}' width='{_f(dw - 4)}' height='1.6' rx='.8' fill='#b9bdc2'/>"
+            for dx in (cx - 30, cx + 30)
+        )
+        body = (
+            ducts
+            + f"<rect x='{_f(x0 + 2)}' y='{_f(y0 + h - foot)}' width='{_f(W - 4)}' height='{_f(foot)}' rx='3' fill='url(#hwhpD)'/>"
             f"<path d='M{_f(x0)},{_f(y0 + 8)} Q{_f(x0)},{_f(y0)} {_f(x0 + 10)},{_f(y0)} H{_f(x0 + W - 10)} "
             f"Q{_f(x0 + W)},{_f(y0)} {_f(x0 + W)},{_f(y0 + 8)} V{_f(y0 + h - foot)} H{_f(x0)} Z' "
             "fill='url(#hwhpB)' stroke='#9ea3a9' stroke-width='.7'/>"
             f"<rect x='{_f(x0)}' y='{_f(band)}' width='{_f(W)}' height='2.6' fill='url(#hwhpD)'/>"
-            f"<rect x='{_f(cx - 10.5)}' y='{_f(y0 + 4)}' width='21' height='61' rx='1.5' fill='url(#hwhpD)'/>"
-            f"<rect x='{_f(cx - 6)}' y='{_f(y0 + 30)}' width='12' height='7' rx='.8' "
+            # Bedienfeld (etwas größer als maßstäblich, damit das Display erkennbar bleibt)
+            f"<rect x='{_f(cx - 14)}' y='{_f(y0 + 4)}' width='28' height='74' rx='2' fill='url(#hwhpD)'/>"
+            f"<rect x='{_f(cx - 10)}' y='{_f(y0 + 24)}' width='20' height='13' rx='1.2' "
             "fill='${water >= lo || isNaN(water) ? \"#cfe3f2\" : \"#ffcc80\"}'/>"
-            f"<circle cx='{_f(cx)}' cy='{_f(y0 + 44)}' r='2.6' fill='none' stroke='#8a9097' stroke-width='.7'/>"
+            f"<circle cx='{_f(cx)}' cy='{_f(y0 + 52)}' r='4' fill='none' stroke='#8a9097' stroke-width='.9'/>"
             f"<rect x='{_f(x0 - 2.5)}' y='{_f(band - 3)}' width='4' height='3' rx='.6' fill='#2a2d31'/>"
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='#dfe3e7' opacity='.55'/>"
             "<g clip-path='url(#hwhpC)'>"

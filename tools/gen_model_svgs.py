@@ -64,10 +64,13 @@ def svg(key: str, m: dict, fill_pct: float | None = 70) -> str:
              "<stop offset='1' stop-color='#000' stop-opacity='.22'/></linearGradient>"
              f"<clipPath id='win'><rect x='{tx}' y='{ty}' width='{tw}' height='{th}' rx='10'/></clipPath>"
              "</defs>")
-    # Luftkanal-Stutzen (Ø 160 mm) oben links
+    # zwei Luftkanal-Stutzen (Zu- und Abluft, je Ø 160 mm) oben
     dw = 160 * MM
-    p.append(f"<rect x='{cx - 14 - dw / 2:.1f}' y='{y0 - 4:.1f}' width='{dw:.1f}' height='7' rx='1.5' "
-             "fill='#e8eaec' stroke='#a9adb2' stroke-width='.6'/>")
+    for dx in (cx - 30, cx + 30):
+        p.append(f"<rect x='{dx - dw / 2:.1f}' y='{y0 - 4:.1f}' width='{dw:.1f}' height='7' rx='1.5' "
+                 "fill='#e8eaec' stroke='#a9adb2' stroke-width='.6'/>")
+        p.append(f"<rect x='{dx - dw / 2 + 2:.1f}' y='{y0 - 4:.1f}' width='{dw - 4:.1f}' height='1.6' "
+                 "rx='.8' fill='#b9bdc2'/>")
     # Sockel
     p.append(f"<rect x='{x0 + 2}' y='{y0 + h - foot:.1f}' width='{w - 4}' height='{foot:.1f}' rx='3' fill='url(#dark)'/>")
     # Mantel
@@ -77,11 +80,11 @@ def svg(key: str, m: dict, fill_pct: float | None = 70) -> str:
     # Trennfuge Kopf/Speicher
     p.append(f"<rect x='{x0}' y='{band_y:.1f}' width='{w}' height='2.6' fill='url(#dark)'/>")
     # Bedienfeld
-    pw, ph = 21, 61
+    pw, ph = 28, 74
     py = y0 + 4
     p.append(f"<rect x='{cx - pw / 2:.1f}' y='{py:.1f}' width='{pw}' height='{ph}' rx='1.5' fill='url(#dark)'/>")
-    p.append(f"<rect x='{cx - 6:.1f}' y='{py + 26:.1f}' width='12' height='7' rx='.8' fill='#cfe3f2'/>")
-    p.append(f"<circle cx='{cx:.1f}' cy='{py + 40:.1f}' r='2.6' fill='none' stroke='#8a9097' stroke-width='.7'/>")
+    p.append(f"<rect x='{cx - 10:.1f}' y='{py + 20:.1f}' width='20' height='13' rx='1.2' fill='#cfe3f2'/>")
+    p.append(f"<circle cx='{cx:.1f}' cy='{py + 48:.1f}' r='4' fill='none' stroke='#8a9097' stroke-width='.9'/>")
     # Seitlicher Anschluss (Kondensatablauf) an der Fuge links
     p.append(f"<rect x='{x0 - 2.5}' y='{band_y - 3:.1f}' width='4' height='3' rx='.6' fill='#2a2d31'/>")
     # Speicher-Fenster: Wasser + optional Register
