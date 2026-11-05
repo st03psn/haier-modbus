@@ -5,6 +5,14 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.0.1] - 2026-11-05
+
+**Korrekturen am Dashboard.**
+- Der Text der Update-Entität „Dashboard“ war zu lang. HA kürzt ihn auf 255 Zeichen, sodass
+  das Ende fehlte. Er ist jetzt gekürzt.
+- COP-Hinweis in der Karte „Jahresarbeitszahl & COP“: Text steht jetzt bündig links neben
+  dem Warnsymbol (vorher mittig/rechts abgesetzt).
+
 ## [2.0.0] - 2026-11-05
 
 Großes Update: neues Dashboard, neu aufgebauter Einrichtungsassistent und Options-Dialog.
