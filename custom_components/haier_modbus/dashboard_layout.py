@@ -51,8 +51,7 @@ _TEXT: dict[str, dict[str, str]] = {
         "confirm_sterilize": "Sterilisation wirklich umschalten?",
         "dash_compare": "Neu zum Vergleich anlegen", "dash_promote": "Vergleich übernehmen",
         "dash_promote_confirm": "Das Vergleichs-Dashboard (inkl. deiner Änderungen daran) ersetzt das Haier-Dashboard. Fortfahren?",
-        "cop_note": ("Wärme aus dem Geräteregister: COP/JAZ sind vermutlich deutlich zu hoch "
-                     "(Messung: Faktor 2 bis 3,7). Wird in einem der nächsten Releases überarbeitet."),
+        "cop_note": "COP/JAZ vermutlich zu hoch (Geräteregister) – Korrektur folgt",
     },
     "en": {
         "view": "Hot water", "tank": "Tank", "operation": "Operation",
@@ -81,8 +80,7 @@ _TEXT: dict[str, dict[str, str]] = {
         "confirm_sterilize": "Really switch sterilisation?",
         "dash_compare": "Create new for comparison", "dash_promote": "Adopt comparison",
         "dash_promote_confirm": "The comparison dashboard (incl. your changes to it) replaces the Haier dashboard. Continue?",
-        "cop_note": ("Heat from the device register: COP/SCOP are probably far too high "
-                     "(measured: factor 2 to 3.7). Will be revised in one of the next releases."),
+        "cop_note": "COP/SCOP likely too high (device register) – fix planned",
     },
 }
 
@@ -205,7 +203,7 @@ _JS_KPI = (
     "+ k('§heat§ ' + cy, num(y && y.attributes.heat_kwh, 0) + ' kWh') "
     "+ k('§elec§ ' + cy, num(y && y.attributes.electricity_kwh, 0) + ' kWh') "
     "+ (y && y.attributes.heat_source === 'modbus' ? `<div style='grid-column:1/-1;display:flex;gap:6px;"
-    "align-items:flex-start;font-size:11px;line-height:14px;color:var(--warning-color, #ff9800);text-align:left'>"
+    "align-items:flex-start;font-size:11px;line-height:14px;color:var(--warning-color, #ff9800);text-align:left;white-space:normal'>"
     "<ha-icon icon='mdi:alert-outline' style='--mdc-icon-size:14px;flex:0 0 14px'></ha-icon><span>§cop_note§</span></div>` : '') "
     "+ `</div>`; ]]]"
 )
