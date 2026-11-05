@@ -13,6 +13,7 @@ Doku und Commits: **Deutsch**.
 ```
 custom_components/haier_modbus/
   coordinator.py   Block-Read (Reg 1..90) je Intervall + Schreibzugriffe; hält die Controller
+  modbus_client.py Client je Verbindungsart (TCP-Konverter / seriell RTU) + Slave-ID-Parametername
   pv.py            PV-Überschuss-Regelung (nur Coordinator-Modus) – 2 Schichten
   emergency.py     Notfall-Nachheizung ECO→AUTO bei kritischer Wassertemperatur
   legionella.py    Legionellen-Watchdog (periodische thermische Desinfektion)

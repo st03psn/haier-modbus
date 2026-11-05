@@ -25,11 +25,14 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 
 **Benötigte Hardware:**
 - Die native Schnittstelle ist **Modbus RTU über RS485** (9600 Baud, 8N1).
-- Du brauchst einen **Modbus-RTU→TCP-Konverter (Gateway)** im Netzwerk; Home
+- Entweder ein **Modbus-RTU→TCP-Konverter (Gateway)** im Netzwerk; Home
   Assistant verbindet sich mit dessen **IP-Adresse auf Port 502** (nicht mit der
   Wärmepumpe direkt).
+- Oder **direkt per USB/RS485-Adapter** am Home-Assistant-Rechner (ab v1.23.0,
+  Verbindungsart „Seriell“). Pfad möglichst als `/dev/serial/by-id/…` wählen.
+  Denselben Adapter nicht zusätzlich per YAML-`modbus:` ansprechen.
 - Das **RS485-Kabel** von der Wärmepumpe (Klemmen A/B, ggf. GND) zum Konverter
-  muss man sich i. d. R. **selbst konfektionieren**. Die genaue Klemmen-/
+  bzw. Adapter muss man sich i. d. R. **selbst konfektionieren**. Die genaue Klemmen-/
   Anschlussbelegung steht im Handbuch; praktische Hinweise und Erfahrungen im
   Community-Thread:
   [haustechnikdialog.de – Brauchwasserwärmepumpe Haier R290](https://www.haustechnikdialog.de/Forum/t/285616/Brauchwasserwaermepumpe-Haier-R290).
@@ -55,7 +58,7 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 - **Energie & COP:** gerätegemessene Register + **berechneter COP/JAZ** mit frei
   wählbaren Quellen (Modbus-intern oder externer Zähler wie Shelly).
 - **Diagnose:** **Modbus-Status** (`OK` / `Konverter nicht erreichbar` /
-  `Gerät antwortet nicht`) und Binärsensor **Verbindung**; dazu **Uhr-Abweichung** der
+  `Serieller Adapter nicht verfügbar` / `Gerät antwortet nicht`) und Binärsensor **Verbindung**; dazu **Uhr-Abweichung** der
   Geräteuhr gegenüber Home Assistant (Sekunden) und Problem-Sensor **„Geräteuhr weicht
   ab"** ab 5 min. Die Geräteuhr ist per Modbus nur lesbar – stellen lässt sie sich nur am
   Bedienteil.
@@ -68,8 +71,9 @@ Inoffiziell ist sie **erst ab Produktionsdatum ~April 2025** verbaut. So prüfst
 1. HACS → ⋮ → **Benutzerdefinierte Repositorys** → URL dieses Repos, Kategorie **Integration**.
 2. Herunterladen, Home Assistant neu starten.
 3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „Haier".
-4. **Verbindung:** Host = **IP des Modbus-Konverters** (nicht der WP), Port `502`,
-   Slave `1`, Intervall `5`, Modell.
+4. **Verbindung:** Verbindungsart wählen. **TCP:** Host = **IP des
+   Modbus-Konverters** (nicht der WP), Port `502`. **Seriell:** Port des
+   USB/RS485-Adapters, Baudrate `9600`. Dann Slave `1`, Intervall `5`, Modell.
 5. **COP/Energie:** Quellen wählen. 6. **PV (optional):** Sensor + Schwellen.
 
 Alternativ lokal: Ordner `custom_components/haier_modbus/` nach
@@ -302,10 +306,13 @@ supports Modbus (and that's where the **Slave ID**, default `1`, is set).
 
 **Required hardware:**
 - Native interface is **Modbus RTU over RS485** (9600 baud, 8N1).
-- You need a **Modbus-RTU→TCP converter (gateway)** on the network; Home Assistant
+- Either a **Modbus-RTU→TCP converter (gateway)** on the network; Home Assistant
   connects to **its IP on port 502** (not to the heat pump directly).
+- Or **directly via a USB/RS485 adapter** on the Home Assistant machine (since
+  v1.23.0, connection type “Serial”). Prefer a `/dev/serial/by-id/…` path, and do not
+  also use the same adapter in a YAML `modbus:` configuration.
 - The **RS485 cable** from the heat pump (terminals A/B, possibly GND) to the
-  converter usually has to be **made yourself**. See the manual for the exact
+  converter or adapter usually has to be **made yourself**. See the manual for the exact
   terminal layout and this community thread for practical notes:
   [haustechnikdialog.de](https://www.haustechnikdialog.de/Forum/t/285616/Brauchwasserwaermepumpe-Haier-R290).
 - Writable registers only accept FC `0x10` (the integration handles this).
@@ -471,5 +478,6 @@ master). Example automation: [`docs/pv-executor-evcc.md`](docs/pv-executor-evcc.
 
 ### Installation (HACS)
 HACS → custom repository (category *Integration*) → download → restart → add the
-integration → enter the **converter's IP**, port `502`, slave `1`, interval, model.
+integration → choose the connection type: **TCP** (converter's IP, port `502`) or
+**Serial** (USB/RS485 adapter port, 9600 baud) → slave `1`, interval, model.
 Everything is changeable later under *Configure*. License: [MIT](LICENSE).

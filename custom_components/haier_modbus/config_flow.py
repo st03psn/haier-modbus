@@ -1,7 +1,8 @@
 """Config- und Options-Flow – alles über die HA-Oberfläche konfigurierbar.
 
 Einrichtungsassistent in drei Schritten:
-  1. user  – Verbindung + Modell (mit Verbindungstest)
+  1. user  – Verbindungsart wählen, dann ``tcp`` (Konverter) oder ``serial``
+             (USB/RS-485-Adapter, #16) – jeweils mit Verbindungstest + Modell
   2. cop   – COP-/Energiequellen
   3. pv    – optionale PV-Überschuss-Steuerung (Sensor + Schwellen)
 
@@ -11,6 +12,7 @@ inklusive Host/Port/Slave des Modbus-Konverters.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import voluptuous as vol
@@ -19,12 +21,12 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from pymodbus.client import AsyncModbusTcpClient
-
 from .const import (
     BATTERY_SIGN_CHARGE_NEGATIVE,
     BATTERY_SIGN_CHARGE_POSITIVE,
     CONF_AMBIENT_OFFSET,
+    CONF_BAUDRATE,
+    CONF_CONNECTION_TYPE,
     CONF_COP_ELEC_ENTITY,
     CONF_COP_ENABLED,
     CONF_COP_HEAT_ENTITY,
@@ -71,8 +73,13 @@ from .const import (
     CONF_PV_TEMP_HIGH,
     CONF_PV_TEMP_NORMAL,
     CONF_SCAN_INTERVAL,
+    CONF_SERIAL_PORT,
     CONF_SLAVE,
+    CONNECTION_SERIAL,
+    CONNECTION_TCP,
     DEFAULT_AMBIENT_OFFSET,
+    DEFAULT_BAUDRATE,
+    DEFAULT_CONNECTION_TYPE,
     DEFAULT_DASHBOARD_ENABLED,
     DEFAULT_EMERGENCY_CRITICAL,
     DEFAULT_EMERGENCY_MODE,
@@ -122,6 +129,7 @@ from .const import (
     WP_MAX_TEMP,
     localized_title,
 )
+from .modbus_client import connection_settings, create_client, unit_kwargs
 
 _ENERGY_ENTITY = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor", device_class="energy")
@@ -189,6 +197,19 @@ _MODEL = selector.SelectSelector(
     selector.SelectSelectorConfig(
         options=list(MODELS.keys()),
         translation_key="model",
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+_CONNECTION_TYPE = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[CONNECTION_TCP, CONNECTION_SERIAL],
+        translation_key="connection_type",
+        mode=selector.SelectSelectorMode.LIST,
+    )
+)
+_BAUDRATE = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=["9600", "19200", "38400"],
         mode=selector.SelectSelectorMode.DROPDOWN,
     )
 )
@@ -376,17 +397,55 @@ def _pv_coordinator_error(merged: dict[str, Any]) -> str | None:
     return None
 
 
-async def _test_connection(host: str, port: int, slave: int) -> bool:
-    """Kurzer Verbindungstest zum Modbus-Konverter (ein Register lesen)."""
-    client = AsyncModbusTcpClient(host, port=port)
+_BY_ID_DIR = "/dev/serial/by-id"
+
+
+def _list_serial_ports() -> list[str]:
+    """Serielle Ports zur Auswahl (blockierend -> im Executor aufrufen).
+
+    Bevorzugt die stabilen ``/dev/serial/by-id/...``-Pfade (ändern sich nicht,
+    wenn mehrere USB-Adapter umnummeriert werden), danach die übrigen Geräte.
+    Fehlt pyserial oder das Verzeichnis, bleibt die Liste leer – der Pfad kann
+    dann frei eingetragen werden.
+    """
+    ports: list[str] = []
+    try:
+        ports += sorted(
+            os.path.join(_BY_ID_DIR, name) for name in os.listdir(_BY_ID_DIR)
+        )
+    except OSError:
+        pass
+    try:
+        from serial.tools import list_ports  # pyserial
+
+        ports += [p.device for p in list_ports.comports() if p.device not in ports]
+    except Exception:  # noqa: BLE001
+        pass
+    return ports
+
+
+def _serial_port_selector(ports: list[str]):
+    """Auswahlliste mit freier Eingabe; ohne gefundene Ports ein Textfeld."""
+    if not ports:
+        return str
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=ports,
+            custom_value=True,
+            mode=selector.SelectSelectorMode.DROPDOWN,
+        )
+    )
+
+
+async def _test_connection(settings: dict[str, Any], slave: int) -> bool:
+    """Kurzer Verbindungstest (ein Register lesen) – TCP-Konverter oder seriell."""
+    client = create_client(settings)
     try:
         await client.connect()
         if not client.connected:
             return False
-        try:
-            rr = await client.read_holding_registers(READ_START, count=1, device_id=slave)
-        except TypeError:
-            rr = await client.read_holding_registers(READ_START, count=1, slave=slave)
+        method = client.read_holding_registers
+        rr = await method(READ_START, count=1, **unit_kwargs(method, slave))
         return not rr.isError()
     except Exception:  # noqa: BLE001
         return False
@@ -395,7 +454,7 @@ async def _test_connection(host: str, port: int, slave: int) -> bool:
 
 
 class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Einrichtungsassistent: Verbindung -> COP -> PV."""
+    """Einrichtungsassistent: Verbindungsart -> TCP/seriell -> COP -> PV."""
 
     VERSION = 1
 
@@ -407,21 +466,36 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        """Verbindungsart wählen: TCP-Konverter (Bestand) oder seriell (#16)."""
+        if user_input is not None:
+            if user_input.get(CONF_CONNECTION_TYPE) == CONNECTION_SERIAL:
+                return await self.async_step_serial()
+            return await self.async_step_tcp()
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_CONNECTION_TYPE, default=DEFAULT_CONNECTION_TYPE): _CONNECTION_TYPE,
+            }
+        )
+        return self.async_show_form(step_id="user", data_schema=schema)
+
+    async def async_step_tcp(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             await self.async_set_unique_id(
                 f"{user_input[CONF_HOST]}:{user_input.get(CONF_PORT, DEFAULT_PORT)}"
             )
             self._abort_if_unique_id_configured()
+            settings = {CONF_CONNECTION_TYPE: CONNECTION_TCP, **user_input}
             ok = await _test_connection(
-                user_input[CONF_HOST],
-                user_input.get(CONF_PORT, DEFAULT_PORT),
+                connection_settings({}, settings),
                 user_input.get(CONF_SLAVE, DEFAULT_SLAVE),
             )
             if not ok:
                 errors["base"] = "cannot_connect"
             else:
-                self._data = user_input
+                self._data = settings
                 return await self.async_step_cop()
 
         schema = vol.Schema(
@@ -435,7 +509,43 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         if user_input is not None:
             schema = self.add_suggested_values_to_schema(schema, user_input)
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(step_id="tcp", data_schema=schema, errors=errors)
+
+    async def async_step_serial(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Direkt per USB/RS-485-Adapter (Modbus RTU, 8N1)."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            user_input = {**user_input, CONF_BAUDRATE: int(user_input.get(CONF_BAUDRATE, DEFAULT_BAUDRATE))}
+            await self.async_set_unique_id(f"serial:{user_input[CONF_SERIAL_PORT]}")
+            self._abort_if_unique_id_configured()
+            settings = {CONF_CONNECTION_TYPE: CONNECTION_SERIAL, **user_input}
+            ok = await _test_connection(
+                connection_settings({}, settings),
+                user_input.get(CONF_SLAVE, DEFAULT_SLAVE),
+            )
+            if not ok:
+                errors["base"] = "cannot_connect_serial"
+            else:
+                self._data = settings
+                return await self.async_step_cop()
+
+        ports = await self.hass.async_add_executor_job(_list_serial_ports)
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_SERIAL_PORT): _serial_port_selector(ports),
+                vol.Required(CONF_BAUDRATE, default=str(DEFAULT_BAUDRATE)): _BAUDRATE,
+                vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): int,
+                vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+                vol.Required(CONF_MODEL, default=DEFAULT_MODEL_KEY): _MODEL,
+            }
+        )
+        if user_input is not None:
+            schema = self.add_suggested_values_to_schema(
+                schema, {**user_input, CONF_BAUDRATE: str(user_input[CONF_BAUDRATE])}
+            )
+        return self.async_show_form(step_id="serial", data_schema=schema, errors=errors)
 
     async def async_step_cop(
         self, user_input: dict[str, Any] | None = None
@@ -506,11 +616,24 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
-            self._pending = {k: v for k, v in user_input.items() if v not in ("", None)}
-            if self._pending.get(CONF_PV_MODE, DEFAULT_PV_MODE) == PV_MODE_OFF:
-                return self.async_create_entry(title="", data=self._pending)
-            return await self.async_step_pv()
+            pending = {k: v for k, v in user_input.items() if v not in ("", None)}
+            if CONF_BAUDRATE in pending:
+                pending[CONF_BAUDRATE] = int(pending[CONF_BAUDRATE])
+            # Zur gewählten Verbindungsart muss ihr Ziel bekannt sein (Options
+            # oder Setup-Daten) – sonst baut der Coordinator einen leeren Client.
+            known = connection_settings(pending, self.config_entry.data)
+            if pending.get(CONF_CONNECTION_TYPE) == CONNECTION_SERIAL:
+                if not known[CONF_SERIAL_PORT]:
+                    errors["base"] = "serial_port_required"
+            elif not known[CONF_HOST]:
+                errors["base"] = "host_required"
+            if not errors:
+                self._pending = pending
+                if self._pending.get(CONF_PV_MODE, DEFAULT_PV_MODE) == PV_MODE_OFF:
+                    return self.async_create_entry(title="", data=self._pending)
+                return await self.async_step_pv()
 
         o = self.config_entry.options
         d = self.config_entry.data
@@ -518,9 +641,18 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         def cur(key: str, default: Any) -> Any:
             return o.get(key, d.get(key, default))
 
+        ports = await self.hass.async_add_executor_job(_list_serial_ports)
+        cur_port = cur(CONF_SERIAL_PORT, "")
+        if cur_port and cur_port not in ports:
+            ports = [cur_port, *ports]
         connection = {
+            vol.Optional(CONF_CONNECTION_TYPE,
+                         default=cur(CONF_CONNECTION_TYPE, DEFAULT_CONNECTION_TYPE)): _CONNECTION_TYPE,
             vol.Optional(CONF_HOST, default=cur(CONF_HOST, "")): str,
             vol.Optional(CONF_PORT, default=cur(CONF_PORT, DEFAULT_PORT)): int,
+            vol.Optional(CONF_SERIAL_PORT, default=cur_port): _serial_port_selector(ports),
+            vol.Optional(CONF_BAUDRATE,
+                         default=str(cur(CONF_BAUDRATE, DEFAULT_BAUDRATE))): _BAUDRATE,
             vol.Optional(CONF_SLAVE, default=cur(CONF_SLAVE, DEFAULT_SLAVE)): int,
             vol.Optional(CONF_MODEL, default=cur(CONF_MODEL, DEFAULT_MODEL_KEY)): _MODEL,
             vol.Optional(CONF_SCAN_INTERVAL, default=cur(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
@@ -566,8 +698,12 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         schema = schema.extend(_pv_mode_schema(o).schema)
         schema = schema.extend(emergency)
         schema = schema.extend(legionella)
-        schema = self.add_suggested_values_to_schema(schema, o)
-        return self.async_show_form(step_id="init", data_schema=schema)
+        schema = self.add_suggested_values_to_schema(
+            schema, {**o, **({CONF_BAUDRATE: str(o[CONF_BAUDRATE])} if CONF_BAUDRATE in o else {})}
+        )
+        if user_input is not None:
+            schema = self.add_suggested_values_to_schema(schema, user_input)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
 
     async def async_step_pv(
         self, user_input: dict[str, Any] | None = None

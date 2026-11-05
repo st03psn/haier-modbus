@@ -5,6 +5,27 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [1.23.0] - 2026-11-05
+
+**Neu: Direktanschluss per USB/RS485-Adapter (#16).** Neben dem Modbus-RTU→TCP-Konverter
+kann die Wärmepumpe jetzt direkt seriell angebunden werden (Modbus RTU, 8N1).
+- Einrichtung: erst **Verbindungsart** wählen (TCP oder Seriell), dann die passenden
+  Felder. Seriell: Port (Auswahlliste der gefundenen Adapter, bevorzugt
+  `/dev/serial/by-id/…`, freie Eingabe möglich), Baudrate (Standard 9600), Slave-ID.
+- Unter „Konfigurieren“ lässt sich die Verbindungsart später umstellen.
+- Modbus-Status kennt den neuen Zustand **„Serieller Adapter nicht verfügbar“**
+  (Port lässt sich nicht öffnen).
+- Bestehende Einrichtungen bleiben unverändert TCP.
+- Benötigt `pyserial`; das bringt Home Assistant selbst mit, keine zusätzliche Installation.
+
+**Fix: Slave-ID bei älteren pymodbus-Versionen.** Die Integration übergab die Slave-ID als
+`device_id=` und fiel nur bei einem `TypeError` auf `slave=` zurück. Ältere pymodbus-Versionen
+(z. B. 3.6.x) werfen dort aber keinen Fehler, sondern senden stillschweigend an Adresse 0
+(Broadcast). Der Parametername wird jetzt aus der Signatur ermittelt. Mit einem Pseudo-
+Terminal und einem simulierten RTU-Gerät für pymodbus 3.6.9 und 3.16.2 geprüft (Lesen FC 0x03,
+Schreiben FC 0x10, jeweils Adresse 1). Welche pymodbus-Version Home Assistant mitbringt, hängt
+von der HA-Version ab.
+
 ## [1.22.0] - 2026-11-03
 
 **Neu: Abweichung der Geräteuhr (#21).** Die Geräteuhr (Reg 11–17) wurde bisher mitgelesen,
