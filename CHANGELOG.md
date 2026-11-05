@@ -12,6 +12,8 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
   anlegen*, *Vergleichs-Dashboard übernehmen* oder *Haier-Dashboard durch neues Layout
   ersetzen*. Bisher gab es das nur als Buttons auf der Geräteseite, die man dort kaum fand.
   Die Aktion wird nicht gespeichert und lädt die Integration nicht neu.
+- Update „Dashboard“: Gibt es ein selbst angelegtes Vergleichs-Dashboard, übernimmt
+  *Aktualisieren* dieses (samt eigener Änderungen) statt das Layout neu aufzubauen.
 - Update-Text und Benachrichtigung zeigen jetzt diesen Weg; die Benachrichtigung verlinkt
   auf die Integrationsseite. Der Update-Text war außerdem zu lang (HA kürzt auf 255 Zeichen).
 - COP-Hinweis in der Karte „Jahresarbeitszahl & COP“: Text steht jetzt bündig links neben
