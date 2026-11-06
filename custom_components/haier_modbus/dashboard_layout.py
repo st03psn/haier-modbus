@@ -176,7 +176,7 @@ def _tank_js(height_mm: int, coil: bool, image: str, shape: str = "m7") -> str:
     ``coil``: Rohrschlange zeigen (Register-Variante). ``image``: geprüfte URL
     eines eigenen Bildes oder "". ``shape``: Bauform "m7" (Standgerät Ø 600 mm,
     Bedienfeld im Kopf, Sockel, zwei Luftstutzen) oder "m8" (Wandgerät 492 mm breit,
-    Bedienfeld unter der Trennfuge, ohne Sockel, ein Luftstutzen – nach dem Foto im
+    Bedienfeld unter der Trennfuge, ohne Sockel, zwei Luftstutzen – nach dem Foto im
     Haier-Katalog 2024/25; Kopfhöhe ~370 mm geschätzt).
     """
     m8 = shape == "m8"
@@ -253,7 +253,7 @@ def _tank_js(height_mm: int, coil: bool, image: str, shape: str = "m7") -> str:
             f"<rect x='{_f(dx - dw / 2)}' y='{_f(y0 - 4)}' width='{_f(dw)}' height='7' rx='1.5' "
             "fill='#e8eaec' stroke='#a9adb2' stroke-width='.6'/>"
             f"<rect x='{_f(dx - dw / 2 + 2)}' y='{_f(y0 - 4)}' width='{_f(dw - 4)}' height='1.6' rx='.8' fill='#b9bdc2'/>"
-            for dx in ((cx + 18,) if m8 else (cx - 30, cx + 30))
+            for dx in ((cx - 23, cx + 23) if m8 else (cx - 30, cx + 30))
         )
         bottom = y0 + h - foot
         if m8:  # Wandgerät: unten gerundet statt Sockel
