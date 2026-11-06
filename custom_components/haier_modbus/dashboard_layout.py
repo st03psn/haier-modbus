@@ -100,7 +100,9 @@ _JS_MI = (
 # Maße nach Haier-Datenblatt, 1 SVG-Einheit = 5 mm: Ø 600 mm, Höhe je Modell
 # (``const.MODEL_HEIGHT_MM``). Kopfhöhe (~455 mm) aus dem Produktfoto geschätzt.
 # Der Speicher ist ein „Fenster“ mit Schichtung (Warmwasser oben) + Farbskala
-# Blau (kalt, < kritische Schwelle) -> Gelb (warm) -> Rot (heiß, ≥ Soll); die
+# Blau (kalt, < kritische Schwelle) -> Gelb (warm) -> Rot (heiß, ≥ Soll bzw. heißester
+# Messpunkt, falls der über dem Soll liegt – sonst wäre ein Speicher über Soll
+# einheitlich rot, egal wie groß der Unterschied oben/unten ist); die
 # Rohrschlange (Solar-/Kessel-Register, Varianten „…M7C-F9“) leuchtet bei aktiver
 # Quelle (Reg 3 bit2/bit3). Mit eigenem Bild liegen die Werte als Overlay darüber.
 IMAGE_URL_RE = re.compile(r"^(/local/|https?://)[A-Za-z0-9/._~:%?&=+#-]+$")
@@ -111,7 +113,7 @@ _JS_TANK_HEAD = (
     "const water = n('@E:sensor.water_temp@'); let pct = n('@E:sensor.hotwater_pct@'); "
     "if (isNaN(pct)) pct = 0; pct = Math.max(0, Math.min(100, pct)); "
     "const crit = n('@E:number.emergency_critical@'); const soll = n('@E:number.set_temp@'); "
-    "const lo = isNaN(crit) ? 38 : crit; const hi = (isNaN(soll) || soll <= lo) ? lo + 12 : soll; "
+    "const lo = isNaN(crit) ? 38 : crit; const hi0 = (isNaN(soll) || soll <= lo) ? lo + 12 : soll; const hi = Math.max(hi0, isNaN(top) ? hi0 : top, isNaN(bot) ? hi0 : bot); "
     "const mix = (a, b, f) => a.map((v, i) => Math.round(v + (b[i] - v) * f)); "
     "const col = (t) => { if (isNaN(t)) return '#9e9e9e'; "
     "const x = Math.max(0, Math.min(1, (t - lo) / (hi - lo))); "
@@ -196,14 +198,13 @@ def _tank_js(height_mm: int, coil: bool, image: str, shape: str = "m7") -> str:
     hy = ty + th * 0.52  # Heizstab-Höhe (Schnittbild Datenblatt: etwa Speichermitte)
     js = _JS_TANK_HEAD + f"const hx = {'true' if coil else 'false'}; "
     js += (f"const TX = {_f(tx)}, TY = {_f(ty)}, TW = {_f(tw)}, TH = {_f(th)}; "
-           # Übergang Warm-/Kaltzone an der Füllstandsgrenze: je kleiner der Unterschied
-           # oben/unten, desto breiter (sanft, durchmischt); ab ~10 K fast eine Kante.
-           "const dT = isNaN(top) || isNaN(bot) ? 0 : Math.abs(top - bot); const fb = pct / 100; "
-           "const fw = Math.max(0.06, Math.min(0.9, 1 - dT / 11)); "
-           "const s1 = Math.max(0, fb - fw / 2), s2 = Math.min(1, fb + fw / 2); ")
+           # Verlauf über drei Messpunkte: oben -> Wasser (Mitte der Warmzone) -> unten
+           # (an der Füllstandsgrenze). Auch bei 100 % bleibt so der Unterschied sichtbar.
+           "const fb = pct / 100; const mid = isNaN(water) ? (isNaN(top) || isNaN(bot) ? NaN : (top + bot) / 2) : water; "
+           "const s1 = Math.min(0.9, Math.max(0.1, fb * 0.5)), s2 = Math.max(0.12, Math.min(1, fb)); ")
     defs = (
         "<defs><linearGradient id='hwhpG' x1='0' y1='0' x2='0' y2='1'>"
-        "<stop offset='0' stop-color='${col(top)}'/><stop offset='${s1}' stop-color='${col(top)}'/>"
+        "<stop offset='0' stop-color='${col(top)}'/><stop offset='${s1}' stop-color='${col(mid)}'/>"
         "<stop offset='${s2}' stop-color='${col(bot)}'/><stop offset='1' stop-color='${col(bot)}'/>"
         "</linearGradient>"
         "<linearGradient id='hwhpB' x1='0' x2='1'><stop offset='0' stop-color='#c9ccd0'/>"

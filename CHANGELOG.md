@@ -5,6 +5,15 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.2.1] - 2026-11-06
+
+**Speicher-Grafik: aussagekräftigerer Farbverlauf.**
+- Liegt der Speicher über dem Soll, reicht die Farbskala jetzt bis zum heißesten
+  Messpunkt (sonst wie bisher bis zum Soll). Vorher war z. B. 58/49 °C bei Soll 50
+  einheitlich rot; jetzt rot oben, orange unten.
+- Verlauf über drei Messpunkte (oben → Wasser → unten) statt einer Kante an der
+  Füllstandsgrenze. Damit bleibt der Unterschied auch bei 100 % Füllstand sichtbar.
+
 ## [2.2.0] - 2026-11-06
 
 **Haier M8 wählbar (ungetestet, #37).**
