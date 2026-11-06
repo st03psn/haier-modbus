@@ -20,7 +20,7 @@
         "data_description": {
           "host": "Usually the IP of the Modbus RTU-to-TCP converter, not the heat pump itself.",
           "slave": "Modbus address of the heat pump on the RTU bus (default 1).",
-          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil."
+          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil; “…M8-9” = wall unit, Modbus possible according to Haier but untested."
         }
       },
       "serial": {
@@ -36,7 +36,7 @@
           "serial_port": "Prefer the stable path under /dev/serial/by-id/…; /dev/ttyUSB0 can change after a reboot.",
           "baudrate": "9600 according to the manufacturer.",
           "slave": "Modbus address of the heat pump on the RTU bus (default 1).",
-          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil."
+          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil; “…M8-9” = wall unit, Modbus possible according to Haier but untested."
         }
       },
       "cop": {
@@ -198,7 +198,7 @@
           "ambient_offset": "Ambient temperature offset (°C)"
         },
         "data_description": {
-          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil.",
+          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil; “…M8-9” = wall unit, Modbus possible according to Haier but untested.",
           "scan_interval": "Default 5 s. Shorter intervals fill the recorder database faster."
         }
       },
@@ -215,7 +215,7 @@
         },
         "data_description": {
           "serial_port": "Prefer the stable path under /dev/serial/by-id/….",
-          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil.",
+          "model": "Used for the device display and the shape in the dashboard. “…M7C-F9” = variant with solar/boiler coil; “…M8-9” = wall unit, Modbus possible according to Haier but untested.",
           "scan_interval": "Default 5 s. Shorter intervals fill the recorder database faster."
         }
       },
@@ -412,6 +412,9 @@
         "hp250m7_f9": "HP250M7-F9",
         "hp250m7c_f9": "HP250M7C-F9",
         "hp260m7_f9": "HP260M7-F9",
+        "hp80m8_9": "HP80M8-9 (untested)",
+        "hp110m8_9": "HP110M8-9 (untested)",
+        "hp150m8_9": "HP150M8-9 (untested)",
         "other": "Other model"
       }
     },

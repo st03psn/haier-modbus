@@ -108,6 +108,7 @@ from .const import (
     DEFAULT_PV_DEBOUNCE,
     DEFAULT_PV_ESCALATION,
     DEFAULT_PV_HEATER_POWER,
+    heater_power_default,
     DEFAULT_PV_HIGH,
     DEFAULT_PV_HOLD,
     DEFAULT_PV_MAX_STARTS,
@@ -386,7 +387,7 @@ def _pv_detail_schema(o: dict[str, Any], mode: str) -> vol.Schema:
                      default=o.get(CONF_PV_ESCALATION, DEFAULT_PV_ESCALATION)): _ESCALATION,
         vol.Optional(CONF_PV_HIGH, default=o.get(CONF_PV_HIGH, DEFAULT_PV_HIGH)): _WATT,
         vol.Optional(CONF_PV_HEATER_POWER,
-                     default=o.get(CONF_PV_HEATER_POWER, DEFAULT_PV_HEATER_POWER)): _WATT,
+                     default=o.get(CONF_PV_HEATER_POWER, heater_power_default(o.get(CONF_MODEL)))): _WATT,
         vol.Optional(CONF_PV_POWER_ENTITY): _POWER_ENTITY,
         vol.Optional(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
                      default=o.get(CONF_PV_BOOST_ONLY_NEGATIVE_PRICE,
@@ -660,6 +661,9 @@ class HaierModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Schritt 1: PV-Modus wählen. Bei „Aus“ direkt fertig, sonst Detail-Schritt."""
         if user_input is not None:
             self._pv = {k: v for k, v in user_input.items() if v not in ("", None)}
+            # Heizstab-Nennleistung je Modell vorbelegen (M8: 1200 W, sonst 1500 W, #37)
+            self._pv.setdefault(CONF_PV_HEATER_POWER,
+                                heater_power_default(self._data.get(CONF_MODEL)))
             if self._pv.get(CONF_PV_MODE, DEFAULT_PV_MODE) == PV_MODE_OFF:
                 return self._create_entry()
             return await self.async_step_pv_details()
@@ -722,6 +726,14 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         keys = _schema_keys(schema)
         merged = {k: v for k, v in self.config_entry.options.items() if k not in keys}
         merged.update(values)
+        # Modellwechsel: Heizstab-Nennleistung auf die Vorgabe des neuen Modells setzen,
+        # solange sie noch der Vorgabe des alten entspricht (eigene Werte bleiben, #37).
+        old_model = self._cur(CONF_MODEL, DEFAULT_MODEL_KEY)
+        new_model = merged.get(CONF_MODEL, old_model)
+        if new_model != old_model:
+            old_power = self.config_entry.options.get(CONF_PV_HEATER_POWER)
+            if old_power is None or float(old_power) == float(heater_power_default(old_model)):
+                merged[CONF_PV_HEATER_POWER] = heater_power_default(new_model)
         return self.async_create_entry(title="", data=merged)
 
     async def async_step_init(
@@ -942,7 +954,7 @@ class HaierModbusOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
         mode = self._pv_mode
         o = self.config_entry.options
-        schema = _pv_detail_schema(o, mode)
+        schema = _pv_detail_schema({CONF_MODEL: self._cur(CONF_MODEL, DEFAULT_MODEL_KEY), **o}, mode)
         if user_input is not None:
             details = _flatten(user_input)
             merged = {**o, CONF_PV_MODE: mode, **details}

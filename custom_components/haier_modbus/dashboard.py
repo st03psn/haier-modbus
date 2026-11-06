@@ -49,6 +49,7 @@ from .const import (
     PV_MODE_EXECUTOR,
     PV_MODE_OFF,
     localized_title,
+    model_shape,
 )
 from .dashboard_layout import build_layout
 
@@ -91,7 +92,12 @@ def _variant(entry: ConfigEntry | None) -> str | None:
     model = entry.options.get(CONF_MODEL, entry.data.get(CONF_MODEL, DEFAULT_MODEL_KEY))
     height = MODEL_HEIGHT_MM.get(model, MODEL_HEIGHT_MM[DEFAULT_MODEL_KEY])
     coil = _show_coil(entry.options.get(CONF_HEAT_EXCHANGER, DEFAULT_HEAT_EXCHANGER), model)
-    return f"{height}|{int(coil)}|{entry.options.get(CONF_DASHBOARD_IMAGE, '')}"
+    # Bauform nur anhängen, wenn sie vom M7-Standard abweicht: sonst änderte sich der
+    # Schlüssel bestehender Installationen und angepasste Dashboards bekämen grundlos
+    # den Reparatur-Hinweis.
+    shape = model_shape(model)
+    return (f"{height}|{int(coil)}|{entry.options.get(CONF_DASHBOARD_IMAGE, '')}"
+            + ("" if shape == "m7" else f"|{shape}"))
 
 
 def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
@@ -118,6 +124,7 @@ def _build_config(hass: HomeAssistant, entry: ConfigEntry) -> dict:
         height_mm=MODEL_HEIGHT_MM.get(model, MODEL_HEIGHT_MM[DEFAULT_MODEL_KEY]),
         coil=_show_coil(entry.options.get(CONF_HEAT_EXCHANGER, DEFAULT_HEAT_EXCHANGER), model),
         image=entry.options.get(CONF_DASHBOARD_IMAGE, ""),
+        shape=model_shape(model),
     )
 
 

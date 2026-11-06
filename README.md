@@ -3,7 +3,7 @@
 > 🇩🇪 **Deutsch zuerst** · 🇬🇧 [English version below](#-english)
 
 Lokale Home-Assistant-Integration für die Haier Brauchwasserwärmepumpe der
-**M7-Familie** (HP200/HP250 M7, auch mit Wärmetauscher …M7C-F9, R290) über **Modbus RTU** – per TCP-Konverter
+**M7-Familie** (HP200/HP250 M7, auch mit Wärmetauscher …M7C-F9, R290; die M8 HP80/110/150M8-9 ist wählbar, aber ungetestet) über **Modbus RTU** – per TCP-Konverter
 oder direkt seriell (USB/RS-485) – mit
 **Schreibzugriff**, Energie-/COP-Auswertung und mitgeliefertem, editierbarem
 Dashboard. Anzeigename je nach Systemsprache: **„Haier BWWP"** (Deutsch),
@@ -360,7 +360,7 @@ Registerkarte & Herleitung: [`docs/register-map.md`](docs/register-map.md)
 ## 🇬🇧 English
 
 Local Home Assistant integration for the Haier heat-pump water heater of the
-**M7 family** (HP200/HP250 M7, also with heat exchanger …M7C-F9, R290) over **Modbus RTU** – via a TCP converter or
+**M7 family** (HP200/HP250 M7, also with heat exchanger …M7C-F9, R290; the M8 HP80/110/150M8-9 can be selected but is untested) over **Modbus RTU** – via a TCP converter or
 directly serial (USB/RS-485) – with **write
 access**, energy/COP evaluation and a bundled, editable dashboard. Display name
 depends on the system language: **“Haier HWHP”** (English), **“Haier BWWP”** (German).

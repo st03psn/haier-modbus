@@ -20,7 +20,7 @@
         "data_description": {
           "host": "I. d. R. die IP des Modbus-RTU→TCP-Konverters, nicht der Wärmepumpe selbst.",
           "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1).",
-          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register."
+          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register; „…M8-9“ = Wandgerät, Modbus laut Haier möglich, aber ungetestet."
         }
       },
       "serial": {
@@ -36,7 +36,7 @@
           "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen; /dev/ttyUSB0 kann sich nach einem Neustart ändern.",
           "baudrate": "Laut Hersteller 9600.",
           "slave": "Modbus-Adresse der Wärmepumpe am RTU-Bus (Standard 1).",
-          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register."
+          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register; „…M8-9“ = Wandgerät, Modbus laut Haier möglich, aber ungetestet."
         }
       },
       "cop": {
@@ -198,7 +198,7 @@
           "ambient_offset": "Offset Umgebungstemperatur (°C)"
         },
         "data_description": {
-          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register.",
+          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register; „…M8-9“ = Wandgerät, Modbus laut Haier möglich, aber ungetestet.",
           "scan_interval": "Standard 5 s. Kürzere Intervalle füllen die Recorder-Datenbank schneller."
         }
       },
@@ -215,7 +215,7 @@
         },
         "data_description": {
           "serial_port": "Möglichst den stabilen Pfad unter /dev/serial/by-id/… wählen.",
-          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register.",
+          "model": "Für die Geräteanzeige und die Bauform im Dashboard. „…M7C-F9“ = Variante mit Solar-/Kessel-Register; „…M8-9“ = Wandgerät, Modbus laut Haier möglich, aber ungetestet.",
           "scan_interval": "Standard 5 s. Kürzere Intervalle füllen die Recorder-Datenbank schneller."
         }
       },
@@ -412,6 +412,9 @@
         "hp250m7_f9": "HP250M7-F9",
         "hp250m7c_f9": "HP250M7C-F9",
         "hp260m7_f9": "HP260M7-F9",
+        "hp80m8_9": "HP80M8-9 (ungetestet)",
+        "hp110m8_9": "HP110M8-9 (ungetestet)",
+        "hp150m8_9": "HP150M8-9 (ungetestet)",
         "other": "Anderes Modell"
       }
     },

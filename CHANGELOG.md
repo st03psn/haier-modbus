@@ -5,6 +5,19 @@ Nennenswerte Änderungen dieser Integration. Format lose nach
 1. Stelle**, **Feature = 2. Stelle**, **Bugfix/Verfeinerung = 3. Stelle**. Vollständige Notizen auch in den
 [GitHub-Releases](https://github.com/st03psn/haier-modbus/releases).
 
+## [2.2.0] - 2026-11-06
+
+**Haier M8 wählbar (ungetestet, #37).**
+- Neue Modelle **HP80M8-9, HP110M8-9, HP150M8-9** in der Auswahl, gekennzeichnet als
+  „ungetestet“: Haier-Haustechnik nennt die M8 Modbus-fähig und verweist auf dieselbe
+  Modbus-Anleitung wie bei der M7, die Registerkarte ist an einer M8 aber noch nicht
+  geprüft. Rückmeldungen bitte in #37.
+- **Speicher-Grafik** mit eigener M8-Bauform (Wandgerät, 492 mm breit, Bedienfeld unter
+  der Trennfuge, ohne Sockel; Höhe je Modell laut Katalog).
+- **Heizstab-Nennleistung** wird je Modell vorbelegt: M8 1200 W, sonst 1500 W. Beim
+  Modellwechsel zieht sie nach, solange sie noch der Vorgabe des alten Modells entspricht.
+- Für bestehende M7-Installationen ändert sich nichts.
+
 ## [2.1.2] - 2026-11-05
 
 - **Verlauf direkt aus dem Speicher-Bereich:** Ein Tipp auf eine Anzeige öffnet das
