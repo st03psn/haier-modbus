@@ -13,7 +13,7 @@ Vollständig **lokal** über Modbus – kein hOn-Cloud-Konto nötig. Gegenüber 
 Cloud bietet der lokale Weg **Schreibzugriff**, direkten Zugriff auf die
 **Energieregister** und läuft **ohne Internet-/Cloud-Abhängigkeit**.
 
-![Mitgeliefertes Dashboard (Aufnahme aus v2.0.0 – die Speicher-Grafik ist seit v2.1.0 ein Geräteabbild, siehe docs/images/models)](docs/images/dashboard.webp)
+![Mitgeliefertes Dashboard (Aufnahme aus v2.2.0)](docs/images/dashboard.webp)
 
 ---
 
