@@ -170,21 +170,28 @@ def coil_markup(cx: float, rx: float, c_top: float, c_bot: float, x0: float, tur
     return out
 
 
-def _tank_js(height_mm: int, coil: bool, image: str) -> str:
+def _tank_js(height_mm: int, coil: bool, image: str, shape: str = "m7") -> str:
     """JS für das Speicher-Feld bauen (Geometrie statisch, Werte live).
 
     ``coil``: Rohrschlange zeigen (Register-Variante). ``image``: geprüfte URL
-    eines eigenen Bildes oder "".
+    eines eigenen Bildes oder "". ``shape``: Bauform "m7" (Standgerät Ø 600 mm,
+    Bedienfeld im Kopf, Sockel, zwei Luftstutzen) oder "m8" (Wandgerät 492 mm breit,
+    Bedienfeld unter der Trennfuge, ohne Sockel, zwei Luftstutzen – nach dem Foto im
+    Haier-Katalog 2024/25; Kopfhöhe ~370 mm geschätzt).
     """
-    W, x0 = 120.0, 6.0
+    m8 = shape == "m8"
+    W, x0 = (98.4 if m8 else 120.0), 6.0
     h = height_mm / 5
     y0 = 4.0
     vbw, vbh = W + 2 * x0, y0 + h + 1
-    head, foot = 91.0, 9.0
+    head, foot = (74.0, 0.0) if m8 else (91.0, 9.0)
     band = y0 + head
     tx, tw = x0 + 9, W - 18
-    ty = band + 6
-    th = (y0 + h - foot - 3) - ty - 3
+    # M8: Bedienfeld sitzt auf dem Speicherteil -> Fenster beginnt darunter
+    px, pw, ph = (W / 2 + x0 - 12, 24.0, 40.0) if m8 else (W / 2 + x0 - 14, 28.0, 74.0)
+    py = band + 8 if m8 else y0 + 4
+    ty = (py + ph + 6) if m8 else band + 6
+    th = (y0 + h - foot - (10 if m8 else 3)) - ty - 3
     cx = x0 + W / 2
     hy = ty + th * 0.52  # Heizstab-Höhe (Schnittbild Datenblatt: etwa Speichermitte)
     js = _JS_TANK_HEAD + f"const hx = {'true' if coil else 'false'}; "
@@ -246,21 +253,35 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
             f"<rect x='{_f(dx - dw / 2)}' y='{_f(y0 - 4)}' width='{_f(dw)}' height='7' rx='1.5' "
             "fill='#e8eaec' stroke='#a9adb2' stroke-width='.6'/>"
             f"<rect x='{_f(dx - dw / 2 + 2)}' y='{_f(y0 - 4)}' width='{_f(dw - 4)}' height='1.6' rx='.8' fill='#b9bdc2'/>"
-            for dx in (cx - 30, cx + 30)
+            for dx in ((cx - 23, cx + 23) if m8 else (cx - 30, cx + 30))
+        )
+        bottom = y0 + h - foot
+        if m8:  # Wandgerät: unten gerundet statt Sockel
+            shell = (f"<path d='M{_f(x0)},{_f(y0 + 10)} Q{_f(x0)},{_f(y0)} {_f(x0 + 12)},{_f(y0)} H{_f(x0 + W - 12)} "
+                     f"Q{_f(x0 + W)},{_f(y0)} {_f(x0 + W)},{_f(y0 + 10)} V{_f(bottom - 8)} "
+                     f"Q{_f(x0 + W)},{_f(bottom)} {_f(x0 + W - 12)},{_f(bottom)} H{_f(x0 + 12)} "
+                     f"Q{_f(x0)},{_f(bottom)} {_f(x0)},{_f(bottom - 8)} Z' "
+                     "fill='url(#hwhpB)' stroke='#9ea3a9' stroke-width='.7'/>")
+        else:
+            shell = (f"<rect x='{_f(x0 + 2)}' y='{_f(bottom)}' width='{_f(W - 4)}' height='{_f(foot)}' rx='3' fill='url(#hwhpD)'/>"
+                     f"<path d='M{_f(x0)},{_f(y0 + 8)} Q{_f(x0)},{_f(y0)} {_f(x0 + 10)},{_f(y0)} H{_f(x0 + W - 10)} "
+                     f"Q{_f(x0 + W)},{_f(y0)} {_f(x0 + W)},{_f(y0 + 8)} V{_f(bottom)} H{_f(x0)} Z' "
+                     "fill='url(#hwhpB)' stroke='#9ea3a9' stroke-width='.7'/>")
+        sc_w, sc_h = (16, 10) if m8 else (20, 13)
+        sc_y = py + (7 if m8 else 20)
+        kn_y = py + (29 if m8 else 48)
+        panel = (
+            # Bedienfeld (etwas größer als maßstäblich, damit das Display erkennbar bleibt)
+            f"<rect x='{_f(px)}' y='{_f(py)}' width='{_f(pw)}' height='{_f(ph)}' rx='2' fill='url(#hwhpD)'/>"
+            f"<rect x='{_f(cx - sc_w / 2)}' y='{_f(sc_y)}' width='{sc_w}' height='{sc_h}' rx='1.2' "
+            "fill='${water >= lo || isNaN(water) ? \"#cfe3f2\" : \"#ffcc80\"}'/>"
+            f"<circle cx='{_f(cx)}' cy='{_f(kn_y)}' r='{3.2 if m8 else 4}' fill='none' stroke='#8a9097' stroke-width='.9'/>"
         )
         body = (
-            ducts
-            + f"<rect x='{_f(x0 + 2)}' y='{_f(y0 + h - foot)}' width='{_f(W - 4)}' height='{_f(foot)}' rx='3' fill='url(#hwhpD)'/>"
-            f"<path d='M{_f(x0)},{_f(y0 + 8)} Q{_f(x0)},{_f(y0)} {_f(x0 + 10)},{_f(y0)} H{_f(x0 + W - 10)} "
-            f"Q{_f(x0 + W)},{_f(y0)} {_f(x0 + W)},{_f(y0 + 8)} V{_f(y0 + h - foot)} H{_f(x0)} Z' "
-            "fill='url(#hwhpB)' stroke='#9ea3a9' stroke-width='.7'/>"
-            f"<rect x='{_f(x0)}' y='{_f(band)}' width='{_f(W)}' height='2.6' fill='url(#hwhpD)'/>"
-            # Bedienfeld (etwas größer als maßstäblich, damit das Display erkennbar bleibt)
-            f"<rect x='{_f(cx - 14)}' y='{_f(y0 + 4)}' width='28' height='74' rx='2' fill='url(#hwhpD)'/>"
-            f"<rect x='{_f(cx - 10)}' y='{_f(y0 + 24)}' width='20' height='13' rx='1.2' "
-            "fill='${water >= lo || isNaN(water) ? \"#cfe3f2\" : \"#ffcc80\"}'/>"
-            f"<circle cx='{_f(cx)}' cy='{_f(y0 + 52)}' r='4' fill='none' stroke='#8a9097' stroke-width='.9'/>"
-            f"<rect x='{_f(x0 - 2.5)}' y='{_f(band - 3)}' width='4' height='3' rx='.6' fill='#2a2d31'/>"
+            ducts + shell
+            + f"<rect x='{_f(x0)}' y='{_f(band)}' width='{_f(W)}' height='2.6' fill='url(#hwhpD)'/>"
+            + panel
+            + f"<rect x='{_f(x0 - 2.5)}' y='{_f(band - 3)}' width='4' height='3' rx='.6' fill='#2a2d31'/>"
             f"<rect x='{_f(tx)}' y='{_f(ty)}' width='{_f(tw)}' height='{_f(th)}' rx='10' fill='#dfe3e7' opacity='.55'/>"
             "<g clip-path='url(#hwhpC)'>"
             # Schichtung: Warmwasser liegt oben (Füllstand = Anteil von oben), darunter kalt
@@ -287,7 +308,7 @@ def _tank_js(height_mm: int, coil: bool, image: str) -> str:
     # SVG-IDs je Variante eindeutig machen: mehrere Speicher-Karten auf einer Seite
     # (z. B. eigene Vergleichs-Ansichten) dürfen sich Verlauf/Clip-Pfad nicht teilen,
     # falls ein Browser die IDs nicht je Shadow-Root trennt.
-    suffix = f"{int(height_mm)}{'c' if coil else ''}{'i' if image else ''}"
+    suffix = f"{int(height_mm)}{shape}{'c' if coil else ''}{'i' if image else ''}"
     for ident in ("hwhpG", "hwhpB", "hwhpD", "hwhpL", "hwhpC"):
         js = js.replace(ident, ident + suffix)
     # Der Verlauf hängt von Live-Werten ab: zusätzlich je Darstellung eindeutig, sonst
@@ -667,6 +688,7 @@ def build_layout(
     height_mm: int = 1694,
     coil: bool = False,
     image: str = "",
+    shape: str = "m7",
 ) -> dict:
     """Fertige Dashboard-Konfiguration bauen.
 
@@ -679,7 +701,7 @@ def build_layout(
     image = image.strip() if isinstance(image, str) else ""
     if image and not IMAGE_URL_RE.match(image):
         image = ""
-    tank_js = _tank_js(int(height_mm), bool(coil), image)
+    tank_js = _tank_js(int(height_mm), bool(coil), image, shape)
     raw = json.dumps(_template(with_pv, executor, settings_path, tank_js), ensure_ascii=False)
     raw = _ENTITY_TOKEN.sub(lambda m: resolve(m.group(1), m.group(2)) or "", raw)
     raw = _TEXT_TOKEN.sub(lambda m: text[m.group(1)], raw)

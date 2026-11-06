@@ -360,14 +360,40 @@ MODEL_HEIGHT_MM: Final = {
     "hp250m7_f9": 1989,
     "hp250m7c_f9": 1989,
     "hp260m7_f9": 1989,
+    # M8 (#37, ungetestet): Haier-Katalog 2024/25, Produktmaße 492 × 537 × H
+    "hp80m8_9": 1170,
+    "hp110m8_9": 1320,
+    "hp150m8_9": 1680,
     "other": 1694,
 }
+# Bauform der Zeichnung: "m7" (Standgerät Ø 600, Bedienfeld im Kopf, Sockel) oder
+# "m8" (Wandgerät 492 mm breit, Bedienfeld unter der Trennfuge, ohne Sockel).
+MODELS_M8: Final = frozenset({"hp80m8_9", "hp110m8_9", "hp150m8_9"})
+# M8: laut Haier-Haustechnik-FAQ Modbus-fähig, Registerkarte aber nicht verifiziert,
+# und die M8-Anleitung (11/2025) nennt keinen Modbus-Anschluss -> „ungetestet“ (#37).
+MODELS_UNTESTED: Final = MODELS_M8
+# Heizstab-Nennleistung laut Datenblatt, wenn abweichend von DEFAULT_PV_HEATER_POWER
+# (M7: 1500 W). Nur Vorgabe – der Nutzer kann ``pv_heater_power`` frei setzen.
+MODEL_HEATER_POWER: Final = {key: 1200 for key in MODELS_M8}
+
+
+def model_shape(model: str | None) -> str:
+    """Bauform der Speicher-Grafik für einen Modell-Schlüssel."""
+    return "m8" if model in MODELS_M8 else "m7"
+
+
+def heater_power_default(model: str | None) -> int:
+    """Vorgabe der Heizstab-Nennleistung (W) je Modell."""
+    return MODEL_HEATER_POWER.get(model or "", DEFAULT_PV_HEATER_POWER)
+
+
 # Modelle mit Solar-/Kessel-Register (Haier: Suffix „C“, Datenblatt 09/2025).
 # Bewusst über das Modell und nicht über die Solar-/Kessel-Sensoren: die sind bei
 # Bestandsinstallationen teils aktiviert, ohne dass ein Register verbaut ist.
 MODELS_WITH_COIL: Final = frozenset({"hp200m7c_f9", "hp250m7c_f9"})
 
-# Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte).
+# Bekannte Modelle der Haier-BWWP-M7-Familie (gleiche Modbus-Registerkarte), dazu die
+# M8 als „ungetestet“ (Haier-Haustechnik nennt dieselbe Modbus-Anleitung, s. #37).
 # Schlüssel slug-konform (hassfest-Anforderung an Selector-Keys) -> Anzeigename.
 # Tankvolumen wird bewusst nicht erfasst (am Modell erkennbar). "other" = generisch.
 MODELS: Final = {
@@ -377,6 +403,9 @@ MODELS: Final = {
     "hp250m7_f9": "HP250M7-F9",
     "hp250m7c_f9": "HP250M7C-F9",
     "hp260m7_f9": "HP260M7-F9",
+    "hp80m8_9": "HP80M8-9",
+    "hp110m8_9": "HP110M8-9",
+    "hp150m8_9": "HP150M8-9",
     "other": "Haier BWWP",
 }
 DEFAULT_MODEL_KEY: Final = "hp200m7_f9"

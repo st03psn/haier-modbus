@@ -28,6 +28,25 @@ Luftkanal Ø 160 mm, Wasseranschlüsse Rp 3/4.
   Unterlagen nicht sicher zu erkennen. Die Anleitung zeigt für die C-Varianten aber eigene
   Anschlüsse für Solar-/Kesselkreis und Fühler (siehe unten).
 
+## M8 (seit 2.2.0 wählbar, ungetestet – #37)
+
+| Modell | Inhalt | Maße (B × T × H) | Heizstab | WP nominal / max. |
+|---|---|---|---|---|
+| HP80M8-9 | 82 L | 492 × 537 × 1170 mm | 1200 W | 250 / 370 W |
+| HP110M8-9 | 102 L | 492 × 537 × 1320 mm | 1200 W | 250 / 370 W |
+| HP150M8-9 | 149 L | 492 × 537 × 1680 mm | 1200 W | 250 / 370 W |
+
+Quelle: Haier „Heating Solutions EU Catalogue 2024/25“. Einstellbereich mit Heizstab
+35–75 °C, Wärmepumpe allein laut Lineup-Tabelle bis 65 °C (wie M7), kein Register.
+Wandgerät; Bedienfeld unter der Trennfuge.
+
+- **Modbus:** Die [FAQ von Haier-Haustechnik](https://haier-haustechnik.de/Allgemein/FAQ-s/)
+  nennt M7 **und** M8 Modbus-fähig und verlinkt für beide dieselbe Modbus-Anleitung (das
+  PDF in `docs/`). Die M8-Anleitung (11/2025) zeigt aber **keinen** Modbus-Anschluss.
+  Registerkarte deshalb **nicht verifiziert**.
+- **In der Integration:** Modell „HP…M8-9 (ungetestet)“; eigene Bauform in der
+  Speicher-Grafik; Heizstab-Vorgabe 1200 W (`const.MODEL_HEATER_POWER`, nur Vorgabe).
+
 ## Woher das Gerät von Solar/Kessel weiß (Reg 3 bit2/bit3)
 
 Laut Haier-Betriebs- und Montageanleitung (EN, Kapitel „Connection to solar collectors“,
